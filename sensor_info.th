@@ -1,0 +1,22 @@
+#ifndef __SENSOR_INFO_FILE_INCLUDED__
+#define __SENSOR_INFO_FILE_INCLUDED__
+
+
+#include "global.th"
+#include "hal.th"
+
+
+#define SENSOR_INFO_FILENAME	"sensorinfo"
+#define MAX_INFO_LENGTH			64
+
+
+#if 0
+extern string sensor_info_get(iotype, byte, void *);
+extern void sensor_info_set(iotype, byte, void *, string&);
+#else
+extern string sensor_info_get(sensor_id);
+extern void sensor_info_set(sensor_id, string&);
+#endif
+
+
+#endif

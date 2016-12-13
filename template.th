@@ -1,0 +1,38 @@
+#ifndef __SIMPLE_TEMPLATE_EXPANDER_INCLUDED__
+#define __SIMPLE_TEMPLATE_EXPANDER_INCLUDED__
+
+
+#include "global.th"
+#include "sensors_db.th"
+
+
+#define TEMPLATE_FILE 		"templates"
+#define TEMPLATE_FILE_NEW 	"templates.new"
+#define MAX_MACRO_LEN 		16
+
+
+enum template_target {
+	TARGET_SOCK,
+	TARGET_SER_PORT
+};
+
+
+enum template_action {
+	TA_UPDATE,
+	TA_DELETE
+};
+
+
+extern string xlat(char *);
+extern bool template_replace(word, string, string, template_action);
+extern bool template_open(bool);
+extern string template_send_body();
+extern dword template_find(word);
+extern word template_last_id();
+extern string template_title();
+extern string template_load();
+extern string template_expand(string&, sensor *);
+extern word template_process(byte, sensor *, template_target);
+
+
+#endif

@@ -1,0 +1,56 @@
+#include "LedBar.th"
+
+
+
+void
+led_bar_init()
+{
+	io.num = PL_IO_NUM_46; // RESET GPIO line
+	io.enabled = YES; 
+	io.num = PL_IO_NUM_47; // CLOCK GPIO line
+	io.enabled = YES;
+	io.num = PL_IO_NUM_48; // Data
+	io.enabled = YES;
+	
+	led_bar_set_pattern(0);
+}
+
+
+/*! \brief
+ * \param Only low 5 bits matters
+ */
+void
+led_bar_set_pattern(byte pattern)
+{ 
+	byte mask;
+ 
+	// make 5 clocks
+	io.num = PL_IO_NUM_47;
+	for(mask=0x01; mask != 0x20; mask <<= 1) {
+		io.lineset(PL_IO_NUM_48, (pattern & mask) == mask? 0: 1);
+        io.state = LOW;
+        io.state = HIGH;
+	}
+ }
+ 
+ 
+void
+led_bar_set_strength(byte str)
+{
+	byte res = 0;
+	
+	// Don't see a reason to code value->bits table for only five values.
+	
+	if(str >= 1)
+		res |= 0x01;
+	if(str >= 51)
+		res |= 0x02;
+	if(str >= 102)
+		res |= 0x04;
+	if(str >= 153)
+		res |= 0x08;
+	if(str >= 204)
+		res |= 0x10;
+		
+	led_bar_set_pattern(res);
+}

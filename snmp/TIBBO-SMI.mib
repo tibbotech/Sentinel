@@ -1,0 +1,26 @@
+TIBBO-SMI DEFINITIONS ::= BEGIN
+
+IMPORTS
+        MODULE-IDENTITY,
+        OBJECT-IDENTITY,
+        enterprises
+            FROM SNMPv2-SMI;
+
+--
+-- IANA assigned number for Tibbo Technology, Inc. ins 20738
+--
+tibbo MODULE-IDENTITY
+    LAST-UPDATED    "201601060000Z"
+    ORGANIZATION    "Tibbo Technology, Inc."
+    CONTACT-INFO    ""
+    DESCRIPTION     ""
+        ::= { enterprises 20738 }
+    
+sentinel OBJECT-IDENTITY
+        STATUS current
+        DESCRIPTION
+            "Tibbo Sentinel"
+        ::= { tibbo 1 }
+        
+END
+            

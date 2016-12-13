@@ -1,0 +1,86 @@
+#include "global.th"
+
+
+bool
+parse_bool(string& s)
+{
+	if("true" == s)
+		return true;
+	return (bool)!!val(s);
+}
+
+
+/**
+ * Return true is s is valid IP address
+ */
+bool
+is_valid_ip(string& s)
+{
+	string<16> tmp = ddval(s);
+	string<16> ttt;
+	
+	if(4 != len(tmp))
+		return false;
+	
+	ttt = ddstr(tmp);
+	return ttt == s;
+}
+
+
+/**
+ * Return true if s is valid IP:PORT combination
+ */
+bool
+is_valid_ip_port(string& s)
+{
+	int p;
+	unsigned short pn;
+	string<16> ip, port;
+	
+	p = instr(1, s, ":", 1);
+	if(0 == p)
+		return is_valid_ip(s);
+
+	ip = left(s, p-1);
+	port = right(s, len(s)-p);
+	
+	pn = val(port);
+	return (ddstr(ddval(ip)) == ip) && (str(pn) == port);
+}
+
+
+bool
+is_valid_number(string& s)
+{
+	long l = lval(s);
+	string t = lstri(l);
+	return t == s;
+}
+
+
+/**
+ * [A-Za-z0-9\-_\.]+
+ */
+bool
+is_valid_hostname(string& s)
+{
+	int i, l;
+	char c;
+	
+	l = len(s);
+	for(i=0; i<l; ++i) {
+		c = s[i];
+		if(c >= 'a' && c <= 'z')
+			continue;
+		if(c >= 'A' && c <= 'z')
+			continue;
+		if(c >= '0' && c <= '9')
+			continue;
+		if(c == '-' || c == '_' || c == '.')
+			continue;
+		return false;
+	}
+	
+	return true;
+}
+

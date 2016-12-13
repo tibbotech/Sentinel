@@ -1,0 +1,135 @@
+<?
+
+#include "global.th"
+#include "hal.th"
+#include "utils.th"
+#include "modem.th"
+
+
+extern byte gprs_running;
+extern byte gprs_linkup_in_prog;
+
+string temp;
+bool gprs_connected = 0;
+bool gprs = is_tibbit_installed(TB_47);
+bool gen = !!val(stg_get("GEN", 0));
+bool wifi = wifi_card_installed();
+byte en = val(stg_get("ETH", 0));
+
+if(en > 2)
+	en = 0;
+
+if(gprs && gen)
+	gprs_connected = modem_session_established();
+
+
+?>
+<!DOCTYPE html>
+<html>
+<head>
+<title>Network Settings</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link rel="stylesheet" type="text/css" href="style.css" />
+<link rel="stylesheet" type="text/css" href="swal2.css" /> 
+<script type="text/javascript" src="jq.js"></script>
+<script type="text/javascript" src="jqbm.js"></script>
+<script type="text/javascript" src="swal2.js"></script>
+<script type="text/javascript" src="ma.js"></script>
+</head>
+<body>
+<div class="body_outer">
+    <div class="heading">
+        <div class="main_heading">Network Settings</div>
+        <div class="main_heading_descr">This page contains various settings that control network behaviour of device</div>
+        <div class="back"><a href="index.html">&laquo;&nbsp;Return to main page</a></div>
+    </div>
+    <div class="body">
+		<form action="" method="POST">
+		<input type="hidden" name="src" class="cff" value="net" />
+		<div class="msg" id="msg">Configuration saved<div class="cb"><a id="close" href="#"><img src="del.png"></a></div></div>
+		
+		<?
+			if(gprs) {
+		?>
+		<fieldset>
+			<legend><input type="checkbox" name="gen" value="gen" class="cff" <? echo(html_checked(gen)); ?>><label for="gen">Enable GPRS interface</label></legend>
+			<div class="formrow">
+				<label class="f_lbl" for="din"><div class="l_win">Number to dial</div></label><input class="cff" name="din" id="din" value="<? echo_setting("GNTD"); ?>">
+			</div>
+			<div class="formrow">
+				<label class="f_lbl" for="apn"><div class="l_win">APN</div></label><input class="cff" name="apn" id="apn" value="<? echo_setting("GAPN"); ?>">
+			</div>
+			<div class="formrow">
+				<label class="f_lbl" for="gu"><div class="l_win">User name</div></label><input class="cff" name="gu" id="gu" value="<? echo_setting("GUSR"); ?>">
+			</div>
+			<div class="formrow">
+				<label class="f_lbl" for="gp"><div class="l_win">Password</div></label><input class="cff" name="gp" id="gp" value="<? echo_setting("GPWD"); ?>">
+			</div>
+			<div class="formrow">
+				<label class="f_lbl" for="gp"><div class="l_win">Status</div></label><div style="display:inline-block; font-weight:bold;"><?
+					if(!gprs_running) {
+						echo("Session not started");
+					} else {
+						if(gprs_linkup_in_prog)
+							echo("Connecting...");
+						else if(gprs_connected)
+							echo("CONNECTED");
+					}
+				?></div>
+			</div>
+		</fieldset>
+		<?
+			} // if(gprs)
+		?>
+		<fieldset>
+		<legend>Ethernet <input type="radio" class="cff" id="m0" name="eth" value="off"<?
+			echo(html_checked(0 == en));
+		?>><label for="m0">Off</label><input type="radio" class="cff" id="m1" name="eth" value="manual"<?
+			echo(html_checked(1 == en));
+		?>><label for="m1">Manual settings</label><input type="radio" class="cff" id="m2" name="eth" value="dhcp"<? 
+			echo(html_checked(2 == en));
+		?>><label for="m2">DHCP</label></legend>
+		
+		<div class="formrow">
+			<label class="f_lbl" for="net_manual"><div class="l_win">IP address</div></label><input maxlength="16" class="cff" id="net_ip" name="ip" value="<?
+				echo_setting("IP");
+			?>"/> 
+		</div> 
+		<div class="formrow">
+			<label class="f_lbl" for="net_mask"><div class="l_win">Netmask</div></label><input maxlength="16" class="cff" id="net_mask" name="msk" value="<?
+				echo_setting("NM");
+			?>"/>
+		</div>
+		<div class="formrow">
+			<label class="f_lbl" for="net_gw"><div class="l_win">Gateway</div></label><input maxlength="16" class="cff" id="net_gw" name="gw"  value="<?
+				echo_setting("GW");
+			?>"/>
+		</div>
+		<div class="formrow">
+			<label class="f_lbl" for="net_hn"><div class="l_win">Host name</div></label><input id="net_hn" class="cff" name="hn" value="<?
+				echo_setting("HN");
+			?>"/>
+		</div>
+		<div class="formrow">  
+			<label class="f_lbl" for="net_dns"><div class="l_win">DNS server</div></label><input maxlength="15" class="cff" id="net_dns" name="dns" value="<?
+				echo_setting("DNS");
+			?>"/>
+		</div>
+		<div class="formrow">
+			<label class="f_lbl" for="net_dns"><div class="l_win">Enable HTTP server on port</div></label><input type="number" class="cff" style="width:90px" value="80" size="3" min="1" max="65535" maxlength="3" id="net_http" name="http" />
+		</div>
+		</fieldset>
+		<div class="formrow">
+		<br/>
+		<input type="submit" id="save" value="Save">
+		<input type="button" id="rest" value="Restart">
+		<br/>
+		<div class="note"><br/>Please note, that if you has changed any setting after restart you must reconnect to the web-interface</div>
+		</div>
+		</form>
+	</div>
+</div>
+
+</body>
+</html>
+<? sock.send(); ?>

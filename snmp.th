@@ -1,0 +1,155 @@
+#ifndef __SNMP_PROTOCOL_HEADER_INCLUDED__
+#define __SNMP_PROTOCOL_HEADER_INCLUDED__
+
+
+#include "global.th"
+#include "sensors_db.th"
+
+
+enum SNMP_Trap {
+	coldStart = 0,
+	warmStart = 1,
+	linkDown = 2,
+	linkUp = 3,
+	authenticationFailure = 4,
+	egpNeighborLoss = 5,
+	enterpriseSpecific = 6
+};
+
+
+enum SNMP_Version {
+	SNMPv1 = 0,
+	SNMPv2c,
+	SNMPv3
+};
+
+
+enum SNMP_PDU_type {
+	SNMP_GET = 0xA0,
+	SNMP_GET_NEXT,
+	SNMP_RESPONSE,
+	SNMP_SET,
+	SNMP_OLD_TRAP,
+	SNMP_GET_BULK,
+	SNMP_INFORM,
+	SNMP_TRAPv2,
+	SNMP_REPORT
+};
+
+/*! \brief SNMP error codes
+ */
+enum SNMP_Error {
+	SNMP_ERR_NONE = 0,
+	SNMP_ERR_TOOBIG,				//!< The size of the Response-PDU would be too large to transport
+	SNMP_ERR_NO_SUCH_NAME,			//!< The name of a requested object was not found
+	SNMP_ERR_BAD_VALUE, 			//!< A value in the request didn't match the structure that the recipient of the request had for the object. For example, an object in the request was specified with an incorrect length or type
+	SNMP_ERR_READ_ONLY,				//!< An attempt was made to set a variable that has an Access value indicating that it is read-only
+	SNMP_ERR_GENERIC,				//!< An error occurred other than one indicated by a more specific error code in this table
+	SNMP_ERR_NO_ACCESS,				//!< Access was denied to the object for security reasons
+	SNMP_ERR_WRONG_TYPE,			//!< The object type in a variable binding is incorrect for the object
+	SNMP_ERR_WRONG_LENGTH,			//!< A variable binding specifies a length incorrect for the object
+	SNMP_ERR_WRONG_ENCODING,		//!< A variable binding specifies an encoding incorrect for the object
+	SNMP_ERR_WRONG_VALUE,			//!< The value given in a variable binding is not possible for the object
+	SNMP_ERR_NO_CREATION,			//!< A specified variable does not exist and cannot be created
+	SNMP_ERR_INCONSISTENT_VALUE,	//!< A variable binding specifies a value that could be held by the variable but cannot be assigned to it at this time
+	SNMP_ERR_RESOURCE_UNAVAILABLE, 	//!< An attempt to set a variable required a resource that is not available
+	SNMP_ERR_COMMIT_FAILED,			//!< An attempt to set a particular variable failed
+	SNMP_ERR_UNDO_FAILED,			//!< An attempt to set a particular variable as part of a group of variables failed, and the attempt to then undo the setting of other variables was not successful
+	SNMP_ERR_AUTHORIZATION,			//!< A problem occurred in authorization
+	SNMP_ERR_NOT_WRITABLE,			//!< The variable cannot be written or created
+	SNMP_ERR_INCONSISTENT_NAME,		//!< The name in a variable binding specifies a variable that does not exist
+/* Our extensions */
+	SNMP_ERR_WRONG_FORMAT = 1000
+};
+
+
+typedef byte *pbyte;
+
+
+#define MAX_OID_LENGTH			32
+
+
+struct snmp_oid {
+	byte size;
+	word data[MAX_OID_LENGTH];
+};
+
+
+#define MAX_REPLY_SIZE			(256*6)
+
+
+/*! \brief PDU parsing struct
+ */
+struct snmp_pdu {
+	int version;
+	string<32> community;
+	unsigned long seq;
+	int errno;
+	int erridx;
+	byte pdu_type;
+	word pdu_length;
+	string request;
+	pbyte p;
+	byte reply[MAX_REPLY_SIZE]; 		// Maximum reply length is 1500 bytes
+	pbyte w;
+};
+
+
+#define SNMP_PORT				161
+#define SNMP_TRAP_PORT			162
+
+
+#define SDT_INTEGER				0x02
+#define SDT_OCTET_STRING		0x04
+#define	SDT_NULL				0x05
+#define SDT_OID					0x06
+#define SDT_SEQUENCE			0x30
+#define SDT_IP_STRING			0x40
+#define SDT_TIMESTAMP			0x43
+#define SDT_GET_REQUEST_PDU		0xA0
+#define SDT_GET_RESPONSE_PDU	0xA2
+#define SDT_SET_REQUEST_PDU		0xA3
+
+
+extern bool snmp_init();
+extern bool snmp_process_packet();
+
+
+/* from SNMP_UTILS.TC */
+
+extern long _is_chunk(pbyte&, byte);
+
+/* Field decoders */
+extern long _decode_length(pbyte&);
+extern long _decode_int(pbyte&, long);
+extern unsigned long _decode_uint(pbyte&, long);
+extern string _decode_str(pbyte&, long);
+extern bool _decode_oid(pbyte&, snmp_oid *);
+
+/* Field size calculation */
+extern int num_sz(long);
+extern int len_sz(long);
+extern int int_sz(long);
+extern int str_sz(string&);
+extern int ip_sz(string&);
+extern int oid_sz(snmp_oid *);
+//extern int ts_sz(unsigned long);
+
+/* Field encoders */
+extern void _encode_length(pbyte&, long);
+extern void _encode_int(pbyte&, long);
+extern void _encode_long(pbyte&, long);
+extern void _encode_uint(pbyte&, unsigned long);
+extern void _encode_str(pbyte&, string&);
+extern void _encode_ip(pbyte&, string&);
+extern void _encode_oid(pbyte&, snmp_oid *);
+extern void _encode_null(pbyte&);
+extern void _encode_ts(pbyte&, unsigned long);
+
+/* from SNMP_VARS.TC */
+extern bool snmp_oid_handler(snmp_pdu *, snmp_oid *);
+extern void snmp_send_trap(word, sensor *);
+
+extern snmp_oid _snmp_tibbo_prefix;
+
+#endif

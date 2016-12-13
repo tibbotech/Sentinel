@@ -1,0 +1,12 @@
+#ifndef __DATA_VALIDATORS_INCLUDED__
+#define __DATA_VALIDATORS_INCLUDED__
+
+#include "global.th"
+
+extern bool parse_bool(string&);
+extern bool is_valid_ip(string&);
+extern bool is_valid_ip_port(string&);
+extern bool is_valid_number(string&);
+
+#endif
+ 

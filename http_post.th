@@ -1,0 +1,19 @@
+#ifndef __HTTP_POST_PARSER_INCLUDED__
+#define __HTTP_POST_PARSER_INCLUDED__
+
+
+#include "global.th"
+
+
+enum http_method {
+	HTTP_GET,
+	HTTP_POST
+};
+
+
+//extern http_method _http_method;
+extern void http_post_init();
+extern void http_post_parse();
+extern void http_post_parse_buf();
+
+#endif

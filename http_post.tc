@@ -1,0 +1,232 @@
+#include "global.th"
+#include "http_post.th"
+
+
+/* Do not expose these states to outer world. 
+ * This is an internal stuff
+ */
+enum http_post_state {
+	HPS_IDLE,
+	HPS_DELIMITER,
+	HPS_FIELDATTRS,
+	HPS_VALUE
+};
+
+
+extern void process_post_variable(string&, string&, string);
+extern void post_finished(void);
+
+
+/* _http_post_xxx used in POST data parsing subroutine 
+ */
+static http_post_state _http_post_state;
+static string _http_value;
+static string<64> _http_post_delim;
+static string _http_post_buf;
+static string<32> _http_var_name;
+static string<32> _http_var_ct;
+
+
+/* Reset HTTP POST parser to default state
+ */
+void
+http_post_init()
+{
+//	_http_method = HTTP_GET;
+	_http_post_delim = "";
+	_http_post_buf = "";
+	_http_value = "";
+	_http_post_state = HPS_IDLE;
+	_http_var_name = "";
+	_http_var_ct = "";
+}
+
+
+static string<20> _hdr_cd = "Content-Disposition:";
+static string<17> _hdr_ce = "Content-Encoding:";
+static string<16> _hdr_ct = "Content-Type:";
+static string<9> _hdr_fd = "form-data";
+static string<5> _hdr_name = "name=";
+static string<9> _hdr_filename = "filename=";
+static string<5> _ct_im = "image";
+static string<10> _ct_app = "application";
+static string<12> _app_os = "octet-stream";
+static string<2> _crlf = "\r\n";
+static string<4> _eof = "--\r\n";
+
+
+static bool
+_startswith(string& source, string& pattern)
+{
+	return left(source, len(pattern)) == pattern;
+}
+
+
+static byte
+_scanfor(string& buf, string& pt, byte *bl)
+{
+	byte flen, plen;
+	byte blen, bpos;
+	byte p, i;
+	byte cl;
+	
+	flen = len(buf); 
+	plen = len(pt);
+	
+	blen = 0;
+	bpos = 0;
+	
+	for(p=0; p < flen; ++p) {
+		if((flen - p) < bpos) // We can't find bestest pattern match than we already have
+			break;
+			
+		for(cl=0, i=0; i < plen; ++i) {
+			if(flen <= (p+i))
+				break; // Disallow going past the end of the source buffer
+				
+			if(buf[p+i] != pt[i])
+				break; // End of match detected 
+			
+			++cl;
+		}
+
+		if(cl > blen) {
+			blen = cl;
+			bpos = p+1;
+		}
+
+		if(blen == plen)
+			break; // Found exact match!
+	}
+	
+	*bl = blen;
+	return bpos;
+}
+
+
+/* HTTP POST method stream parser.
+ *
+ * We don't have access (yet) to the HTTP header, so we can't take field delimiter from 
+ * Content-Type=xxx; boundary=yyy field. Instead we assume that the very first line of HTTP
+ * stream contains valid field separator. This is kind of hack, i know, but until
+ * D.S. doesn't implements access to the header fields we don't have any choice.
+ */
+void 
+http_post_parse_buf()
+{
+	int p, i;
+	byte l, pdl;
+
+//	if(_http_method == HTTP_GET)
+	if(sock.httprqtype == PL_SOCK_HTTP_RQ_GET)
+		return;
+		
+	l = len(_http_post_buf);
+	
+	if(len(sock.httprqstring) != 0) {
+#if 0	
+		sys.debugprint(sock.httprqstring + "\r\n");
+#endif		
+		_http_post_buf += sock.gethttprqstring(255 - l);
+	}
+	
+	if(_http_post_state != HPS_VALUE) {
+		p = instr(1, _http_post_buf, _crlf, 1);
+		if(p == 0)
+			return; // nothing found
+	}
+	
+	/* First line up to the CR/LF pair, starting from '--' is field delimiter
+	 */
+	if(_http_post_state == HPS_IDLE) {
+		_http_post_delim = left(_http_post_buf, p-1);
+		_http_post_buf = mid(_http_post_buf, p+2, l-p-2);
+		_http_post_state = HPS_FIELDATTRS;
+	}
+
+	pdl = len(_http_post_delim);
+	
+	while(_http_post_state != HPS_VALUE) {
+		p = instr(1, _http_post_buf, _crlf, 1);
+		if(p == 0)
+			return; // Line not complete yet
+			
+		if(_http_post_state == HPS_FIELDATTRS) {
+			if(p == 1) {
+				/* CR/LF at start of the string delimits parameter section from field value
+				 */
+				_http_post_state = HPS_VALUE;
+			} else {
+				/* Content-Disposition?
+				 */
+				if(_startswith(_http_post_buf, _hdr_cd)) {
+					i = instr(len(_hdr_cd), _http_post_buf, ";", 1);
+					if(i != 0) {
+						i = instr(i, _http_post_buf, _hdr_name, 1);
+						if(i != 0) {
+							_http_var_name = mid(_http_post_buf, i + len(_hdr_name) + 1, p - i - len(_hdr_name) - 2);
+							_http_value = "";
+						}
+					}
+				} else 
+				/* Content-Type?
+				 */
+				if(_startswith(_http_post_buf, _hdr_ct))
+					_http_var_ct = mid(_http_post_buf, len(_hdr_ct), p - len(_hdr_ct));
+			}
+		} else if(_http_post_state == HPS_DELIMITER) {
+			/* If delimiter ends with double dash '--' this indicates end of POST data stream.
+			 * CR/LF means that more fields follow
+			 */
+			if(_startswith(_http_post_buf, _http_post_delim)) {
+				_http_post_state = (mid(_http_post_buf, pdl+1, len(_eof)) == _eof)? HPS_IDLE: HPS_FIELDATTRS;
+				if(HPS_IDLE == _http_post_state)
+					post_finished();
+			}
+		}
+		
+		_http_post_buf = right(_http_post_buf, len(_http_post_buf) - p - 1); /* Take trailing CR/LF in account also */
+	}
+
+	/* Current field value may be stream of raw bytes, especially when uploading binary 
+	 * data via <input type="file"> and may be wa-a-ay large than our 255-byte string buffer
+	 */
+	if(_http_post_state == HPS_VALUE) {
+		i = _scanfor(_http_post_buf, _http_post_delim, &l);
+		if(i == 0) {
+			/* Fields delimiter not found: consume all data from buffer
+			 */
+			process_post_variable(_http_var_name, _http_var_ct, _http_post_buf);
+			_http_post_buf = ""; 
+		} else {
+			/* Possible delimiter found (at least part of it)
+			 */
+			p = (l == pdl)? len(_crlf): 0;
+			
+			process_post_variable(_http_var_name, _http_var_ct, left(_http_post_buf, i-p-1));
+			_http_post_buf = right(_http_post_buf, len(_http_post_buf)-i+1);
+			
+			if(l == pdl) {
+				_http_post_state = HPS_DELIMITER; 
+			} else {
+				// false postivie?
+				if(l < len(_http_post_buf)) {
+					process_post_variable(_http_var_name, _http_var_ct, left(_http_post_buf, l));
+					_http_post_buf = right(_http_post_buf, len(_http_post_buf)-l);
+				}
+			}
+		}
+	}
+}
+
+
+void
+http_post_parse()
+{
+	if(sock.httprqtype == PL_SOCK_HTTP_RQ_POST)
+		while((0 != len(sock.httprqstring)) || (0 != len(_http_post_buf)))
+			http_post_parse_buf();
+	
+	// clean up misc stuff
+	http_post_init();
+}

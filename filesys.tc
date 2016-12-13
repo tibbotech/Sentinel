@@ -1,0 +1,73 @@
+#include "global.th"
+
+
+bool
+filesys_init()
+{
+	pl_fd_status_codes res;
+	
+	if(!fd.ready) {
+		res = fd.mount();
+		if(res != PL_FD_STATUS_OK)
+			return false;
+	}
+	
+	return true;
+}
+
+
+string
+file_getstring()
+{
+	string<1> l;
+	l = fd.getdata(1);
+	if(0 == len(l))
+		return "";
+	return fd.getdata(l[0]);
+}
+
+
+void
+file_putstring(string& s)
+{
+	string<1> l = "\0";
+	l[0] = len(s);
+	fd.setdata(l);
+	fd.setdata(s);
+}
+
+
+word
+file_getword()
+{
+	string<sizeof(word)> tmp;
+	tmp = fd.getdata(sizeof(word));
+	return ((word)tmp[0]<<8) | (word)tmp[1];
+}
+
+
+void
+file_putword(word w)
+{
+	string<sizeof(word)> tmp = "\0\0";
+	tmp[0] = (w >> 8) & 0xFF;
+	tmp[1] = w & 0xFF;
+	fd.setdata(tmp);
+}
+
+
+void
+file_putdata(char *data, word cb)
+{
+	string temp;
+	word cksz, i;
+	
+	while(cb != 0) {
+		cksz = (cb > 255)? 255: cb;
+		//temp = strgen(' ', cksz);
+		for(i=0; i<cksz; ++i)
+			temp += chr(*data++); //[i] = *data++;
+		fd.setdata(temp);
+		cb -= cksz;
+	}
+}

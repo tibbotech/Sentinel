@@ -1,0 +1,98 @@
+#include "global.th"
+#include "acl.th"
+
+
+#define MAX_ACL_SIZE		16
+
+
+static dword _acl[MAX_ACL_SIZE];
+static dword _acl_mask[MAX_ACL_SIZE];
+static unsigned char _acl_nr = 0;
+static unsigned char _acl_type = 0;
+
+
+static dword
+get_ipv4(char *ptr) 
+{
+	return (ptr[0]<<24) | (ptr[1]<<16) | (ptr[2]<<8) | ptr[0];
+}
+
+
+static string<4>
+put_ipv4(dword ip)
+{
+	return chr((ip >> 24) & 0xFF) + chr((ip >> 16) & 0xFF) + chr((ip >> 8) & 0xFF) + chr(ip & 0xFF);
+}
+
+
+bool
+acl_init()
+{
+	string<4> _ip;
+	byte i, l;
+	
+	_acl_nr = 0;
+	_acl_type = val(stg_get("ACLT", 0));
+	
+	for(i=0; i<MAX_ACL_SIZE; ++i) {
+		_ip = stg_get("ACL", i);
+		l = len(_ip);
+		
+		if((l != 4) || (l != 8))
+			continue; // Only ipv4{:mask} allowed
+			
+		_acl[_acl_nr] = get_ipv4(&_ip[0]);
+		_acl_mask[_acl_nr] = (l == 8)? get_ipv4(&_ip[4]): 0xFFFFFFFF;
+		_acl_nr++;
+	}
+	
+	return true;
+}
+
+
+bool
+acl_access_allowed(string& ip)
+{
+	byte i, l;
+	unsigned long src; 
+	unsigned long addr, mask;
+	char *c;
+	
+	if(0 == _acl_nr)
+		return true;
+		
+	src = get_ipv4(ip);
+	for(i=0; i<_acl_nr; ++i) {
+		if(_acl[i] == (src & _acl_mask[i]))
+			return (0 != _acl_type); // 0=deny acl, 1=allow acl
+	}
+	
+	return true;
+}
+
+
+void
+save_acl()
+{
+	byte i;
+	string<8> s;
+	
+	for(i=0; i<MAX_ACL_SIZE; ++i) {
+		if(i < _acl_nr) {
+			s = put_ipv4(_acl[i]);
+			if(0xFFFFFF != _acl_mask[i])
+				s += put_ipv4(_acl_mask[i]);
+		} else {
+			s = "";
+		}
+		stg_set("ACL", i, s);
+	}
+	stg_set("ACLT", 0, str(_acl_type));
+}
+
+
+void
+print_acl()
+{
+}
+

@@ -1,0 +1,90 @@
+<?
+#include "utils.th"
+?>
+<html>
+<head>
+<title>Welcome</title>
+<link rel="stylesheet" type="text/css" href="http://tibbo.com/downloads/TPSL_tmp/skouf/style.css" />
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/2.2.2/jquery.min.js"></script>
+</head>
+<body>
+<div class="body_outer">
+    <div class="heading">
+        <div class="main_heading">Welcome</div>
+        <div class="main_heading_descr">This is main page of the device configuration menu</div>
+    </div>
+    <div class="body">
+		<div class="banner_row">
+			<div class="banner" style="background-image: url(network.svg)">
+				<a class="banner_link" href="network_settings.html">Network Settings</a>
+				<div class="banner_info">Configure network connectivity settings, device name, etc.</div>
+			</div>
+			
+			<div class="banner" style="background-image: url(security.svg)">
+				<a class="banner_link" href="security.html">Security</a>
+				<div class="banner_info">Set device password, configure list of hosts that can access this device and more</div>
+			</div>
+
+			<div class="banner" style="background-image: url(ag.svg)">
+				<a class="banner_link" href="aggregate_settings.html">AggreGate&trade; Settings</a>
+				<div class="banner_info">Enable seamless integration with AggreGate&trade; SCADA platform</div>
+			</div>
+		</div>
+
+		<div class="banner_row">
+			<div class="banner">
+				<a class="banner_link" href="device_learn.html">Learn Sensors</a>
+				<div class="banner_info">Connect new sensors and teach device to distinguish it from each other</div>
+			</div>
+
+			<div class="banner">
+				<a class="banner_link" href="message_templates.html">Message Templates</a>
+				<div class="banner_info">Define message text and list of recipients for SMS and E-mail notifications</div>
+			</div>
+
+			<div class="banner">
+				<a class="banner_link" href="notifications.html">Notifications</a>
+				<div class="banner_info">Setup SMTP protocol, specify SMS parameters and options</div>
+			</div>
+		</div>
+
+		<div class="banner_row">
+
+			<div class="banner" style="background-image: url(bell.svg)">
+				<a class="banner_link" href="margins_and_actions.html">Zones, Alarms & Actions</a>
+				<div class="banner_info">Configure acceptable ranges of sensor data, setup alarms and actions taken when monitored data goes out of range</div>
+			</div>
+
+			<div class="banner">
+				<a class="banner_link" href="dc_ports.html">Port Setup</a>
+				<div class="banner_info">Configure sensors connected to dry contact, 1-Wire and I<sup>2</sup>C ports</div>
+			</div>
+
+			<div class="banner" style="background-image: url(export.svg)">
+				<a class="banner_link" href="data_export.html">Data Export</a>
+				<div class="banner_info">Configure sensor data acquishion via SNMP, XML file, proprietary protocols or other methods</div>
+			</div>
+		</div>
+
+		<div class="banner_row">
+			<div class="banner" style="background-image: url(backup-restore.svg)">
+				<a class="banner_link" href="backup_restore.html">Backup & Restore</a>
+				<div class="banner_info">Backup and restore device configuration</div>
+			</div>
+		</div>
+		
+		<div class="footer">&copy; 2015-2016 <a href="http://tibbo.com" target="_blank">Tibbo Technology</a>
+		<span class="spl">Hardware version: <?
+			sock.setdata(htmlspecialchars(sys.version));
+			sock.send();
+		?></span>
+		<span class="spl">Firmware version: 0.1A_08042016</span>
+		<span class="spl">Sensor database version: 1.0</span>
+		</div>
+	</div>
+</div>
+
+
+
+</body>
+</html>

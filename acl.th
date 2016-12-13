@@ -1,0 +1,9 @@
+#ifndef __ACCESS_CONTROL_LIST_INCLUDED__
+#define __ACCESS_CONTROL_LIST_INCLUDED__
+
+
+extern bool acl_init();
+extern bool acl_access_allowed(string&);
+
+
+#endif

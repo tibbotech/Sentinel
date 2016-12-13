@@ -1,0 +1,45 @@
+>>ETH	E	B	1	0	2	A	1	Ethernet configuration 0 off, 1 manual, 2 dhcp
+>>IP	E	D	1	0	4	A	192.168.75.48	IP address
+>>NM	E	D	1	0	4	A	255.255.255.0	Network mask
+>>GW	E	D	1	0	4	A	192.168.75.1	Gateway IP
+>>DNS	E	D	1	0	4	A	192.168.75.1	DNS server IP
+>>HN	E	S	1	0	32	A	some.where.net	Host name
+>>HPN	E	W	1	0	65535	A	80	HTTP server port number
+>>SYSD	E	S	1	0	40	A	TibboSentinel(G2)	System description
+>>SYSL	E	S	1	0	50	A	^	System location
+>>SYSN	E	S	1	0	50	A	^	System name
+>>SYSC	E	S	1	0	50	A	^	System management contact person
+>>USR	E	B	1	0	32	A	^	System access username
+>>PWD	E	B	1	0	32	A	^	System access password
+>>ACLT	E	B	1	0	1	A	0	ACL type - allow or deny
+>>ACL	E	S	16	0	8	A	^	Access control list
+>>MEN	E	B	1	0	1	A	1	Mail notfications enable/disable
+>>MRLY	E	S	1	0	80	A	^	Mail relay address
+>>MRUN	E	S	1	0	32	A	^	Mail relay user name
+>>MRPW	E	S	1	0	32	A	^	Mail relay password
+>>MDST	E	S	1	0	64	A	^	Mail destination addresses
+>>DCPE	E	W	1	0	65535	A	65535	DC port enable flags
+>>SNMP	E	B	1	0	1	A	1	SNMP server enable flag
+>>SRC	E	S	1	0	32	A	public	SNMP read community name
+>>SWC	E	S	1	0	32	A	private	SNMP write community name
+>>STEN	E	B	1	0	1	A	1	SNMP trap sending enable flag
+>>STS	E	S	1	0	32	A	^	SNMP trap receiver address
+>>STP	E	W	1	0	65535	A	162	SNMP trap receiver port
+>>MPIN	E	S	1	0	4	A	^	SIM card PIN-code
+>>SMSA	E	S	1	0	32	A	^	SMS recipients list
+>>AGEN	E	B	1	0	1	A	0	AggreGate server enable flag
+>>AGIF	E	S	1	0	4	A	eth	AggreGate target interface
+>>AGIP	E	D	1	0	16	A	^	AggreGate server IP
+>>AGP	E	W	1	0	65535	A	6480	AggreGate server port number
+>>AGUN	E	S	1	0	32	A	^	AggreGate server user namre
+>>AGPW	E	S	1	0	32	A	^	AggreGate server password
+>>GEN	E	B	1	0	1	A	0	GPRS interface enable/disable flag
+>>GNTD	E	S	1	0	16	A	^	GPRS number to dial
+>>GAPN	E	S	1	0	48	A	^	GPRS acces point name
+>>GUSR	E	S	1	0	16	A	^	GPRS user name
+>>GPWD	E	S	1	0	16	A	^	GPRS password
+#define STG_DESCRIPTOR_FILE "settings.xtxt"
+#define STG_MAX_NUM_SETTINGS 40
+#define STG_RAM_ARRAY_SIZE 0
+#define STG_MAX_SETTING_NAME_LEN 4
+#define STG_MAX_SETTING_VALUE_LEN 80

@@ -1,0 +1,9 @@
+#ifndef __MY_FILENUM_INCLUDED__
+#define	__MY_FILENUM_INCLUDED__
+
+
+extern char fn_alloc();
+extern void fn_free(char);
+
+
+#endif

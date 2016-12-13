@@ -1,0 +1,650 @@
+#include "global.th"
+#include "filesys.th"
+#include "template.th"
+#include "sensors_db.th"
+#include "utils.th"
+
+
+/* Very simple template engine
+ *
+ * (c) 2016 Tibbo Technology, Inc.
+ * All Rights Reserved
+ */
+
+
+static word _last_id = 0;
+static word _a_id;
+
+
+static string
+_param_value(string& param)
+{
+	return stg_get(param, 0);
+}
+
+
+static char *
+strchr(char *s, char c)
+{
+	while(*s != c && *s != '\0')
+		++s;
+	return (*s == c)? s: NULL;
+}
+
+
+static int
+strlen(char *s)
+{
+	char *p = s;
+	while(*s++ != '\0') ;
+	return s - p;
+}
+
+
+static bool
+_is_alnum(char c)
+{
+	return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c == '_');
+}
+
+
+static bool
+_is_ident_char(char c)
+{
+	return _is_alnum(c) || ('c' == '.') || (c == '-');
+}
+
+
+string<MAX_MACRO_LEN>
+_have_macro(char *s, int *slen, int *tlen)
+{
+    char *pm, *pm2;
+    char endch;
+    int i, j;
+	string<MAX_MACRO_LEN> res;
+	
+	res = "";
+    pm  = strchr(s, '$');
+    pm2 = strchr(s, '%');
+
+    if(!pm && !pm2)
+        return res;
+
+    if(!pm) {
+        pm = pm2;
+    } else {
+        if(pm2 && (pm2 < pm))
+            pm = pm2;
+    }
+
+    /* $$ represents single '$', %% - '%', so eat it
+     */
+    if(pm[0]==pm[1]) {
+        *slen = 2;
+		*tlen = pm - s;
+		return chr(pm[0]);
+    }
+
+    /* After macro character we expect macro name enclosed in
+     * curly braces {} or simple braces (), or sequence of
+     * alphanumeric characters, possibly starting with underscore '_'
+     * and separated by '-', '.' or '_'
+     */
+    if(pm[1]=='_' || _is_alnum(pm[1])) {
+        for(i=1; _is_ident_char(pm[i]); i++) {
+            /* Don't allow '--' and '..' sequences
+             */
+            if(pm[i]=='-' || pm[i]=='.')
+                if(pm[i]==pm[i+1])
+                    break;
+        }
+
+        *slen = i;
+		*tlen = pm - s;
+		for(j=1; j<i; ++j)
+			res += chr(pm[j]);
+			
+        return res;
+    }
+
+    if(pm[1] != '(' && pm[1] != '{')
+        return res;
+
+    /* Scan string until we reach EOS marker or found macro separator
+     */
+    endch = (pm[1]=='(')? ')': '}';
+    for(i=2; pm[i] != '\0'; i++)
+        if(pm[i] == endch)
+            break;
+
+    if(pm[i] != endch)
+        return res;
+
+    *slen = i + 1; 
+	*tlen = pm - s;
+	
+	for(j=2; j<i; ++j)
+		res += chr(pm[j]);
+		
+    return res;
+}
+
+
+/**
+ * Add string to the buffer
+ * @param s Pointer to string
+ * @param slen number of characters in the string
+ */
+static void
+_add_chars(string& res, char *s, int slen)
+{
+	int i, l = len(res);
+	
+    if(slen > 0) {
+		for(i=0; i<slen; ++i) {
+			if(255 == l) {
+				// sock.setdata(res);
+				// sock.send()
+				// flush data
+				res = "";
+				l = 0;
+			}
+			res += chr(s[i]);
+			++l;
+		}
+    }
+}
+
+
+static string
+_expand(char *s, int slen)
+{
+	string res;
+    int mlen, tlen, namelen, cch;
+	string<MAX_MACRO_LEN> pm;
+
+    /* find macro name in given string
+     */
+    while(slen != 0) {
+		pm = _have_macro(s, &mlen, &tlen);
+		namelen = len(pm);
+		if(0 == namelen)
+			break;
+			
+        /* Found macro. Split the string into two parts: a string before
+         * macro and macro definition
+         */
+        _add_chars(res, s, tlen);
+
+        /* Check for special case: %% or $$ macros represents % and $ respectively
+         */
+        if((namelen == 1) && (pm[0] =='%' || pm[0] == '$')) {
+            _add_chars(res, &pm[0], 1);
+        } else {
+            /* Look up and fetch macro value
+             */
+			 string t = _param_value(pm);
+			_add_chars(res, &t[0], len(t));
+        }
+
+        cch = tlen + mlen;
+        s += cch;
+		
+		if(slen < cch)
+			slen = 0;
+		else
+			slen -= cch;
+    }
+
+    /* Add remaining characters 
+	 */
+    _add_chars(res, s, slen);	
+	return res;
+}
+
+
+/*! @brief Translates given string with regards to nested macro definitions
+ *  @param buf Destination buffer or NULL if buffer need to be dynamically allocated
+ *  @param cch Number of characters in destination buffer or 0
+ *  @param str String to be translated
+ *  @return Translated string or NULL on error
+ * Caller have multiple choices:
+ * 1) Supply buffer address and size - resulting string will be truncated if his length
+ *    exceeds specified limits. If size are 0 then function will silently fail.
+ * 2) Support NULL as buffer address and non-zero 'cch' size - fixed-size buffer will be
+ *    allocated and string will be truncated if length exceeds limits.
+ * 3) Supply NULL as buffer address and 0 as buffer size - buffer will be allocated and
+ *    dynamically grow to accomodate resulting string length.
+ */
+string
+xlat(char *s)
+{
+	return _expand(s, strlen(s));
+}
+
+
+bool
+template_open(bool bcreate)
+{
+	pl_fd_status_codes res;
+	word tmp;
+	
+	if(!open_always(FILENO_TEMPLATE_FILE, TEMPLATE_FILE))
+		return false;
+		
+	for(int i=0; fd.pointer <= fd.filesize; ++i) {
+		tmp = file_getword();
+		if(tmp != 0xFFFF) {
+			sys.debugprint("Wrong template record #" + str(i) + " signature\r\n");
+			fd.close();
+			return false;
+		}
+		
+		tmp = file_getword();
+		if(tmp > _last_id)
+			_last_id = tmp;
+			
+		file_getstring();
+		file_getstring();
+		
+		tmp = file_getword();
+		fd.setpointer(fd.pointer + tmp);
+	}
+	
+	//sys.debugprint("Template file opened OK\r\n");
+	return true;
+}
+
+
+/**
+ * Close template files, delete backup copies
+ */
+void 
+template_close()
+{
+	fd.filenum = FILENO_TEMPLATE_FILE;
+	if(fd.fileopened == YES)
+		fd.close();
+
+	fd.filenum = FILENO_TEMPLATE_FILE_NEW;
+	if(fd.fileopened == YES)
+		fd.close();
+		
+	fd.delete(TEMPLATE_FILE_NEW);
+}
+
+
+/**
+ * Specify NULL as data to delete template.
+ * If template with given name not found it will be created
+ * If template with given name is found, then its contents will be replaced by data
+ */
+bool
+template_replace(word id, string tname, string ttl, template_action action)
+{
+	string temp, title;
+	word sz, cb, n, tid;
+	bool found;
+	pl_fd_status_codes res;
+	
+	if(!open_always(FILENO_TEMPLATE_FILE, TEMPLATE_FILE))
+		return false;
+
+	fd.setpointer(1);
+
+	if(!open_always(FILENO_TEMPLATE_FILE_NEW, TEMPLATE_FILE_NEW))
+		return false;
+
+	fd.setpointer(1);
+
+	/* Walk through old file
+	 */
+	found = false;
+	fd.filenum = FILENO_TEMPLATE_FILE;
+	if(fd.pointer < fd.filesize) {
+		for(;;) {
+			fd.filenum = FILENO_TEMPLATE_FILE;
+			if(fd.pointer >= fd.filesize)
+				break; // EOF
+
+			n = file_getword();
+			if(n != 0xFFFF)
+				break; // bad format!
+				
+			tid = file_getword();
+
+			temp = file_getstring();
+			if(0 == len(temp))
+				break; // also bad format!
+				
+			title = file_getstring();
+			sz = file_getword();
+			
+			if(tid == id) {
+				if(TA_DELETE != action) {
+					fd.filenum = FILENO_TEMPLATE_FILE_NEW;
+					file_putword(0xFFFF);
+					file_putword(tid);
+					file_putstring(temp);
+					
+					if(len(ttl)>0)
+						sys.debugprint("SET title=\""+ttl+"\"\r\n");
+						
+					file_putstring(len(ttl) > 0? ttl: title);
+					
+					fd.filenum = FILENO_TEMP;
+					if(fd.open("post_temp") == PL_FD_STATUS_OK) {
+						cb = fd.filesize;
+						
+						fd.filenum = FILENO_TEMPLATE_FILE_NEW;
+						file_putword(cb);
+						
+						for(;;) {
+							fd.filenum = FILENO_TEMP;
+							temp = fd.getdata(cb);
+							if(len(temp) == 0)
+								break;
+							
+							fd.filenum = FILENO_TEMPLATE_FILE_NEW;
+							fd.setdata(temp);
+						}
+						
+						fd.filenum = FILENO_TEMP;
+						fd.close();
+					} else {
+						file_putword(0);
+						//file_putdata(data, dlen);
+					}
+					found = true;
+				} else {
+					fd.setpointer(fd.pointer + sz);
+				}
+			} else {
+				fd.filenum = FILENO_TEMPLATE_FILE_NEW;
+				file_putword(0xFFFF);
+				file_putword(tid);
+				file_putstring(temp);
+				file_putstring(title);
+				file_putword(sz);
+				
+				/* Copy template body to the new file
+				 */
+				while(sz != 0) {
+					cb = (sz > 255)? 255: sz;
+					
+					fd.filenum = FILENO_TEMPLATE_FILE;
+					temp = fd.getdata(cb);
+					
+					fd.filenum = FILENO_TEMPLATE_FILE_NEW;
+					fd.setdata(temp);
+					
+					sz -= cb;
+				};
+			}
+		}
+	}
+		
+	/* Append template to file because template with such name
+	 * is not found inside
+	 */
+	if(TA_UPDATE == action && !found) {
+		_a_id = ++_last_id;
+		fd.filenum = FILENO_TEMPLATE_FILE_NEW;
+		file_putword(0xFFFF);
+		file_putword(_a_id);
+		file_putstring(tname);
+		file_putstring(ttl);
+		file_putword(0);
+		//file_putdata(data, dlen);
+	}
+	
+	fd.filenum = FILENO_TEMPLATE_FILE;
+	fd.close();
+
+	fd.filenum = FILENO_TEMPLATE_FILE_NEW;
+	fd.close();
+
+	res = fd.delete(TEMPLATE_FILE);
+	if(res != PL_FD_STATUS_OK)
+		sys.debugprint("Failed to delete file \""+TEMPLATE_FILE+"\". Reason="+str(res)+"\r\n");
+	
+	res = fd.rename(TEMPLATE_FILE_NEW, TEMPLATE_FILE);
+	if(res != PL_FD_STATUS_OK)
+		sys.debugprint("Failed to rename file \""+TEMPLATE_FILE+"\". Reason="+str(res)+"\r\n");
+	
+	if(!template_open(false))
+		sys.debugprint("Template file re-open failed!\r\n");
+	
+	return true;
+}
+
+
+static void
+_emit(string& res, char c)
+{
+#if 0
+	if(len(res) == 255) {
+		sock_send(res); 
+		res = "";
+	}
+	res += chr(c);
+#else 	
+	if(sock.txfree > 0) {
+		sock.setdata(chr(c));
+	} else {
+		sock.send();
+		while(sock.txlen > 0) ;
+		sock.setdata(chr(c));
+	}
+#endif
+
+}
+
+
+/* Specify NULL as data to delete template.
+ * If template with given name not found it will be created
+ * If template with given name is found, then its contents will be replaced by data
+ */
+string
+template_send_body()
+{
+	string temp, res, title;
+	word sz, cb;
+	int i, tl;
+	char c;
+	
+	title = file_getstring();
+	title = file_getstring();
+	sz = file_getword();
+
+	sock_send("\"");
+	for(res = ""; sz != 0; sz -= cb) {
+		cb = (sz > 255)? 255: sz;
+		temp = fd.getdata(cb);
+		tl = len(temp);
+		
+		for(i=0; i<tl; ++i) {
+			c = temp[i];
+			if(c < 32)
+				continue;
+			if(c == '\r' || c == '\n') {
+				_emit(res, '\\');
+				_emit(res, (c == '\r')? 'r': 'n');
+			} else if((c == '\"') || (c == '\'')) {
+				_emit(res, '\\');
+				_emit(res, c);
+			} else {
+				_emit(res, c);
+			}
+		}
+	}
+	if(len(res) != 0)
+		sock_send(res);
+		
+	sock_send("\"");
+	return title;
+}
+
+
+dword
+template_find(word id)
+{
+	string temp;
+	word sz, tid;
+
+	if(!open_always(FILENO_TEMPLATE_FILE, TEMPLATE_FILE))
+		return 0;
+		
+	fd.setpointer(1);
+	
+	for(;;) {
+		if(file_getword() != 0xFFFF)
+			return 0; // corrupted file
+			
+		tid = file_getword();
+		if(id == tid) {
+			sys.debugprint("Found template ID="+str(id)+" at pos="+lstr(fd.pointer)+"\r\n");
+			return fd.pointer;
+		}
+			
+		file_getstring();
+		file_getstring();
+		sz = file_getword();
+
+		fd.setpointer(fd.pointer + sz);
+	}
+	
+	return 0;
+}
+
+
+string
+template_load()
+{
+	word sz;
+	
+	file_getstring();
+	file_getstring();
+
+	sz = file_getword();
+	if(sz > 255)
+		sz = 255;
+		
+	return fd.getdata(sz);
+}
+
+
+word
+template_last_id()
+{
+	return _a_id;
+}
+
+
+static void
+_sock_send(string& data)
+{
+	word sl = len(data); //sock.txlen;
+
+	if(sock.txfree < sl) {
+		sock.send();
+		while(sock.txlen > 0) ;
+	}
+	
+	sock.setdata(data);
+}
+
+
+static void
+_ser_send(string& data)
+{
+	word sl = len(data); //sock.txlen;
+
+	if(ser.txfree < sl) {
+		ser.send();
+		while(ser.txlen > 0) ;
+	}
+	
+	ser.setdata(data);
+}
+
+
+static void
+_send(string& data, template_target target)
+{
+	switch(target) {
+		case TARGET_SOCK:
+			sock_send(data);
+			break;
+		case TARGET_SER_PORT:
+			ser_send(data);
+			break;
+	}
+}
+
+
+static string
+_var_expand(string name)
+{
+	return "?"+name+"?";
+}
+
+
+string
+template_title()
+{
+	file_getstring();
+	return file_getstring();
+}
+
+
+string
+template_expand(string& tpl, sensor *s)
+{
+	return tpl;
+}
+
+
+word
+template_process(byte tpl_id, sensor *s, template_target target)
+{
+	word cch, sz;
+	byte cb, l;
+	dword tpp;
+	int prevn, n;
+	string tmp;
+	
+	sz = file_getword();
+	tmp = "";
+	
+	while(0 != sz) {
+		cb = ((sz >= 255)? 255: sz) - len(tmp);
+		tmp += fd.getdata(cb);
+		l = len(tmp);
+		
+		n = instr(1, tmp, "$", 1);
+		if(n == 0) {
+			_send(tmp, target);
+		} else if(n == 1) {
+			if('$' == tmp[1]) {
+				_send("$", target);
+				tmp = right(tmp, len(tmp)-2);
+			} else {
+				prevn = n;
+				while(_is_ident_char(tmp[n]) && (n < l))
+					++n;
+					
+				_send(_var_expand(mid(tmp, 2, prevn - n)), target);
+			}
+		} else {
+			_send(left(tmp, n), target);
+			tmp = right(tmp, len(tmp)-n);
+		}
+		
+		sz -= cb;
+	}
+	
+	cch = 0;
+	return cch;
+}
+

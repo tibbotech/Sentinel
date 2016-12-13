@@ -1,0 +1,359 @@
+#include "global.th"
+#include "sensors_db.th"
+#include "device_funcs.th"
+#include "utils.th"
+
+
+/* Tiny virtual machine inside virtual machine :)
+ *
+ * Surprisingly, no?
+ */
+
+
+/* Arithmetic program commands
+ */
+enum acmd {
+	CMD_NOP 				= 0x00,
+	CMD_COPYSIGN			= 0x01,		// rA *= sign rB
+	// 0x01
+	// 0x02
+	CMD_MOV 				= 0x03,		// rA = rB or const
+	CMD_ADD 				= 0x04,		// rA = rA + rB or const
+	CMD_AND 				= 0x05,		// rA = rA & rB or const
+	CMD_OR 					= 0x06,		// rA = rA | rB or const
+	CMD_MUL					= 0x07, 	// rA = rA * rB or const
+	CMD_SHL 				= 0x08,		// rA = rA << const
+	CMD_SWAP 				= 0x09,
+	CMD_SWAPW 				= 0x0A,
+	CMD_SHR 				= 0x0B,		// rA = rA >> const 
+	CMD_FLOAT 				= 0x0C,		// Convert register to floating point
+	CMD_INT 				= 0x0D,		// Convert register to integer
+	CMD_DIV					= 0x0E, 	// rA = rA / rB
+	CMD_RET 				= 0x0F
+};
+
+
+static byte
+_argcnt[] = {
+	0, 2, 0, 2, 2, 2, 2, 2, 2, 1, 1, 2, 1, 1, 2, 0
+};
+
+
+/* Program flags
+ */
+#define PROG_FLAG_FLOAT		0x01
+#define PROG_FLAG_ULONG		0x00
+#define PROG_FLAG_LSB_FIRST	0x02
+#define PROG_FLAG_MSB_FIRST	0x04
+
+
+#define NUM_CONST_REG		8
+#define NUM_TEMP_REG		8
+
+
+struct ALU {
+	byte *data;
+	var r[NUM_TEMP_REG];	//!< temporary register
+	var c[NUM_TEMP_REG];	//!< Constants registers
+};
+
+
+struct opcode {
+	byte code;
+	byte args[1];
+};
+
+
+string<8>
+_opcode(byte opc) 
+{
+	switch(opc) {
+		case CMD_NOP:
+			return "nop";
+		case CMD_COPYSIGN:
+			return "copysign";
+		case CMD_MOV:
+			return "mov";
+		case CMD_ADD:
+			return "add";
+		case CMD_AND:
+			return "and";
+		case CMD_OR:
+			return "or";
+		case CMD_MUL:
+			return "mul";
+		case CMD_SHL:
+			return "shl";
+		case CMD_SWAP:
+			return "swap";
+		case CMD_SWAPW:
+			return "swapw";
+		case CMD_SHR:
+			return "shr";
+		case CMD_FLOAT:
+			return "float";
+		case CMD_INT:
+			return "int";
+		case CMD_DIV:
+			return "div";
+		case CMD_RET:
+			return "ret";
+	}
+	
+	return "???";
+}
+
+
+#define _abs(x)		((x)<0? -(x): (x))
+
+
+static void
+_exec_program_long(ALU *alu, byte *prog, word cb)
+{
+	opcode *opc;
+	long lv;
+	float fv;
+	word sz;
+	short stmp;
+	byte oc, rA, rB, i;
+	string dbg;
+	var *dst, *src;
+	bool neg;
+	
+	for(opc=(opcode *)prog; cb != 0; ) {
+		
+		sz = 0; 				
+		lv = 0;
+		fv = 0;
+		oc = opc->code & 0x7F; 	// high bit is instruction type bit: 0=integer, 1=float
+		
+		dbg = "\t" + _opcode(oc);
+		if(_argcnt[oc] > 0) {
+			rA = (opc->args[0] >> 4) & 0xF;
+			rB = (opc->args[0] & 0xF);
+
+			dbg += " ";
+			if(rA > 7) {
+				dst = &alu->c[rA-8];
+				dbg += ("c" + str(rA-8));
+			} else {
+				dst = &alu->r[rA];
+				dbg += ("r" + str(rA));
+			}
+
+			++sz;
+		}	
+		
+		/* Load data to source register
+		 */ 
+		if(_argcnt[oc] == 2) {
+			switch(rB) {
+				case 0x8: // 8-bit index or number
+					lv = opc->args[1];
+					dbg += ", " + str(lv);
+					++sz;
+					break;
+					
+				case 0x9: // Load zero, register type is unchanged
+#if 0				
+					i = opc->args[1];
+					lv = alu->c[i].l;
+					fv = alu->c[i].f;
+					dbg += ", c" + str(lv);
+					++sz;
+#endif					
+					break;
+					
+				case 0xA: // load 8 bits of data
+					i = opc->args[1];
+					lv = *((char *)&alu->data[i]);
+					dbg += ", byte data[" + str(i) + "]"; 
+					dst->type = TYPE_LONG;
+					++sz;
+					break;
+					
+				case 0xB: // load 16 bits of data
+					i = opc->args[1];
+					lv = *((short *)&alu->data[i]);
+					dbg += ", word data[" + str(i) + "]"; 
+					dst->type = TYPE_LONG;
+					++sz;
+					break;
+					
+				case 0xC: // load 32 bits of data
+					i = opc->args[1];
+					lv = *((long *)&alu->data[i]);
+					dbg += ", dword data[" + str(i) + "]"; 
+					dst->type = TYPE_LONG;
+					++sz;
+					break; 
+					
+				case 0xD: // load float number (mov only!)
+					lv = 0;
+					fv = *((float *)&opc->args[1]);
+					dst->type = TYPE_FLOAT;
+					dbg += ", immf " + ftostr(fv, FTOSTR_MODE_PLAIN, 6);
+					sz += sizeof(float);
+					break;
+					
+				case 0xE: // load data from constants
+					i = opc->args[1] & 0x7; 
+					lv = alu->c[i].l;
+					fv = alu->c[i].f;
+					dbg += ", c" + str(i) + " (" + (alu->c[i].type == TYPE_FLOAT? ftostr(fv, FTOSTR_MODE_PLAIN, 10): hex(lv)) + ")";
+					++sz;
+					break;
+					
+				case 0xF: // load immediate data
+					lv = *((long *)&opc->args[1]);
+					fv = 0;
+					dbg += ", imm " + hex(lv);
+					dst->type = TYPE_LONG;
+					sz += sizeof(long);
+					break;
+					
+				default: // 0...7 = number of r register
+					lv = alu->r[rB].l; //dst->l;
+					fv = alu->r[rB].f; //dst->f;
+					dbg += ", r" + str(rB);
+					if(oc == CMD_MOV)
+						dst->type = alu->r[rB].type; 
+					break;
+			}
+		}
+		
+		/* Perform dest = dest <OP> source
+		 */
+		switch(oc) {
+			case CMD_COPYSIGN:
+				if(dst->type == TYPE_LONG)
+					lv = _abs(dst->l);
+				else
+					fv = _abs(dst->f);
+				
+				if(alu->r[rB].type == TYPE_LONG)
+					neg = alu->r[rB].l < 0;
+				else
+					neg = alu->r[rB].f < 0;
+					
+				if(dst->type == TYPE_LONG)
+					dst->l = neg? -lv: lv;
+				else
+					dst->f = neg? -fv: fv;
+				break;
+				
+			case CMD_MOV:
+
+				if(dst->type == TYPE_LONG)
+					dst->l = lv;
+				else
+					dst->f = fv;
+				break;
+				
+			case CMD_ADD:
+				if(dst->type == TYPE_LONG)
+					dst->l += lv;
+				else
+					dst->f += fv;
+				break;
+				
+			case CMD_AND:
+				dst->l &= lv;
+				dst->type = TYPE_LONG;
+				break;
+				
+			case CMD_OR:
+				dst->l |= lv;
+				dst->type = TYPE_LONG;
+				break;
+				
+			case CMD_MUL:
+				if(dst->type == TYPE_LONG)
+					dst->l *= lv;
+				else
+					dst->f *= fv;
+				break;
+				
+			case CMD_DIV:
+				if(dst->type == TYPE_LONG)
+					dst->l /= lv;
+				else
+					dst->f /= fv;
+				break;
+
+			case CMD_SHR:
+				dst->l >>= lv;
+				dst->type = TYPE_LONG;
+				break;
+				
+			case CMD_SHL:
+				dst->l <<= lv;
+				dst->type = TYPE_LONG; 
+				break;
+
+			case CMD_FLOAT: 
+				dst->f = (float)dst->l;
+				dst->type = TYPE_FLOAT;
+				break;
+				
+			case CMD_INT: 
+				dst->l = (long)dst->f; 
+				dst->type = TYPE_LONG;
+				break;
+				
+			case CMD_SWAP:
+			case CMD_SWAPW:
+				stmp = ((dst->l & 0xFF) << 8) | ((dst->l >> 8) & 0xFF);
+				dst->l = stmp; // 
+				dst->type = TYPE_LONG;
+				break;
+				
+			case CMD_RET:
+				return; 
+				
+			default: // Invalid opcode
+				break;
+		}
+		
+ 		if(_argcnt[oc] > 0) {
+			string<4> dr = (rA > 7)? "c" + str(rA-8): "r" + str(rA);
+			dbg += strgen(40 - len(dbg), " ") + dr + "=";
+			dbg += var_format(*dst);
+		}
+
+		if(sz > cb)
+			break; // Out-of-bounds!
+ 
+		opc = (opcode *)&opc->args[sz];
+		cb -= (sz+1);
+
+		//sys.debugprint(dbg + "\r\n");
+	} 
+}
+
+
+var
+exec_program(sensor *s, string& data, byte *prog, byte cb)
+{
+	ALU alu;
+	byte i;
+	
+ 	alu.data = (byte *)&data[0];
+	
+	for(i=0; i<8; ++i) {
+		alu.r[i].type = TYPE_LONG;
+		alu.r[i].l = 0;
+	}
+
+	for(i=0; i<4; ++i)
+		alu.c[i] = s->c[i];
+	
+	_exec_program_long(&alu, prog, cb);
+
+	for(i=0; i<4; ++i)
+		s->c[i] = alu.c[i];
+		
+	return alu.r[0];
+}
+ 
+

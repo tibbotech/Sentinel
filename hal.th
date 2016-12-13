@@ -1,0 +1,179 @@
+#ifndef __TPS_HAL_INCLUDED__
+#define __TPS_HAL_INCLUDED__
+
+
+/*! \file hal.th
+ * \brief Simple Hardware Abstraction Layer for TPS2 and TPS3 (including G2) boards
+ *
+ * (c) 2016 Tibbo Technology, Inc.
+ */
+ 
+
+#include "global.th"
+#include "tibbits.th"
+
+
+struct ioport;
+
+
+/*! \brief TPS slot number
+ */
+typedef unsigned char tbslot;
+
+
+/*! \brief I2C channel descriptor
+ */
+struct ssi_info {
+	char channel;				//!< SSI channel number or -1 for software emulation
+	unsigned char devid;		//!< I2C device address
+	unsigned char flags;		//!< Bit flags
+	pl_io_num scl;				//!< SPI SCL line (clock)
+	pl_io_num sda;				//!< SPI SDA line (data)
+	pl_io_num stat;				//!< 1WIRE PIC status GPIO line
+};
+
+
+/*! \brief RS485 serial port descriptor
+ */
+struct serial_info {
+	char spn;					//!< Serial port number
+	pl_io_num rx;				//!< RX GPIO line
+	pl_io_num tx;				//!< TX GPIO line
+	union {
+		pl_io_num rts;			//!< Ready-To-Send signal line
+		pl_io_num dir;			//!< Direction: RX or TX for half-duplex serial ports
+	};
+	pl_io_num cts;				//!< Clear-To-Send signal line
+	struct ioport *ctl;			//!< Control lines
+};
+
+
+/*! \brief I/O port types
+ */
+enum iotype {
+	IO_NONE = 0,				//!< Special type
+	IO_I2C,						//!< Inter-Integrated Circuit
+	IO_SPI,						//!< Serial Peripheral Interface
+	IO_OW,						//!< 1-Wire
+	IO_SW,						//!< Single-wire 
+	IO_DC,						//!< Dry contact
+	IO_GPIO = IO_DC,			//!< Dry contact (alias)
+	IO_WC,						//!< Wet contact
+	IO_RS232,					//!< RS-232 port
+	IO_RS422,					//!< RS-422 port
+	IO_RS485,					//!< RS-485 port
+	IO_OUT,						//!< Output port: misc. relays and opto
+	IO_GPIO4,					//!< 4 lines of GPIO (for controlling right-side part of wide tibbits)
+	IO_MODEM,					//!< GPRS modem via RS-232
+/* Add new types here */	
+	IO_MAX_TYPE
+};
+
+
+enum ioport_option {
+	IO_SSI_HW_ACCEL = 1,		//!< Request use of SSI hardware acceleration
+	IO_SSI_HW_SPEED,			//!< Speed selection for HW SSI ports
+	IO_SERIAL_TYPE,				//!< UART / Weigand / Clock-Data selection for serial port
+	IO_SERIAL_MODE,				//!< 232-422-485 mode selector for universal serial port tibbit
+	IO_DUPLEX,					//!< Half- or Full-duplex mode selection for serial port tibbits
+	
+/* Add new options here */	
+	IO_NUM_IOPORT_OPTIONS
+};
+
+
+#define IO_FLAG_INPUT			0x01	//!< I/O port can read data
+#define IO_FLAG_OUTPUT			0x02	//!< I/O port can write data
+#define IO_FLAG_CAN_USE_SSI		0x04	//!< HW acceleration available for this port type
+#define IO_FLAG_SERIAL_PORT		0x08	//!< Port is serial port
+
+#define HAL_SSI_C0				0x80	//!< SSI channel #0
+#define HAL_SSI_C1				0x40	//!< SSI channel #1
+#define HAL_SSI_C2				0x20	//!< SSI channel #2
+#define HAL_SSI_C3				0x10	//!< SSI channel #3
+
+#define HAL_SERIAL_0			0x08	//!< UART #0
+#define HAL_SERIAL_1			0x04	//!< UART #1
+#define HAL_SERIAL_2			0x02	//!< UART #2
+#define HAL_SERIAL_3			0x01	//!< UART #3
+
+
+/*! \brief I/O port descriptor 
+ */
+struct ioport {
+	iotype type;				//!< Type ID
+	union {
+		ssi_info ssi;			//!< 1-Wire, SPI and I2C info
+		serial_info ser;		//!< RS-485 serial port info
+		pl_io_num gpio;			//!< GPIO line for Dry Contacts
+		pl_io_num pin[4];
+	} d;
+};
+
+
+/*! \brief Hardware TPS slot descriptor 
+ */
+struct tibbit_slot {
+	tibbit tb;					//!< Tibbit type installed or TB_NONE if slot is free
+	pl_io_num pin[4];			//!< Four GPIO lines facing to CPU
+	unsigned char flags;		//!< Bit flags. See TBSLOT_PIN_xxx defines
+};
+
+
+/*! \brief HAL error codes
+ */
+enum hal_error {
+	NO_ERROR = 0,				//<! No error
+	HAL_SUCCESS = NO_ERROR,		//<! Alias for NO_ERROR
+	HAL_NULL_POINTER,			//<! NULL pointer supplied
+	HAL_WRONG_TIBBIT_TYPE,		//<! Wrong tibbit type specified
+	HAL_WRONG_SLOT,				//<! Wrong slot number specified
+	HAL_SLOT_OCCUPIED,			//<! Slot already occupied by other tibbit
+	HAL_NO_FREE_RESOURCES,		//<! Resource limit achieved
+/* Add new error codes here */	
+	HAL_LAST_ERROR
+};
+
+
+enum serial_rate {
+	R_1200 = 0,
+	R_2400,
+	R_4800,
+	R_9600,
+	R_19200,
+	R_38400,
+	R_57600,
+	R_115200,
+	RATE_MAX
+};
+
+
+/* TODO: Need to move these externs to separate header files.
+ */
+extern void ssi_setup_channel(ioport *);
+extern void serial_setup(ioport *);
+extern void serial_init();
+extern void serial_send(ioport *, string);
+extern string serial_recv(ioport *, byte);
+
+extern low_high gp4_state(ioport *, byte);
+extern void gp4_setstate(ioport *, byte, low_high);
+extern void gp4_enable(ioport *, byte, no_yes);
+
+extern ioport *ioport_alloc(tbslot, iotype, char);
+extern void ioport_free(ioport *);
+extern hal_error tibbit_install(tbslot, tibbit);
+extern void tibbit_remove(tbslot);
+extern unsigned char ioport_flags(ioport *);
+extern int ioport_setopt(ioport *, ioport_option, int);
+extern int ioport_getopt(ioport *, ioport_option);
+extern bool is_tibbit_installed(tibbit);
+extern tibbit_slot *tibbit_get(tibbit, byte);
+extern char tibbit_get_slot(tibbit, byte);
+extern iotype ioport_type(ioport *);
+extern string ioport_typestring(ioport *);
+extern char ioport_spn(ioport *);
+extern bool wifi_card_installed();
+
+
+#endif

@@ -1,0 +1,31 @@
+#ifndef __DPCMON_SSI_HEADER_INCLUDED__
+#define __DPCMON_SSI_HEADER_INCLUDED__
+
+
+/*! \file ssi.th
+ * \brief SSI object support functions for I2C/SPI/1-WIRE protocols
+ *
+ * (c) 2016 Tibbo Technology Inc.
+ *
+ * Revision history:
+ *
+ * 25 jan 2016 v0.1 skuf Initial revision
+ */
+
+
+#include "global.th"
+#include "hal.th"
+
+
+extern void ssi_setup(ioport *);
+extern void ssi_setup_channel(ioport *);
+extern void i2c_start(ioport *);
+extern void i2c_stop(ioport *);
+extern void i2c_restart(ioport *);
+extern void i2c_write(ioport *, byte);
+extern bool i2c_detect(ioport *, byte);
+extern string<127> i2c_port_scan(ioport *);
+extern byte i2c_read(ioport *, bool);
+
+
+#endif 

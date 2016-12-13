@@ -1,0 +1,392 @@
+#include "global.th"
+#include "debug.th"
+#include "utils.th"
+#include "hal.th"
+#include "fileno.th"
+#include "device_map.th"
+#include "device_funcs.th"
+#include "sensors_db.th"
+
+
+static sensor addrs[MAX_SENSOR_COUNT]; 
+static byte addrs_used[MAX_SENSOR_COUNT/8];
+static word _last_id;
+
+
+static sensor *
+alloc_addr()
+{
+	int n = bit_alloc(addrs_used, MAX_SENSOR_COUNT/8);
+	return n < 0? NULL: &addrs[n];
+}
+
+
+static void
+s_memcpy(void *dest, string src, byte cb)
+{	
+	byte *dst = (byte *)dest;
+	for(byte i=0; cb != 0; ++i, --cb)
+		dst[i] = src[i];
+}
+
+
+static void
+memcpy_s(string& dest, void *src, byte cb)
+{
+	dest = strgen(cb, "\0");
+	for(byte i=0; i<cb; ++i)
+		dest[i] = ((byte *)src)[i];
+}
+
+
+static bool
+read_assoc()
+{
+	string<sizeof(sensor_file_rec)> tmp;
+	sensor *sa;
+	word cnt, total;
+	sensor_file_rec *fr;
+	sensor_file_info fi;
+	bool res;
+	
+	if(!open_always(FILENO_ASSOC_DB, DEFAULT_PSC_NAME))
+		return false;
+		
+	fd.setpointer(1);
+
+	sensor_db_open();
+	
+	/* Read sensor associations 
+	 */
+	for(cnt=0, total=0; ; ++total) {
+		fd.filenum = FILENO_ASSOC_DB;
+		tmp = fd.getdata(sizeof(sensor_file_rec));
+		if(0 == len(tmp))
+			break;
+			
+		if(len(tmp) != sizeof(sensor_file_rec)) {
+			ERR("Premature EOF in file \""+DEFAULT_PSC_NAME+"\"");
+			break;
+		}
+
+		fr = (sensor_file_rec *)&tmp[0];
+		res = find_drvrec(fr->drvid, &fi);
+		if(!res)
+			continue;
+			
+		sa = alloc_addr();  
+		if(NULL == sa) {
+			ERR("*** OUT OF MEMORY! ***");
+			return false; // memory overflow
+		}
+
+		/* Copy info from file record into memory
+		 */
+		sa->id 		= fr->id;
+		sa->port 	= NULL;
+		sa->drvid 	= fr->drvid;
+		sa->bus 	= fr->bus;
+		sa->chnl 	= fr->chnl;
+		sa->ptype 	= fi.value_type;
+		sa->status	= Z_NONE;
+		sa->y		= fr->y;
+		sa->r		= fr->r;
+		sa->ow_addr = fr->ow_addr; 
+		sa->next 	= NULL;
+		
+		if(_last_id < fr->id)
+			_last_id = fr->id;
+			
+		++cnt;
+	}
+	
+	DBG("Scanned " + str(total) + " association records, loaded " + str(cnt));
+	return true;
+}
+
+
+/*! \brief Initialize sensor associations tracking subsystem
+ * \return \c true for success, \c false otherwise
+ */
+bool
+sensor_assoc_init()
+{
+	DBG(str(sizeof(addrs))+" bytes allocated for "+str(MAX_SENSOR_COUNT)+" sensor records");
+	
+	for(byte i=0; i<MAX_SENSOR_COUNT/8; ++i)
+		addrs_used[i] = 0;
+		
+#if 0
+	for(byte i=0; i<MAX_SENSOR_COUNT; ++i) {
+		addrs[i].drvid = DRVID_NONE;
+		addrs[i].bus = 0;
+		addrs[i].chnl = 0;
+		addrs[i].next = NULL;
+	}
+#else	
+	_memset(&addrs, 0, sizeof(addrs));
+#endif	
+
+	_last_id = 15;
+	return read_assoc(); 
+}
+
+
+/*! \brief Add sensor association
+ * \param bus Bus ID where sensor attached: BUS_I2C, BUS_1WIRE, BUS_SWIRE etc.
+ * \param port Bus port number
+ * \param drv Driver ID
+ * \param addr Pointer to sensor address (if applicible)
+ * \returns true if sensor association added sucessfully, false otherwise
+ */
+bool
+sensor_assoc_add(iotype bus, byte chnl, byte drv, byte *addr)
+{
+	sensor *a;
+	zone z;
+	
+	a = alloc_addr();
+	if(NULL == a)
+		return false;
+	
+	if((IO_I2C == bus || IO_OW == bus || IO_RS485 == bus) && (NULL == addr))
+		return false;
+		
+	a->id = ++_last_id;
+	a->bus = bus;
+	a->chnl = chnl;
+	a->drvid = drv;
+	
+	/* Clear zones
+	 */
+	a->y.lo = 0;
+	a->y.hi = 0;
+	a->y.flags = 0;
+	a->y.sms_tpl = 0;
+	a->y.email_tpl = 0;
+	a->y.snmp_trap = 0;
+	
+	a->r.lo = 0;
+	a->r.hi = 0;
+	a->r.flags = 0;
+	a->r.sms_tpl = 0;
+	a->r.email_tpl = 0;
+	a->r.snmp_trap = 0;
+
+	switch(bus) {
+		case IO_I2C:
+			a->i2c_addr = *addr;
+			break;
+		case IO_OW:
+			a->ow_addr = *((ow_devid *)addr);
+			break;
+		case IO_RS485:
+			a->mac[0] = addr[0];
+			a->mac[1] = addr[1];
+			a->mac[2] = addr[2];
+			a->mac[3] = addr[3];
+			break;
+		case IO_DC:
+			break;
+	}
+		
+	return true;
+}
+
+
+static bool
+_cmp_addr(iotype bus, byte *addr1, byte *addr2)
+{
+	byte i;
+	
+	switch(bus) {
+		case IO_I2C:
+			return *addr1 == *addr2;
+			
+		case IO_OW:
+			for(i=0; i<8; ++i)
+				if(addr1[i] != addr2[i])
+					return false;
+			break;
+			
+		case IO_RS485:
+			/* Now RS485 MAC is same as 1-WIRE address but this is temporary
+			 * solution, so we provide separate case for RS-485 MACs
+			 */
+			for(i=0; i<MAX_HW_ADDR_SIZE; ++i)
+				if(addr1[i] != addr2[i])
+					return false;
+			break;
+			
+		default:
+			return false;
+	}
+	
+	return true; // Catch-all clause
+}
+
+
+sensor *
+sensor_assoc_find(byte bus, byte chnl, byte *addr)
+{
+	byte i, mask, *flags;
+	
+	flags = addrs_used;
+	mask = 0x80;
+	
+	for(i=0; i<MAX_SENSOR_COUNT; ++i) {
+		if(0 != (*flags & mask)) {
+			if(addrs[i].bus == bus && addrs[i].chnl == chnl)
+				if(_cmp_addr(bus, addr, addrs[i].mac))
+					return &addrs[i];
+		}
+		
+		mask >>= 1;
+		if(!mask) {
+			mask = 0x80;
+			flags++;
+		}
+	}
+	
+	return NULL;
+}
+
+
+/*! \brief Removes sensor association from database. Database must be saved on flash dist
+ */
+void
+sensor_assoc_remove(byte bus, byte chnl, byte *addr)
+{
+	byte i, mask, *flags;
+	
+	flags = addrs_used;
+	mask = 0x80;
+	
+	for(i=0; i<MAX_SENSOR_COUNT; ++i) {
+		if(0 != (*flags & mask)) {
+			if(addrs[i].bus == bus && addrs[i].chnl == chnl) {
+				if(_cmp_addr(bus, addr, addrs[i].mac)) {
+					*flags &= ~mask;
+					addrs[i].drvid = DRVID_NONE;
+					addrs[i].bus = 0;
+					addrs[i].chnl = 0;
+					return;
+				}
+			}
+		}
+		
+		mask >>= 1;
+		if(!mask) {
+			mask = 0x80;
+			flags++;
+		}
+	}
+}
+
+
+/*! \brief Save current sensor associations to the internal filesystem
+ */
+bool
+sensor_assoc_save(string& filename)
+{
+	byte i, mask, *flags;
+	sensor_file_rec fr;
+	
+	if(!open_always(FILENO_ASSOC_DB, DEFAULT_PSC_NAME))
+		return false;
+		
+	fd.setpointer(1);
+	
+	flags = addrs_used;
+	mask = 0x80;
+	
+	for(i=0; i<MAX_SENSOR_COUNT; ++i) {
+		if(0 != (*flags & mask)) {
+			if(IO_DC != addrs[i].bus) {
+				fr.id = addrs[i].id;
+				fr.drvid = addrs[i].drvid;
+				fr.bus = addrs[i].bus;
+				fr.chnl = addrs[i].chnl;
+				fr.y = addrs[i].y;
+				fr.r = addrs[i].r;
+				fr.ow_addr = addrs[i].ow_addr;
+				fd.setdata(fr);
+			}
+		}
+		
+		mask >>= 1;
+		if(0 == mask) {
+			mask = 0x80;
+			flags++;
+		}
+	}
+	
+	fd.flush();
+	fd.setfilesize(fd.pointer);
+	
+	return true;
+}
+
+
+/*! \brief Resets sensor association database to default state
+ */
+bool
+sensor_assoc_reset()
+{
+	byte i;
+
+	if(!open_always(FILENO_ASSOC_DB, DEFAULT_PSC_NAME))
+		return false;
+	
+	fd.setpointer(1); // 1 is legacy from Tibbo Basic
+	fd.setfilesize(0);
+	fd.flush();
+	
+	for(i=0; i<MAX_SENSOR_COUNT/8; ++i)
+		addrs_used[i] = 0;
+		
+	for(i=0; i<MAX_SENSOR_COUNT; ++i) {
+		addrs[i].drvid = DRVID_NONE;
+		addrs[i].bus = 0;
+		addrs[i].chnl = 0;
+		addrs[i].next = NULL;
+	}
+
+	return true;
+}
+
+
+int
+sensor_assoc_findtype(int start, iotype bus, byte chnl)
+{
+	int i;
+	byte *flags;
+	byte mask;
+	
+	if(start < 0 || start >= MAX_SENSOR_COUNT)
+		return -1;
+		
+	flags = &addrs_used[start >> 3];
+	mask = 0x80 >> (start & 7);
+	
+	for(i=start; i<MAX_SENSOR_COUNT; ++i) {
+		if((*flags & mask) == mask)
+			if(addrs[i].bus == bus && addrs[i].chnl == chnl)
+				return i;
+		
+		mask >>= 1;
+		if(0 == mask) {
+			mask = 0x80;
+			++flags;
+		}
+	}
+	
+	return -1;
+}
+
+
+sensor *
+sensor_assoc_get(int i)
+{
+	return (i >= 0 && i < MAX_SENSOR_COUNT)? &addrs[i]: NULL;
+}

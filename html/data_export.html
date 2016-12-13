@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>SNMP and Data Export</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link rel="stylesheet" type="text/css" href="style.css" />
+<link rel="stylesheet" type="text/css" href="swal2.css" /> 
+<script type="text/javascript" src="jq.js"></script>
+<script type="text/javascript" src="jqbm.js"></script>
+<script type="text/javascript" src="swal2.js"></script>
+<script type="text/javascript" src="ma.js"></script>
+</head>
+<body>
+<div class="body_outer">
+    <div class="heading">
+        <div class="main_heading">SNMP and Data Export</div>
+        <div class="main_heading_descr">Configure collected sensor data via various methods</div>
+        <div class="back"><a href="index.html">&laquo;&nbsp;Return to main page</a></div>
+    </div>
+    <div class="body">
+		<fieldset>
+		<legend>SNMP settings</legend>
+			<div class="formrow">
+				<input type="checkbox" id="en" name="en" class="cff" checked="checked"><label for="eb">Enable SNMP</label>
+			</div>
+			<div class="formrow">
+				<input type="checkbox" id="acl" name="acl" class="cff" checked="checked"><label for="acl">Enable ACL use for SNMP</label>
+			</div>
+			<div class="formrow">
+				<div class="l_win">Read community</div><input class="cff" name="rc" id="rc" maxlength="64" size="16" value="public">
+			</div>
+			<div class="formrow">
+				<input class="cff" type="checkbox" id="wen" name="wen" checked="checked"><label for="wen">Enable write access</label>
+			</div>
+			<div class="formrow">
+				<div class="l_win">Write community</div><input class="cff" name="wc" id="wc" maxlength="64" size="16" value="private">
+			</div>
+			<div class="formrow">
+				<input class="cff" type="checkbox" id="ten" name="ten" checked="checked"><label for="ten">Enable trap sending</label>
+			</div>
+			<div class="formrow">
+				<div class="cff" class="l_win">Trap server:port</div><input name="ts" id="sa" value="">
+			</div>
+		</fieldset>
+<!--
+		<fieldset>
+		<legend>Data Export</legend>
+		<div class="formrow">
+            <input type="checkbox" value="hact" id="hact"><label for="hact">HTTP active (via POST)</label>
+		</div>
+		<div class="formrow">
+            <div class="l_win"></div><div class="l_win">Server URL</div><input name="sa" id="sa" value="">
+		</div>
+		<div class="formrow">
+            <div class="l_win"></div><div class="l_win">User name</div><input name="un" id="un" value="">
+		</div>
+		<div class="formrow">
+            <div class="l_win"></div><div class="l_win">Password</div><input name="pw" id="pw" value=""><br/>
+            <div class="l_win"></div><div class="l_win"></div><span class="info">Keep user name and password fields empty, if no HTTP authorization required</span>
+		</div>
+		<div class="formrow">
+            <input type="checkbox" value="hpas" id="hpas"><label for="hpas">HTTP passive</label>
+		</div>
+		<div class="formrow">
+            <input type="checkbox" value="tact" id="tact"><label for="tact">TCP active</label>
+		</div>
+		<div class="formrow">
+            <div class="l_win"></div><div class="l_win">Server address:port</div><input name="sa" id="sa" value="">
+		</div>
+		</fieldset>
+-->		
+		<div class="formrow">
+		<br/>
+		<input type="submit" id="save" value="Save and Restart">
+		<input type="reset" value="Revert">
+		</div>
+	</div>
+</div>
+
+</body>
+</html>
+<? sock.send(); ?>

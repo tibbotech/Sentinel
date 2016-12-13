@@ -1,0 +1,338 @@
+#include "global.th"
+#include "utils.th"
+#include "hal.th"
+#include "ssi.th"
+#include "1wire.th"
+#include "sensors_db.th"
+#include "sensors_assoc.th"
+#include "device_map.th"
+#include "device_funcs.th"
+#include "tgs.th"
+
+
+// static :)
+//
+struct bus_scan {
+	sensor *chain;
+	unsigned short count;
+	unsigned short ucount;
+	ioport *port;
+	byte addr[MAX_HW_ADDR_SIZE];
+};
+
+
+extern sensor *connected_sensors;
+
+
+string
+var_format(var& v)
+{
+	if(v.type == TYPE_FLOAT) { 
+		return ftostr(v.f, FTOSTR_MODE_AUTO, 5);
+	} else {
+		return lstr(v.l);
+	}
+} 
+
+
+string 
+address_format(iotype bus, void *addr)
+{
+	string<24> res;
+	byte i, *ba;
+	
+	ba = (byte *)addr;
+	switch(bus) {
+		case IO_I2C:
+			return tohex(ba[0]);
+		
+		case IO_OW:
+			res = tohex(((ow_devid *)addr)->class) + ":";
+			for(i=0; i<6; ++i)
+				res += tohex(((ow_devid *)addr)->serial[5-i]);
+			return res;
+		
+		case IO_RS485:
+			return ddstr(chr(ba[0])+chr(ba[1])+chr(ba[2])+chr(ba[3]));
+
+		case IO_GPIO4:
+		case IO_DC:
+			return "n/a";
+		
+		default:
+			break;
+	}
+	
+	return "?";
+}
+
+
+byte
+dry_contacts_init()
+{
+	byte i, j, chnl;
+	word wflags, wmask;
+	tibbit_slot *slot;
+	
+	wflags = val(stg_get("DCPE", 0)); // 15 bit flags 'dc port enable'
+	wmask =  1;
+	chnl = 0;
+	
+	/* We allow of installing up to 5 Tibbits #04-2, each has three optoisolated 
+	 * inputs with common '-' this sums up to 15 dry contact lines in total
+	 */
+	for(i=0; i<5; ++i) {
+		slot = tibbit_get(TB_04_2, i);
+		if(NULL == slot) {
+			slot = tibbit_get(TB_04_4, i);
+			if(NULL == slot)
+				break;
+		}
+		
+		for(j=0; j<3; ++j, wmask <<= 1, chnl++)
+			if(0 != (wflags & wmask))
+				if(!sensor_assoc_add(IO_DC, chnl, 0, NULL))
+					break;
+	}
+	
+	return chnl;
+}
+
+
+bool
+find_sensor(iotype bus, byte chnl, void *addr)
+{
+	byte *ba = (byte *)addr;
+	ioport *p = map_device(bus, chnl);
+	
+	if(NULL == p)
+		return false;
+		
+	DBG("Detecting " + address_format(bus, addr) + " on " + ioport_typestring(p) + ", channel " + str(chnl) + "...");
+	
+	switch(bus) {
+		case IO_I2C:
+			return i2c_detect(p, ba[0]);
+		case IO_OW:
+			ow_start(p, chnl, OW_MATCH_ROM, (ow_devid *)addr);
+			ow_stop(p);
+			return true;
+		case IO_RS485:
+			return false;
+		case IO_DC:
+		case IO_SW:
+			return true;
+	}
+	
+	return false;
+}
+
+
+static void
+port_i2c_scan(bus_scan *bs, byte pn) 
+{
+	string<127> is;
+	int i, l;
+	sensor *addr; 
+	byte cnt = 0;
+	
+	is = i2c_port_scan(bs->port);
+	
+	l = len(is);
+	for(i=0; i<l; ++i) {
+		/* Try to find sensor with given ID on given I2C port
+		 */
+		bs->addr[0] = is[i];
+		addr = sensor_assoc_find(IO_I2C, pn, bs->addr);
+		if(NULL == addr) {
+			// No such record in assoc db
+			bs->ucount++;
+		} else {
+			addr->port = bs->port;
+			addr->next = bs->chain;
+			++cnt;
+			bs->count++;
+			bs->chain = addr; 
+		}
+	}
+}
+
+
+static void
+port_1w_scan(bus_scan *bs, byte pn)
+{
+	ow_devid owa;
+	sensor *addr;
+	byte cnt = 0;
+	
+	ow_enum_start(bs->port, pn);
+	while(ow_enum_next(bs->port, pn, &owa)) {
+		if(ow_addr_valid(&owa)) { // additionaly you can check address validity agianst checksum
+			_memcpy(&bs->addr, &owa, sizeof(owa));
+			
+			addr = sensor_assoc_find(IO_OW, pn, bs->addr);
+			if(NULL == addr) {
+				bs->ucount++;
+			} else {
+				addr->port = bs->port;
+				addr->next = bs->chain;
+				++cnt;
+				bs->count++;
+				bs->chain = addr;
+			}
+		}
+	}
+	
+//	sys.debugprint("1W: "+str(cnt)+"\r\n");
+}
+
+
+static void
+port_rs485_scan(bus_scan *bs, byte pn)
+{
+	int n, prev;
+	sensor *addr;
+	word tid;
+	byte cnt = 0;
+	
+	prev = 0;
+	do { 
+		n = sensor_assoc_findtype(prev, IO_RS485, 0);
+		if(n >= 0) {
+			addr = sensor_assoc_get(n);
+
+			tid = tibbo_detect_sensor(bs->port, chr(addr->mac[0])+chr(addr->mac[1])+chr(addr->mac[2])+chr(addr->mac[3]));
+			while(!tibbo_task_finished(tid)) {
+				tibbo_sensors_poll();
+				doevents;
+			}
+			
+			if(tibbo_task_status(tid) == TGS_STATE_SUCCESS) {
+				addr->port = bs->port;
+				addr->next = bs->chain;
+				bs->count++;
+				bs->chain = addr;
+				++cnt;
+			}
+			
+			tibbo_task_done(tid);
+			prev = n+1;
+		}
+	} while(n >= 0);
+	
+//	sys.debugprint("RS485: "+str(cnt)+"\r\n");
+}
+
+
+static void
+port_dc_scan(bus_scan *bs, byte pn)
+{
+	int n;
+	sensor *addr;
+
+	n = sensor_assoc_findtype(0, IO_DC, pn);
+	if(n >= 0) {
+		addr = sensor_assoc_get(n);
+		
+		addr->port = bs->port;
+		addr->pin = pn % 3; // Each DC tibbit have 3 optoisolated lines
+		addr->next = bs->chain;
+		addr->ptype = SPT_SWITCH;
+		
+		bs->count++;
+		bs->chain = addr;
+	}
+}
+
+
+/*! \brief Initial port scan on device boot
+ *
+ * Scans all available buses and retrieves attached sensors IDs. Then perform look up
+ * in sensor database and (if found) create sensor records for each found and recognized
+ * sensor
+ */
+sensor *
+device_boot_portscan(word *cnt, word *ucnt)
+{
+	word i, l;
+	byte pn;
+	bus_scan bs;
+	
+	bs.chain = NULL;
+	bs.count = 0;
+	bs.ucount = 0;
+
+/* Scan all known buses
+ */
+	l = get_total_port_count();
+	for(i=0; i<l; ++i) {
+		pn = _all_buses[i].port;
+		bs.port = map_device(_all_buses[i].type, pn);
+		if(NULL != bs.port) {
+			switch(_all_buses[i].type) {
+				case IO_I2C:
+					port_i2c_scan(&bs, pn); 
+					break;
+				case IO_OW:
+					port_1w_scan(&bs, pn);
+					break;
+				case IO_RS485:
+					port_rs485_scan(&bs, pn);
+					break;
+				case IO_DC:
+					port_dc_scan(&bs, pn);
+					break;
+			}
+//			sys.debugprint("bs.count = "+str(bs.count)+"\r\n");
+		}
+	}
+
+//	sys.debugprint("Total: " + str(bs.count) + "\r\n");
+	
+	*cnt = bs.count;
+	*ucnt = bs.ucount;
+	return bs.chain;
+}
+ 
+
+void
+device_portscan(sensor *head)
+{
+	for(sensor_db_open(); head; head=head->next)
+		sensor_read(head);
+}
+
+
+void
+device_init_sensors(sensor *head)
+{
+	for(sensor_db_open(); head; head=head->next)
+		sensor_init(head);
+}
+
+
+sensor *
+sensor_by_index(word idx)
+{
+	sensor *s;
+	
+	for(s = connected_sensors; (NULL != s) && (idx != 0); --idx)
+		s = s->next;
+		
+	return s;
+}
+
+
+sensor *
+sensor_by_id(sensor_id sid)
+{
+	sensor *s;
+	
+	for(s=connected_sensors; NULL != s; s=s->next)
+		if(sid == s->id)
+			return s;
+		
+	return NULL;
+}
+
+

@@ -1,0 +1,41 @@
+#include "utils.th"
+#include "hal.th"
+#include "ssi.th"
+#include "1wire.th"
+#include "device_map.th"
+#include "device_funcs.th"
+#include "sensors_db.th" 
+#include "sensors_assoc.th"
+#include "sensor_info.th"
+
+
+extern sensor *connected_sensors;
+
+  
+void
+sensors_monitor()
+{
+	sensor *s;
+	string res; 
+	word n;
+	
+	sock_send("[");
+	
+	for(n=1, s=connected_sensors; s != NULL; s=s->next, ++n) {
+		res = "{\n"; 
+		res += j_encode("n", str(n)) + ",\n";
+		res += j_encode("bus", str(s->bus)) + ",\n"; 
+		res += j_encode("channel", str(s->chnl)) + ",\n";
+		res += j_encode("param", str(s->ptype)) + ",\n";
+		res += j_encode("addr", address_format(s->bus, &s->mac)) + ",\n";
+		res += j_encode("value", var_format(s->res)) + ",\n"; 
+		res += j_encode("info", sensor_info_get(s->id)) + ",\n";
+		res += j_encode("zone", str(s->status)) + "\n";
+		res += "}";
+		if(NULL != s->next)
+			res +=",\n";
+		sock_send(res);
+	}
+	
+	sock_send("]");
+}

@@ -1,0 +1,138 @@
+MPLINK 5.08, LINKER
+Linker Map File - Created Thu Jul 14 17:08:09 2016
+
+                                 Section Info
+                  Section       Type    Address   Location Size(Bytes)
+                ---------  ---------  ---------  ---------  ---------
+                   .org_0       code   0x000000    program   0x000000
+                   .org_1       code   0x000000    program   0x000000
+                   .org_2       code   0x000e20    program   0x0003c0
+.config_8007_PIC16 BOOTLOADER.O       code   0x008007    program   0x000002
+.config_8008_PIC16 BOOTLOADER.O       code   0x008008    program   0x000002
+
+
+
+                              Program Memory Usage 
+                               Start         End      
+                           ---------   ---------      
+                            0x000e20    0x000fff      
+                            0x008007    0x008008      
+            482 out of 4359 program addresses used, program memory utilization is 11%
+
+
+
+                              Symbols - Sorted by Name
+                     Name    Address   Location    Storage File                     
+                ---------  ---------  ---------  --------- ---------                
+                   AddCrc   0x000eb8    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                 AddCrcB1   0x000eb9    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+         AppendDataBuffer   0x000e71    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                   B2toB1   0x000e33    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+            BootInfoBlock   0x000ed0    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+         BootInfoBlockEnd   0x000ed6    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+             BootloadMode   0x000e29    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+     BootloaderBreakCheck   0x000e23    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+           BootloaderInfo   0x000ed6    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+          BootloaderStart   0x000e20    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+             CheckCommand   0x000e9e    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                    Delay   0x000fda    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+               DoAutoBaud   0x000e43    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+         EraseAddressOkay   0x000f2e    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+               EraseFlash   0x000f16    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+          JUMPTABLE_BEGIN   0x000ea4    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+            JUMPTABLE_END   0x000eae    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                 LEDBLINK   0x000fe3    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+     LoadHoldingRegisters   0x000f58    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+           NextEraseBlock   0x000f32    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                    NoETX   0x000e6c    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                    NoSTX   0x000e68    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+               ReadEeprom   0x000f72    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+           ReadEepromLoop   0x000f74    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                ReadFlash   0x000ede    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+            ReadFlashWord   0x000ef2    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+             ReadHostByte   0x000fc5    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+          ReceiveDataLoop   0x000e64    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+            RetryAutoBaud   0x000e48    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+          SendAcknowledge   0x000f93    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+              SendCRCWord   0x000f9b    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+             SendChecksum   0x000f96    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                  SendETX   0x000f97    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+           SendEscapeByte   0x000f9f    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+             SendHostByte   0x000faf    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+              StartOfLine   0x000e62    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+               StartWrite   0x000fd0    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+             StartWriteB3   0x000fd1    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+              VerifyFlash   0x000efd    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+          VerifyPacketCRC   0x000e75    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+      VerifyPacketCrcLoop   0x000e7f    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+       WaitForHostCommand   0x000e58    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+              WaitForRise   0x000eb0    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+          WaitForRiseLoop   0x000eb1    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+      WaitForTxToComplete   0x000fba    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                    WrDLE   0x000fac    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                   WrNext   0x000fae    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+         WriteAddressOkay   0x000f55    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+              WriteEeprom   0x000f83    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+               WriteFlash   0x000f3d    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                     WtSR   0x000eb5    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                  loopdel   0x000fde    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+
+
+
+                              Symbols - Sorted by Address
+                     Name    Address   Location    Storage File                     
+                ---------  ---------  ---------  --------- ---------                
+          BootloaderStart   0x000e20    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+     BootloaderBreakCheck   0x000e23    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+             BootloadMode   0x000e29    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                   B2toB1   0x000e33    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+               DoAutoBaud   0x000e43    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+            RetryAutoBaud   0x000e48    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+       WaitForHostCommand   0x000e58    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+              StartOfLine   0x000e62    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+          ReceiveDataLoop   0x000e64    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                    NoSTX   0x000e68    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                    NoETX   0x000e6c    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+         AppendDataBuffer   0x000e71    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+          VerifyPacketCRC   0x000e75    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+      VerifyPacketCrcLoop   0x000e7f    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+             CheckCommand   0x000e9e    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+          JUMPTABLE_BEGIN   0x000ea4    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+            JUMPTABLE_END   0x000eae    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+              WaitForRise   0x000eb0    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+          WaitForRiseLoop   0x000eb1    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                     WtSR   0x000eb5    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                   AddCrc   0x000eb8    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                 AddCrcB1   0x000eb9    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+            BootInfoBlock   0x000ed0    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+           BootloaderInfo   0x000ed6    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+         BootInfoBlockEnd   0x000ed6    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                ReadFlash   0x000ede    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+            ReadFlashWord   0x000ef2    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+              VerifyFlash   0x000efd    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+               EraseFlash   0x000f16    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+         EraseAddressOkay   0x000f2e    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+           NextEraseBlock   0x000f32    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+               WriteFlash   0x000f3d    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+         WriteAddressOkay   0x000f55    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+     LoadHoldingRegisters   0x000f58    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+               ReadEeprom   0x000f72    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+           ReadEepromLoop   0x000f74    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+              WriteEeprom   0x000f83    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+          SendAcknowledge   0x000f93    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+             SendChecksum   0x000f96    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                  SendETX   0x000f97    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+              SendCRCWord   0x000f9b    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+           SendEscapeByte   0x000f9f    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                    WrDLE   0x000fac    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                   WrNext   0x000fae    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+             SendHostByte   0x000faf    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+      WaitForTxToComplete   0x000fba    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+             ReadHostByte   0x000fc5    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+               StartWrite   0x000fd0    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+             StartWriteB3   0x000fd1    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                    Delay   0x000fda    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                  loopdel   0x000fde    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+                 LEDBLINK   0x000fe3    program     static D:\DPC_monitor\1MP_LAB\SENSORS_MPL\Trash\AN_1310.X_fail\src\PIC16 Bootloader.asm
+
+

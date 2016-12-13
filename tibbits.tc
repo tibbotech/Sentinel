@@ -1,0 +1,89 @@
+#include "tibbits.th"
+
+
+/* Please keep this table in sync with enum!
+ * First member (tibbit type id) designated for error checking
+ */
+static tibbit_info _ti_info[] = {
+	{ TB_NONE, 	0, 0 },
+	{ TB_00_1, 	1, 0 },
+	{ TB_00_2, 	1, TBSLOT_PIN_D_UNUSED },
+	{ TB_00_3, 	1, TBSLOT_PIN_C_UNUSED | TBSLOT_PIN_D_UNUSED },
+	{ TB_01, 	1, 0 },
+	{ TB_02, 	2, 0 },
+	{ TB_03_1, 	1, TBSLOT_PIN_C_UNUSED | TBSLOT_PIN_D_UNUSED },
+	{ TB_03_2, 	1, TBSLOT_PIN_C_UNUSED | TBSLOT_PIN_D_UNUSED },
+	{ TB_04_1, 	1, TBSLOT_PIN_C_UNUSED | TBSLOT_PIN_D_UNUSED },
+	{ TB_04_2, 	1, TBSLOT_PIN_D_UNUSED },
+	{ TB_04_3,	1, TBSLOT_PIN_D_UNUSED },
+	{ TB_04_4, 	1, 0 },
+	{ TB_05,	1, TBSLOT_PIN_D_UNUSED },
+	{ TB_06,	2, TBSLOT_PIN_C_UNUSED | TBSLOT_PIN_D_UNUSED },
+	{ TB_07,	1, TBSLOT_PIN_C_UNUSED | TBSLOT_PIN_D_UNUSED },
+	{ TB_08,	1, 0 },
+	{ TB_09,	1, TBSLOT_PIN_B_UNUSED | TBSLOT_PIN_C_UNUSED | TBSLOT_PIN_D_UNUSED },
+	{ TB_10,	1, TBSLOT_PIN_B_UNUSED | TBSLOT_PIN_C_UNUSED | TBSLOT_PIN_D_UNUSED },
+	{ TB_11,	1, 0 },
+	{ TB_12,	1, TBSLOT_PIN_B_UNUSED | TBSLOT_PIN_C_UNUSED | TBSLOT_PIN_D_UNUSED },
+	{ TB_13,	1, TBSLOT_PIN_C_UNUSED | TBSLOT_PIN_D_UNUSED },
+	{ TB_14,	1, TBSLOT_PIN_C_UNUSED | TBSLOT_PIN_D_UNUSED },
+	{ TB_15,	1, TBSLOT_PIN_B_UNUSED | TBSLOT_PIN_C_UNUSED | TBSLOT_PIN_D_UNUSED },
+	{ TB_16, 	1, 0 },
+	{ TB_17,	1, 0 },
+/* Tibbits below is just connectors */
+	{ TB_18,	1, TBSLOT_C1_OR_C2 },
+	{ TB_19,	2, TBSLOT_C1_OR_C2 },
+	{ TB_20,	2, TBSLOT_C1_OR_C2 },
+	{ TB_21,	1, TBSLOT_C1_OR_C2 },
+/* Normal tibbits again */	
+	{ TB_22,	2, TBSLOT_PIN_B_UNUSED | TBSLOT_PIN_C_UNUSED | TBSLOT_PIN_D_UNUSED },
+	{ TB_23,	2, TBSLOT_PIN_B_UNUSED | TBSLOT_PIN_C_UNUSED | TBSLOT_PIN_D_UNUSED },
+	{ TB_24,	1, TBSLOT_PIN_D_UNUSED },
+	{ TB_25,	2, TBSLOT_PIN_B_UNUSED | TBSLOT_PIN_C_UNUSED | TBSLOT_PIN_D_UNUSED },
+	{ TB_26,	1, TBSLOT_PIN_D_UNUSED },
+/* Sensors */	
+	{ TB_27,	1, TBSLOT_C1_OR_C2 },
+	{ TB_28,	1, TBSLOT_C1_OR_C2 },
+	{ TB_29,	1, TBSLOT_C1_OR_C2 },
+	{ TB_30,	1, TBSLOT_C1_OR_C2 },
+/* PIC coprocessor */	
+	{ TB_31,	1, 0 },
+/* Reserved/Not exists */	
+	{ TB_32,	0, 0 },
+	{ TB_33,	0, 0 },
+	{ TB_34,	0, 0 },
+/* Sensors again */	
+	{ TB_35,	1, TBSLOT_C1_OR_C2 },
+	{ TB_36,	1, TBSLOT_C1_OR_C2 },
+	{ TB_37,	1, TBSLOT_C1_OR_C2 },
+/* Tibbits below is buttons and LEDs */
+	{ TB_38,	1, TBSLOT_C1_OR_C2 },
+	{ TB_39_1,	1, TBSLOT_C1_OR_C2 },
+	{ TB_39_2,	1, TBSLOT_C1_OR_C2 },
+	{ TB_39_3, 	1, TBSLOT_C1_OR_C2 },
+	{ TB_39_4,	1, TBSLOT_C1_OR_C2 },
+/* Normal tibbits again */	
+	{ TB_40_1,	1, TBSLOT_PIN_C_UNUSED | TBSLOT_PIN_D_UNUSED },
+	{ TB_40_2,	1, TBSLOT_PIN_C_UNUSED | TBSLOT_PIN_D_UNUSED },
+	{ TB_40_3,	1, TBSLOT_PIN_C_UNUSED | TBSLOT_PIN_D_UNUSED },
+	{ TB_40_4,	1, TBSLOT_PIN_C_UNUSED | TBSLOT_PIN_D_UNUSED },
+/* Tibbit #41 is an exception - it must be paired with #00-3 to work! */
+	{ TB_41,	1, TBSLOT_PIN_C_UNUSED | TBSLOT_PIN_D_UNUSED },
+	{ TB_42,	1, 0 },
+/* Reserved/Not exists */	
+	{ TB_43,	0, 0 },
+	{ TB_44,	0, 0 },
+	{ TB_45,	0, 0 },
+	{ TB_46,	0, 0 },
+/* GPRS/GSM modem */	
+	{ TB_47, 2, 0 }						//!< GPRS modem
+};
+
+
+/*! \brief Retrieve information about specified Tibbit type
+ */
+tibbit_info *tibbit_getinfo(tibbit tb)
+{
+	tibbit_info *t = &_ti_info[tb];
+	return t->type == tb? t: 0;
+}

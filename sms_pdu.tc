@@ -1,0 +1,166 @@
+#include "global.th"
+#include "utils.th"
+
+
+/* Service-Center-Address 
+ */
+struct pdu_sca {
+	byte addr_len;		/* Length of Service Center Address in bytes */
+	byte pad: 1;		/* Always set to 1 */
+	byte toa: 3; 		/* Type-of-number field */
+	byte npi: 4;		/* Numbering plan identification */
+	byte digits[1];
+};
+
+
+struct _bit_io {
+	byte *bufptr; 	/* Pointer to buffer */
+	byte bit; 		/* Bit number 0...6 */
+};
+
+
+void
+start_bits(_bit_io *b, byte *buf)
+{
+	b->bufptr = buf;
+	b->bit = 0;
+}
+
+
+byte
+get_bits(_bit_io *b)
+{
+	byte hi, lo;
+	
+	hi = b->bufptr[0];
+	lo = b->bufptr[1];
+	
+	return 0;
+}
+
+
+static void
+nibble_swap(string& str)
+{
+	byte i, cnt;
+	char h, l;
+	char *c = str;
+	
+	for(i=0, cnt=len(str); i<cnt; i+=2) {
+		if(i < cnt-1) {
+			h = c[i];
+			l = c[i+1];
+			c[i+1] = h;
+			c[i] = l;
+		}
+	}
+}
+
+
+static word _bitmasks[8] = { 0xFE00, 0x7F00, 0x1FC0, 0x0FE0, 0x07F0, 0x03F8, 0x01FC };
+static byte _shifts[8] = { 9, 8, 7, 6, 5, 4, 3, 2 };
+
+
+static char
+get7bits(char& *ptr, byte& cb)
+{
+	word res;
+	res = (((ptr[0]<<8) | ptr[1]) & _bitmasks[cb]) >> (9 - cb);
+	return res & 0xFF;
+}
+
+
+/*! \brief Decode PDU
+ * Decode single Protocol Data Unit, passed in \c pdu
+ * \param pdu PDU body
+ * \returns Decoded message from PDU
+ */
+string
+pdu_decode(string& pdu)
+{
+	char *c;
+	byte i, l, t, dcs;
+	string res = "";
+	string<16> temp;
+	
+	c = pdu;
+	
+	l = unhex(c) - 1;
+	t = unhex(c);
+	
+	for(temp=""; l>0; --l) {
+		temp += chr(*c++);
+		temp += chr(*c++);
+	}
+	
+	nibble_swap(temp);
+	
+	// first octet SMS-deliver
+	do {
+		t = unhex(c);
+		l = unhex(c);
+		if(t != 0x04)
+			c += l;
+	} while(t != 0x04);
+	
+	// type of the source address
+	t = unhex(c); --l;
+	
+	for(temp = ""; l>0; --l) {
+		temp += chr(*c++); 
+		temp += chr(*c++);
+	}
+
+	nibble_swap(temp);
+	res += "From: " + temp + "; ";
+	
+	t = unhex(c); // TP-PID Protocol ID
+	dcs = unhex(c); // TP-DCS Data coding scheme
+	
+	res = temp + chr(0x0A);
+	
+	for(temp="", i=0; i<6; ++i) {
+		temp += chr(*c++); 
+		temp += chr(*c++);
+		temp += " ";
+	}
+	
+	res += "Date: " + temp + "; ";
+	
+	l = unhex(c); // UDL User data length in 7-bit or 8-bit octets, depending on TP-DCS
+
+	if(dcs == 8) {
+		for(temp=""; l>0; --l) {
+			temp += chr(*c++);
+		}
+	} else {
+		for(temp="", i=0; l>0; --l) {
+			temp += chr(get7bits(c, i));
+			i += 7;
+			if(i > 8) {
+				++c;
+				i -= 8;
+			}
+		}
+	}
+	
+	for(temp="", i=0; l>0; --l) {
+		temp += chr(get7bits(c, i));
+		i += 7;
+		if(i > 8) {
+			++c;
+			i -= 8;
+		}
+	}
+	
+	return res + temp;
+}
+
+
+string
+pdu_encode(string& src)
+{
+	return src;
+}
+
+

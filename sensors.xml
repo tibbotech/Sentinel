@@ -1,0 +1,328 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<sensors>
+    <sensor id="1" valuetype="temperature_and_humidity">
+        <name>Temperature and Humidity</name>
+        <chipset>AM-2301</chipset>
+        <buslist>
+            <bus>s-wire</bus>
+        </buslist>
+        <read>
+            <reply length="5">
+                <param type="temperature">
+                    <bitfield start="0" size="12"></bitfield>
+                </param>
+                <param type="humidity">
+                    <bitfield start="12" size="12"></bitfield>
+                </param>
+                <param type="crc_8">
+                    <bitfield start="32" size="8" />
+                </param>
+            </reply>
+        </read>
+    </sensor>
+
+    <sensor id="2" valuetype="temperature">
+        <name>Temperature</name>
+        <chipset>MCP9808</chipset>
+        <buslist>
+            <bus>i2c</bus>
+            <bus>1-wire</bus>
+        </buslist>
+        <read>
+            <command>CC 55 FF EA AA</command>
+            <reply length="2">
+                <param type="temperature">
+                    <bitfield start="0" size="16"></bitfield>
+                </param>
+            </reply>
+        </read>
+    </sensor>
+
+    <sensor id="3" valuetype="acdc_current">
+        <name>AC ~220V presence</name>
+        <chipset>DS2406p+</chipset>
+        <buslist>
+            <bus>1-wire</bus>
+        </buslist>
+        <read>
+            <command>F5 24 FF</command>
+            <reply length="1">
+                <param type="boolean">
+                    <bitfield start="3" size="1" />
+                </param>
+                <!--
+                <param type="boolean">
+                    <bitfield start="4" size="1" />
+                </param>
+                -->
+            </reply>
+        </read>
+    </sensor>
+    
+    <sensor id="4" valuetype="flood">
+        <name>Water flood</name>
+        <chipset>DS2406p+</chipset>
+        <buslist>
+            <bus>1-wire</bus>
+        </buslist>
+        <read>
+            <command>F5 24 FF</command> <!-- or F5 48 FF -->
+            <reply length="1">
+                <param type="boolean" name="Channel 1">
+                    <bitfield start="3" size="1" />
+                </param>
+                <!--
+                -->
+                <!--
+                <param type="boolean" name="Channel 2">
+                    <bitfield start="4" size="1" />
+                </param>
+                -->
+            </reply>
+        </read>
+    </sensor>
+    
+    <sensor id="5" valuetype="light">
+        <name>Ambient light intensity</name>
+        <chipset>BH1731VFC</chipset>
+        <buslist>
+            <bus>i2c</bus>
+        </buslist>
+        <init>
+            <command>00</command> <!-- OFF -->
+            <command>01</command> <!-- ON -->
+            <command>12</command> <!-- SET HIGH PRECISION -->
+        </init>
+        <read>
+            <reply length="2">
+                <param byteorder="msb-first" result="yes">
+                    <!-- simple case: extract value from bitfield, shift it in
+                         position and scale by 1.2 to achieve light value in luxes.
+                         We use reciprocal value of 1.2 to avoid divide
+                    -->
+                    <bitfield start="0" size="16" shift="0" scale="0.833333333" />
+                </param>
+            </reply>
+        </read>
+    </sensor>
+
+    <sensor id="6" valuetype="reed_switch">
+        <name>Door open/close status</name>
+        <chipset>Reed switch</chipset>
+        <buslist>
+            <bus>dc</bus>
+        </buslist>
+        <read>
+            <reply length="1">
+                <param type="boolean" name="Switch status">
+                    <bitfield start="0" size="8" />
+                </param>
+            </reply>
+        </read>
+    </sensor>
+
+    <sensor id="7" tibbo_id="1" valuetype="pressure">
+        <name>Barometric pressure</name>
+        <chipset>MPL115A2</chipset>
+        <buslist>
+            <bus>i2c</bus>
+        </buslist>
+        <init>
+            <command>04</command>
+            <reply length="8">
+                <param byteorder="lsb-first">
+                    <!-- convert 4 fixed-point sensor coefficient values into
+                         floating-point numbers and put it in the const registers
+                    -->
+                    <code>
+                        mov r0, word data[0]
+                        swap r0
+                        float r0
+                        mov r1, 1
+                        shl r1, 3
+                        float r1
+                        div r0, r1
+                        mov c0, r0
+                        mov r0, word data[2]
+                        swap r0
+                        float r0
+                        mov r1, 1
+                        shl r1, 13
+                        float r1
+                        div r0, r1
+                        mov c1, r0
+                        mov r0, word data[4]
+                        swap r0
+                        float r0
+                        mov r1, 1
+                        shl r1, 14
+                        float r1
+                        div r0, r1
+                        mov c2, r0
+                        mov r0, word data[6]
+                        swap r0
+                        float r0
+                        mov r1, 1
+                        shl r1, 24
+                        float r1
+                        div r0, r1
+                        mov c3, r0
+                    </code>
+                </param>
+            </reply>
+        </init>
+        <read>
+            <command>12 00</command>
+            <command>00</command>
+            <reply length="4">
+                <param name="Barometric pressure kPa" suffix="kPa">
+                    <code>
+                        mov r0, word data[2]
+                        swap r0
+                        shr r0, 6
+                        and r0, 0x3ff
+                        float r0
+                        mov r1, word data[0]
+                        swap r1
+                        shr r1, 6
+                        and r1, 0x3ff
+                        float r1
+                        mov r2, r0
+                        mul r0, c3
+                        add r0, c1
+                        mul r0, r1
+                        add r0, c0
+                        mul r2, c2
+                        add r0, r2
+                        div r0, 15.737
+                        add r0, 50.0
+                        mul r0, 7.50062
+                    </code>
+                </param>
+            </reply>
+        </read>
+    </sensor>
+
+    <sensor id="8" valuetype="byte">
+        <name>8-bit parallel port</name>
+        <chipset>MCP23008</chipset>
+        <buslist>
+            <bus>i2c</bus>
+        </buslist>
+        <read>
+            <command>09</command>
+            <reply length="1">
+                <param type="byte" name="Value">
+                    <bitfield start="0" size="8" />
+                </param>
+            </reply>
+        </read>
+    </sensor>
+
+    <sensor id="9" valuetype="humidity">
+        <name>Humidity (temperature compensated)</name>
+        <chipset>HIH 6130</chipset>
+        <buslist>
+            <bus>i2c</bus>
+        </buslist>
+        <read>
+            <command></command>
+            <reply length="4">
+                <param type="float" name="Value">
+                    <code>
+                        mov r0, word data[0]
+                        swap r0
+                        and r0, 0x3fff
+                        float r0
+                        div r0, 16383.0
+                        mul r0, 165.0
+                        add r0, -40.0
+                    </code>
+                </param>
+            </reply>
+        </read>
+    </sensor>
+
+    <sensor id="10" valuetype="temperature">
+        <name>Temperature</name>
+        <chipset>DS18B20</chipset>
+        <buslist>
+            <bus>1-wire</bus>
+        </buslist>
+        <read>
+            <command>44</command>
+            <command delay="10ms">BE</command>
+            <reply length="2">
+                <param type="float" name="Temperature">
+                    <code>
+                        mov r0, word data[0]
+                        and r0, 0x87ff
+                        float r0
+                        div r0, 16.0
+                    </code>
+                    <!-- <bitfield start="0" size="16" scale="0.0625" /> -->
+                </param>
+            </reply>
+        </read>
+    </sensor>
+
+    <sensor id="11" valuetype="acceleration_three_axis">
+        <name>Accelerometer (3-axis)</name>
+        <chipset>ADXL312</chipset>
+        <buslist>
+            <bus>i2c</bus>
+        </buslist>
+        <init>
+            <command>2D 00</command>
+            <command>2D 08</command> <!-- POWER_CTL: Measure -->
+            <command>31 08</command> <!-- Data format: FULL_RES -->
+            <command>38 00</command> <!-- FIFO_CTL: bypass FIFO -->
+        </init>
+        <read>
+            <command>32</command>
+            <reply length="6">
+                <param type="float" name="accel">
+                    <code>
+                        mov r0, word data[2]
+                        swap r0
+                        and r0, 0x3ff
+                        float r0
+                    </code>
+                </param>
+            </reply>
+        </read>
+    </sensor>
+    
+    <sensor id="12" valuetype="temperature">
+        <name>Temperature</name>
+        <chipset>Tibbo Original</chipset>
+        <buslist>
+            <bus>rs-485</bus>
+        </buslist>
+    </sensor>
+
+    <sensor id="13" valuetype="light">
+        <name>Ambient Light</name>
+        <chipset>Tibbo Original</chipset>
+        <buslist>
+            <bus>rs-485</bus>
+        </buslist>
+    </sensor>
+    
+    <sensor id="14" valuetype="acceleration_three_axis">
+        <name>3-axis accelerometer</name>
+        <chipset>Tibbo Original</chipset>
+        <buslist>
+            <bus>rs-485</bus>
+        </buslist>
+    </sensor>
+
+    <sensor id="15" valuetype="temperature_and_humidity">
+        <name>Temperature and Humidity</name>
+        <chipset>Tibbo Original</chipset>
+        <buslist>
+            <bus>rs-485</bus>
+        </buslist>
+    </sensor>
+
+</sensors>

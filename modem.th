@@ -1,0 +1,115 @@
+#ifndef __MODEM_LIBRARY_HEADER_INCLUDED__
+#define __MODEM_LIBRARY_HEADER_INCLUDED__
+
+
+/*! \file modem.th
+ * \brief MODEM library for SIM900 GPRS modem module
+ *
+ * (c) 2015 Tibbo Technology Inc.
+ *
+ * For complete list and description of AT-command used please see 
+ * http://simcom.ee/documents/SIM900/SIM900_AT%20Command%20Manual_V1.11.pdf
+ *
+ * Revision history:
+ *
+ * 15 dec 2015 v0.1 skuf Initial revision
+ */
+
+#include "global.th"
+#include "hal.th"
+
+
+/* Pin numbers in slot. NOT GPIO LINE NUMBERS!
+ */
+#define MODEM_SWDN			4			// Pin A in slot+1
+#define MODEM_PWRKEY		5			// Pin B ---
+#define MODEM_RESET			6			// Pin C ---
+#define MODEM_STATUS		7			// Pin D ---
+
+
+/* Response parser states
+ */
+enum gprs_state {
+	MODEM_STATE_HANDSHAKE = 0,			/*!< Initial handshake between modem and us */
+	MODEM_STATE_DISABLE_ECHO,
+	MODEM_STATE_SEND_PIN,				/*!< PIN required */
+	MODEM_STATE_LIMITED_FUNC,			/*!< Modem reported it has limited functionality */
+	MODEM_STATE_TRANSIEVER_OFF,			/*!< Modem reported that its transiever is turned OFF */
+	MODEM_STATE_GET_REG,				/*!< Getting network registration info */
+	MODEM_STATE_GET_INFO1,
+	MODEM_STATE_WAIT_CALL_READY,		/*!< Awaiting for 'Call Ready' response */
+	/* GPRS-session related state */
+	MODEM_STATE_GPRS_INIT,
+	MODEM_STATE_GPRS_DOCONNECT,
+	MODEM_STATE_GPRS_CONNECTING,
+	MODEM_STATE_GPRS_CONNECTED,
+	
+	/* SMS-related states */
+	MODEM_STATE_BEGIN_SMS,
+	MODEM_STATE_WAIT_PROMPT,
+	MODEM_STATE_SEND_SMS,
+	MODEM_STATE_READ_SMS,
+	
+	MODEM_STATE_CUSTOM_COMMAND,
+	MODEM_LAST_STATE
+};
+
+
+/* Substates
+ */
+#define SUBSTATE_GOT_RDY			0x01
+#define SUBSTATE_GOT_FUNC			0x02
+#define SUBSTATE_GOT_PIN			0x04
+#define SUBSTATE_HANDSHAKE_DONE 	(SUBSTATE_GOT_RDY|SUBSTATE_GOT_FUNC|SUBSTATE_GOT_PIN) // compiler bug. Jira issue #319 (FIXED)
+
+
+#define MODEM_FLAG_READY			0x01  	//!< Ready to operate
+#define MODEM_FLAG_CALL_READY		0x02	//!< Can make a call
+#define MODEM_FLAG_GPRS_ENABLED		0x04
+#define MODEM_FLAG_INCORRECT_PIN 	0x08	//!< Incorrect PIN-code supplied
+#define MODEM_FLAG_SMS_INPROGRESS	0x10	//!< SMS sending in progress
+#define MODEM_FLAG_CONNECTED		0x40
+#define MODEM_FLAG_ESTABLISHED		0x80
+
+
+#define MODEM_DEBUG_LOG				0x01	//!< Log internal messages
+#define MODEM_DEBUG_IN				0x02	//!< Log modem responses
+#define MODEM_DEBUG_OUT				0x04	//!< Log sent AT-command
+#define MODEM_DEBUG_ALL				0xFF	//!< Log everything
+
+
+/* \enum modem_status_code
+ * Modem operation status code, returned by various functions
+ */
+enum modem_status_code {
+	MODEM_FAILURE = 0,						/*!< Failed to do requested operation */
+	MODEM_SUCCESS,							/*!< Success */
+	MODEM_INPROGRESS,						/*!< Another operation already in progress, try again later */
+	MODEM_NOTREADY,							/*!< Cannot perform operation: modem is not ready yet to accept commands */
+};
+
+
+extern byte modem_debug_flags;
+
+
+extern void modem_reset(ioport *);
+extern void modem_gprs_enable(bool);
+extern void modem_init(ioport *, string&);
+extern void on_modem_data_arrival();
+extern void modem_timer();
+extern bool modem_readytocall(ioport *, bool);
+extern modem_status_code modem_send_sms(ioport *, string&, string&);
+extern modem_status_code modem_command(ioport *, string&, bool);
+extern modem_status_code modem_query_info(ioport *);
+extern string modem_get_sms(ioport *, byte, bool);
+extern string modem_last_sms_number(ioport *);
+extern void modem_escape(ioport *);
+extern bool modem_session_established();
+extern void modem_set_established(bool);
+
+
+extern string pdu_decode(string&);
+extern string pdu_encode(string&);
+
+
+#endif

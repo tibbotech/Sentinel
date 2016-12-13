@@ -1,0 +1,54 @@
+#include "global.th"
+#include "fileno.th"
+
+
+static dword _fds[2] = {0, 0};	// Assuming 32 bits per unsigned long: 64 fds total
+
+
+// TODO: Switch to use utils.tc's bit_alloc(), this code is redundant
+
+
+static char
+_fn_scan(dword *f, char offs)
+{
+	for(dword mask = MSB(dword); mask != 0; mask >>= 1, ++offs) {
+		if(0 == (*f & mask)) {
+			*f |= mask;
+			return offs;
+		}
+	}
+			
+	return -1;
+}
+
+
+/* \brief
+ */
+char
+fn_alloc()
+{
+	char res;
+	
+	res = _fn_scan(&_fds[0], 0);
+	if(res < 0)
+		res = _fn_scan(&_fds[1], BITS_IN(_fds[0]));
+		
+	return res;
+}
+
+
+/* \brief
+ */
+void
+fn_free(char f)
+{
+	if(f >= 0 && f < 64)
+		_fds[f/32] &= ~(MSB(dword) >> (f%32));
+}
+
+
+char
+filenum_get(string& unused)
+{
+	return fn_alloc();
+}

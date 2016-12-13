@@ -1,0 +1,20 @@
+#ifndef __SENSOR_ASSOCIATION_DB_INCLUDED__
+#define __SENSOR_ASSOCIATION_DB_INCLUDED__
+
+
+#include "global.th"
+#include "hal.th"
+#include "sensors_db.th"
+
+
+extern bool sensor_assoc_init();
+extern bool sensor_assoc_add(iotype, byte, byte, byte *);
+extern void sensor_assoc_remove(byte, byte, byte *);
+extern bool sensor_assoc_save(string&);
+extern sensor *sensor_assoc_find(byte, byte, byte *);
+extern bool sensor_assoc_reset();
+extern int sensor_assoc_findtype(int, iotype, byte);
+extern sensor *sensor_assoc_get(int);
+
+
+#endif

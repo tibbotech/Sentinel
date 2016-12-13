@@ -1,0 +1,595 @@
+#include "global.th"
+#include "ledbar.th"
+#include "hal.th"
+#include "ssi.th"
+#include "heap.th"
+#include "utils.th"
+#include "1wire.th"
+#include "filesys.th"
+#include "sensors_db.th"
+#include "sensors_assoc.th"
+#include "device_map.th"
+#include "device_funcs.th"
+#include "dns.th"
+#include "acl.th"
+#include "snmp.th"
+#include "smtp.th"
+#include "modem.th"
+#include "template.th"
+#include "tgs.th"
+#include "tftp.th"
+#include "http_post.th"
+#include "validators.th"
+#include "sensor_info.th"
+
+
+static word update_timer;
+static byte _msk = 0x01;
+static char port_0_mode = 0;
+sensor *connected_sensors = NULL;
+
+
+static string<4> _dflt_ip = "\xC0\xA8\x00\x02";	// 192.168.0.2
+static string<4> _dflt_nm = "\xFF\xFF\xFF\x00";	// 255.255.255.0
+static string<4> _dflt_gw = "\xC0\xA8\x00\x01"; // 192.168.0.1
+
+
+extern void doalarm(sensor *, zone *);
+extern byte gprs_ser_port;
+extern void create_agg_sensors_table();
+extern void update_agg_sensors_table();
+extern void gprs_proc_sock_data();
+
+
+static void
+http_init(string& ip, string& mask, string& gateway)
+{
+	byte i;
+	
+	/* Setting up network 
+	 */
+	net.ip = ip;
+	net.netmask = mask; 
+	net.gatewayip = gateway; 
+
+	DBG("Starting HTTP server on "+ip);
+
+	/* Setting up sockets for HTTP server. As in documentation, we 
+	 * use sockets 8 thru 15 to set up for server.
+	 */
+	for(i=0; i<3; ++i) {
+		sock.num = 8 + i;
+		sock.targetinterface = PL_SOCK_INTERFACE_NET;
+		sock.allowedinterfaces = "WLN,NET";
+		sock.protocol = PL_SOCK_PROTOCOL_TCP;
+		sock.inconmode = PL_SOCK_INCONMODE_ANY_IP_ANY_PORT;
+		sock.httpportlist = "80"; // listen on port 80
+		sock.txbuffrq(4);
+		sock.varbuffrq(2);
+		sock.redir(PL_REDIR_SOCK0 + sock.num);
+	}
+}
+
+
+void
+agg_agent_init()
+{
+	string<32> user, pwd;
+	string<4> agif;
+	word agg_server_port;
+	string<16> agg_server_ip;
+	string<48> devname;
+	en_agg_status_codes res;
+	pl_sock_interfaces active_if = PL_SOCK_INTERFACE_NET;
+
+	if(0 != !!val(stg_get("AGEN", 0)))  {
+		agif = stg_get("AGIF", 0);
+		if("gprs" == agif)
+			active_if = PL_SOCK_INTERFACE_PPP;
+		else if("wifi" == agif)
+			active_if = PL_SOCK_INTERFACE_NET;
+		else
+			agif = "eth";
+			
+		agg_server_ip = stg_get("AGIP", 0);
+		if(0 == len(agg_server_ip))
+			agg_server_ip = "192.168.0.1";
+			
+		agg_server_port = val(stg_get("AGP", 0));
+		if(0 == agg_server_port)
+			agg_server_port = DEFAULT_AGG_PORT; 
+			
+		user = stg_get("AGUN", 0);
+		pwd = stg_get("AGPW", 0);
+		 
+		devname = stg_get("SYSN", 0);
+		if(0 == len(devname))
+			devname = "TibboSentinel";
+
+		DBG("Starting AggreGate agent for server "+agg_server_ip+":"+str(agg_server_port)+", interface: "+agif);
+		
+		res = agg_start(active_if, user, devname, pwd, agg_server_ip, agg_server_port, 600, YES);
+		if(EN_AGG_STATUS_OK != res) {
+			DBG("Failed to start AggreGate agent");
+		}
+	} else {
+		DBG("Note: AggreGate server DISABLED");
+	}
+}
+
+
+void
+net_init_manual()
+{
+	string<16> ip = stg_get("IP", 0);
+	string<16> nm = stg_get("NM", 0);
+	string<16> gw = stg_get("GW", 0);
+	
+	if(!is_valid_ip(ip) || !is_valid_ip(nm)) {
+		ip = ddstr(_dflt_ip);
+		nm = ddstr(_dflt_nm);
+		gw = ddstr(_dflt_gw);
+	}
+	
+	http_init(ip, nm, gw);
+	http_post_init();
+	
+	if("eth" == stg_get("AGIF", 0))
+		agg_agent_init();
+}
+
+
+static void
+settings_init()
+{
+	en_stg_status_codes res;
+	string<STG_MAX_SETTING_NAME_LEN> name;
+	
+	res = stg_start();
+	if(res != EN_STG_STATUS_OK)
+		sys.halt();
+		
+	res = stg_check_all(name);
+	if((EN_STG_STATUS_INVALID == res) || (EN_STG_STATUS_FAILURE == res))
+		if(EN_STG_STATUS_OK != stg_restore_multiple(EN_STG_INIT_MODE_NORMAL))
+			sys.halt();
+}
+
+
+static void
+scan_connected_sensors() 
+{
+	byte dcpc;
+
+	led_bar_set_pattern(0x1F);
+	
+	sensor_count = 0;
+	unknown_sensor_count = 0;
+	
+	dcpc = dry_contacts_init();
+	DBG("Found " + str(dcpc) + " DC ports");
+	
+	tibbo_sensors_init();
+
+	connected_sensors = device_boot_portscan(&sensor_count, &unknown_sensor_count);
+	DBG("Found " + str(sensor_count) + " alive sensors");
+	
+	if(NULL != connected_sensors) {
+		DBG("Initializing found sensors");
+		device_init_sensors(connected_sensors);
+	}
+	
+	led_bar_set_pattern(0x01);
+	//device_portscan(connected_sensors);
+}
+
+
+static string 
+cln(string t)
+{
+	for(int i=0; i<len(t); ++i)
+		if(t[i] < 32 || t[i] > 127)
+			t[i] = '.';
+	return t;
+}
+
+
+static void
+gprs_modem_init()
+{
+	ioport *mp;
+	bool gprs_enable = !!val(stg_get("GEN", 0));
+	
+	DBG("Finding GPRS modem...");
+	
+	mp = map_device(IO_MODEM, 0);
+	if(NULL != mp) {
+		gprs_ser_port = ioport_spn(mp);
+		modem_debug_flags = 0xFF; //MODEM_DEBUG_LOG;
+		modem_init(mp, stg_get("MPIN", 0)); /* pin code */
+		modem_gprs_enable(gprs_enable);
+	}
+}
+
+
+void 
+on_sys_init()
+{
+	byte tmp;
+	en_dhcp_status_codes res;
+	
+	DBG("Firmware version: " + __VERSION__);
+	DBG("Initializing...");
+	
+/* Initialize major subsystems
+ */
+	led_bar_init();
+	led_bar_set_pattern(0xFF);
+#if 0	
+	heap_init();
+#endif
+	settings_init();  
+	tbl_start();
+	serial_init();
+	filesys_init();
+	device_map_init();
+	sensor_assoc_init();
+	sensor_db_open();
+	dns_init();
+	smtp_init();
+	acl_init();
+	snmp_init();
+
+	tmp = val(stg_get("ETH", 0));
+	switch(tmp) {
+		case 0: // Ethernet interface offline
+			//break;
+		case 1: // Manual setup
+			net_init_manual();
+			break;
+		case 2: // Dhcp setup
+			res = dhcp_start(PL_SOCK_INTERFACE_NET, stg_get("IP", 0), stg_get("HN", 0));
+			break;
+		default:
+			ERR("Settings misconfiguration. Ethernet interface will be down");
+			break;
+	}
+
+	gprs_modem_init();
+	
+	sys.buffalloc();
+
+	template_open(true);
+
+/* Perfrom intial port scan and associate found sensors with
+ * known drivers
+ */
+	scan_connected_sensors();
+
+	update_interval = 4; // 2 sec
+	update_enabled = true;
+    update_timer = 1; // Update immediately
+
+	led_bar_set_pattern(0);
+
+	DBG("Memory total: "+str(sys.totalbuffpages/4)+" kB, free: "+str(sys.freebuffpages/4)+" kB");
+	
+	DBG("Running");
+}
+
+
+void
+callback_dhcp_ok(no_yes renew, pl_sock_interfaces interface, string& dhcp_obtained_ip, string& dhcp_obtained_gateway, string& dhcp_obtained_netmask, dword dhcp_obtained_lease_time)
+{
+	DBG("DCHP reply: IP "+dhcp_obtained_ip+", NM "+dhcp_obtained_netmask+", GW "+dhcp_obtained_gateway);
+	
+	http_init(dhcp_obtained_ip, dhcp_obtained_netmask, dhcp_obtained_gateway);
+	http_post_init();
+	agg_agent_init();
+	
+	sys.buffalloc();
+	
+	/* Remember values received by DHCP reply
+	 */
+	stg_set("IP", 0, dhcp_obtained_ip);
+	stg_set("NM", 0, dhcp_obtained_netmask);
+	stg_set("GW", 0, dhcp_obtained_gateway);
+}
+
+
+void
+callback_dhcp_failure(pl_sock_interfaces interface, en_dhcp_status_codes failure_code)
+{
+	/* Fall back to default addresses
+	 */
+	stg_set("IP", 0, "");
+	net_init_manual();
+}
+
+
+static void
+test_echo()
+{
+	sock.num = SOCK_NUM_SMS;
+	sock.allowedinterfaces = "PPP";
+	sock.protocol = PL_SOCK_PROTOCOL_TCP;
+	sock.targetinterface = PL_SOCK_INTERFACE_PPP;
+	sock.targetip = "93.174.104.89";
+	sock.targetport = 7;
+	sock.inconmode = PL_SOCK_INCONMODE_NONE;
+	sock.reconmode = PL_SOCK_RECONMODE_3;
+	
+	sock.rxbuffrq(1);
+	sock.txbuffrq(1);
+	sys.buffalloc();
+
+	sock.connect();
+}
+
+
+void
+callback_gprs_ok()
+{
+	/* Start agent, if required */
+#if 0	
+	test_echo();
+#endif
+	agg_agent_init();
+}
+
+
+void
+callback_gprs_failure()
+{
+#if 0
+#endif
+}
+
+
+static void
+poll_dc_lines(bool first_run)
+{
+	sensor *s;
+	ioport *p;
+	iotype t;
+	byte pn;
+	
+	for(s=connected_sensors; NULL != s; s=s->next) {
+		t = ioport_type(s->port);
+		if((IO_GPIO4 == t) || (IO_DC == t)) {
+			pn = s->pin;
+			if(pn > 2)
+				continue;
+				
+			p = s->port;
+			
+			if(!first_run) {
+				s->prev.type = s->res.type;
+				s->prev.l = s->res.l;
+				
+				s->res.type = TYPE_LONG;
+				s->res.l = io.lineget(p->d.pin[pn]);
+
+				/* We need to add a 'guard interval' between consequtive line state changes to prevent 
+				 * being spammed by SMS or E-mail messages
+				 */
+				if(s->res.l == LOW && s->prev.l == HIGH) {
+					doalarm(s, &s->y);
+					doalarm(s, &s->r);
+				}
+			} else {
+				s->res.type = s->prev.type = TYPE_LONG;
+				s->res.l = s->res.l = io.lineget(p->d.pin[pn]);
+			}
+		}
+	}
+}
+
+
+bool first_run = true;
+
+
+static void
+sensors_timer()
+{
+	if(update_enabled) { 
+		led_bar_set_pattern(_msk);
+		_msk <<= 1;
+		if(_msk > 0x10)
+			_msk = 1;
+		if(0 == --update_timer) {
+			if(NULL != connected_sensors) { 
+				pat.play("-r", PL_PAT_NOINT);
+				device_portscan(connected_sensors);
+				update_agg_sensors_table();
+				pat.play("-", PL_PAT_NOINT);
+			} 
+		
+			update_timer = update_interval;
+		}
+		
+		/* State of the dry contact lines is examined each 0.5 seconds
+		 */
+		poll_dc_lines(first_run);
+		if(first_run)
+			create_agg_sensors_table();
+		
+		first_run = false;
+	}
+} 
+
+
+/* Poll various subsystems 
+ */
+void
+on_sys_timer()
+{
+	sensors_timer();
+	tibbo_sensor_timer();
+	dns_timer();
+	dhcp_proc_timer();
+	agg_proc_timer();
+	modem_timer();
+}
+
+
+void
+on_sock_data_sent()
+{
+	if(sock.num == SOCK_NUM_DNS)
+		DBG("DNS packet sent");
+	if(sock.num == SOCK_NUM_GPRS)
+		DBG("GPRS packet sent");
+}
+
+
+void 
+on_sock_data_arrival()
+{
+#if 0
+	string s = sock.peekdata(255);
+	DBG("RECV: " + dump(s));
+#endif
+
+	switch(sock.num) {
+		case SOCK_NUM_SMTP:
+			string s = sock.getdata(255);
+			_mail_send_continue(s, true);
+			break;
+			
+		case SOCK_NUM_SNMP:
+			snmp_process_packet();
+			break;
+			
+		case SOCK_NUM_DNS:
+			dns_process_packet();
+			break;
+
+		case SOCK_NUM_AGG:
+			agg_proc_data();
+			break;
+			
+		case SOCK_NUM_DHCP:
+			dhcp_proc_data();
+			break;
+
+		case SOCK_NUM_SMS:
+			string s = sock.getdata(255);
+			DBG("ECHO REPLY: " + dump(s));
+			break;
+			
+		case SOCK_NUM_GPRS:
+			string s = sock.peekdata(255);
+			DBG("RECV: " + dump(s));
+			gprs_proc_sock_data();
+			break;
+		
+		default:
+			break;
+	}
+}
+
+
+void 
+on_sock_postdata()
+{
+	/* Moved code out of main.tc due to complexity
+	 */
+	if(sock.httprqtype == PL_SOCK_HTTP_RQ_POST)
+		http_post_parse_buf();
+}
+
+ 
+void 
+on_sock_event(enum pl_sock_state newstate, enum pl_sock_state_simple newstatesimple)
+{
+	switch(sock.num) {
+		case SOCK_NUM_AGG:
+			agg_proc_sock_event(newstate, newstatesimple);
+			break;
+
+		case SOCK_NUM_SMTP:
+			if(PL_SST_AO == newstate)
+				_mail_send_continue("", true);
+			break;
+			
+		case SOCK_NUM_SMS:
+			if(newstatesimple == PL_SSTS_EST) {
+				sock.setdata("ECHO TEST!\r\n");
+				sock.send();
+			}
+			break;
+			
+		default:
+			break;
+	}
+}
+
+
+void
+on_ser_data_sent()
+{
+/* Empty, but do not remove! */
+}
+
+
+void
+on_ser_data_arrival()
+{
+	// TODO: determine serial port numbers based on current TPS configuration
+	switch(ser.num) {
+		case 0:
+			on_modem_data_arrival();
+#if 0
+			if(0 != port_0_mode)
+				on_tibbo_data_arrival(ser.getdata(255));
+#endif				
+			/* Process RS-485 / RS-232 data
+			 */
+			break;
+			
+		case 1:
+			/* Process RS-485 data from TGS port
+			 */
+			on_tibbo_data_arrival(ser.getdata(255));
+			break;
+			
+		case 2:
+			/* Port unused in current configuration. Slots occupied by
+			 * PIC coprocessor and two low-power relays
+			 */
+			break;
+			
+		case 3:
+			on_modem_data_arrival();
+			break;
+	}
+}
+
+
+bool
+on_custom_modem_command(string s)
+{
+	return true;
+}
+
+
+bool
+on_modem_sms_arrival(string sms)
+{
+	return true; 
+}
+
+
+void
+on_dns_resolved(dns_error err, dns_record_type rr, string& data)
+{
+	if(DNS_ERR_SUCCESS == err) {
+		/* This notification from mail() function which resolved
+		 * domain part of the mailbox
+		 */
+		_mail_send_continue(data, true);
+	}
+}
+
+

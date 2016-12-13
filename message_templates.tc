@@ -1,0 +1,148 @@
+#include "global.th"
+#include "filesys.th"
+#include "utils.th"
+#include "template.th"
+
+
+static string<2> _empty = "\r\n";
+static string<8> _post_page;
+static string<8> _post_action;
+static word _post_id;   
+static string<64> _post_title;
+
+
+void
+template_html_list()
+{
+	string temp, title;
+	pl_fd_status_codes res;
+	word sz, tid;
+	
+	if(!open_always(FILENO_TEMPLATE_FILE, TEMPLATE_FILE))
+		return;
+	
+	if(0 == fd.filesize)
+		return;
+		
+	fd.setpointer(1);
+	while(fd.pointer < (fd.filesize+1)) {
+		sz = file_getword();
+		if(0xFFFF != sz) {
+			sys.debugprint("Wrong signature "+hex(sz)+" at position "+lstr(fd.pointer)+"\r\n");
+			break;
+		}
+		
+		tid = file_getword();
+		
+		temp = file_getstring();
+		if(0 == len(temp))
+			break;
+
+		title = file_getstring(); // skip title
+		sz = file_getword(); // skip body
+		fd.setpointer(fd.pointer + sz);
+		
+		sock_send(html_option(tid, htmlspecialchars(temp), false));
+	}
+}
+
+
+void 
+template_manage()
+{
+	string q = query_string();
+	string res;
+	string<32> dn;
+	string<10> a = query_arg(q, "a", "");
+	word id;
+	
+	res = "";
+	id = query_arg(q, "id", "0");
+	if(len(id) == 0) {
+		sock_send("{" + j_error("Template ID is not specified") + "}");
+		return;
+	} else {
+		id = val(id);
+ 		if(a != "new" && 0 == template_find(id)) {
+			sock_send("{" + j_error("notfound") + "}");
+			return;
+		}
+	}
+	
+	sys.debugprint(a + " id=" + str(id) + "\r\n");
+
+	if(a == "new") {
+		/* Create new template
+		 */
+		dn = urldecode(query_arg(q, "dn", ""));
+		if(template_replace(id, dn, "", TA_UPDATE)) {
+			res += j_encode("status", "ok");
+			res += "," + j_encode("id", template_last_id());
+			res += "," + j_encode("dn", dn);
+		} else {
+			res = j_error("template_replace failed");
+		}
+	} else if(a == "load") {
+		/* Load template body and title
+		 */
+		sock_send("{\"body\":");
+		res = template_send_body();
+		sock_send(","+j_encode("status", "ok"));
+		sock_send(","+j_encode("title", res)+"}");
+		return;
+	} else if(a == "del") {
+		/* Delete template
+		 */
+		res = j_error(a + " not implemented");
+	} else if(a == "save") { 
+		/* Save template title and body
+		 */
+		res = j_error(a + " not implemented");
+	} else {
+		res = j_error("Invalid action: "+a);
+	}
+	
+	sock_send("{" + res + "}");
+}
+
+
+void
+process_post_variable(string& vn, string& ct, string body)
+{
+#if 0
+	int i = 0;
+	sys.debugprint(vn + "=\"" + body + "\"\r\n");
+#endif
+
+	if(vn == "body") {
+		open_always(FILENO_TEMP, "post_temp");
+		fd.setpointer(fd.filesize+1);
+		fd.setdata(body);
+	} else if(vn == "f") {
+		_post_page = body;
+		if(body == "tpls")
+			fd.delete("post_temp");
+	} else if(vn == "a") {
+		_post_action = body;
+	} else if(vn == "id") {
+		_post_id = val(body);
+	} else if(vn == "title") {
+		_post_title = body;
+		sys.debugprint("GOT title = \""+_post_title+"\"\r\n");
+	}
+}
+
+
+void 
+post_finished()
+{
+	fd.filenum = FILENO_TEMP;
+	if(fd.fileopened)
+		fd.close();
+
+	if(_post_page == "tpls" && _post_action == "save") {
+		template_replace(_post_id, "", _post_title, TA_UPDATE);
+		fd.delete("post_temp");
+	}
+}
+

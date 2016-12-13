@@ -1,0 +1,87 @@
+<?
+	#include "global.th"
+	#include "hal.th"
+	#include "utils.th"
+	#include "device_map.th"
+
+extern void sensor_db_http_enumsensors(byte);
+
+	byte i, cnt;
+	string<8> id;
+	
+?><!DOCTYPE html> 
+<html>
+<head>
+<title>Port Setup</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link rel="stylesheet" type="text/css" href="style.css" />
+<link rel="stylesheet" type="text/css" href="swal2.css" /> 
+<script type="text/javascript" src="jq.js"></script>
+<script type="text/javascript" src="jqbm.js"></script>
+<script type="text/javascript" src="swal2.js"></script>
+<script type="text/javascript" src="ma.js"></script>
+</head>
+<body>
+<div class="body_outer">
+    <div class="heading">
+        <div class="main_heading">Port Setup</div>
+        <div class="main_heading_descr">This page allows to associate specific driver and ID with sensor port</div>
+        <div class="back"><a href="index.html">&laquo;&nbsp;Return to main page</a></div>
+    </div>
+    <div class="body">
+        <form action="" method="POST">
+            <fieldset>
+                <legend>I<sup>2</sup>C ports</legend><?
+					cnt = get_port_count(IO_I2C);
+					for(i=0; i<cnt; ++i) {
+						id = "i2c" + str(i);
+				?>
+                <div class="formrow">
+                    <label for="<? sock_send(id); ?>"><div class="l_win">I<sup>2</sup>C port #<? sock_send(str(i)); ?></div></label>
+                    <select class="wide" name="<? sock_send(id); ?>" id="<? sock_send(id); ?>">
+                        <option value="0">Auto-detect</option>
+                    </select>
+                </div>
+				<? } ?>
+            </fieldset>
+            <fieldset>
+                <legend>1-Wire ports</legend><?
+					cnt = get_port_count(IO_OW);
+					for(i=0; i<cnt; ++i) {
+						id = "ow" + str(i);
+				?>
+                <div class="formrow">
+                    <label for="<? sock_send(id); ?>"><div class="l_win">1-Wire port #<? sock_send(str(i)); ?></div></label>
+                    <select class="wide" name="<? sock_send(id); ?>" id="<? sock_send(id); ?>">
+                        <option value="0">Auto-detect</option>
+                        <optgroup label="Single-wire sensors">
+                            <? sensor_db_http_enumsensors(IO_SW); ?>
+                        </optgroup>
+                    </select>
+                </div>
+				<? } ?>
+            </fieldset>
+            <fieldset>
+                <legend>Dry Contact ports</legend><?
+					cnt = get_port_count(IO_DC);
+					for(i=0; i<cnt; ++i) {
+						id = "dc" + str(i);
+				?>
+                <div class="formrow">
+                    <label class="f_lbl" for="<? sock_send(id); ?>"><div class="l_win">Port #<? sock_send(str(i)); ?></div></label>
+					<select id="<? sock_send(id); ?>" name="<? sock_send(id); ?>">
+						<option value="d">Disabled</option>
+						<option value="o">Normally Open</option>
+						<option value="c">Normally Closed</option>
+					</select>
+					<input name="<? sock_send(id+"n"); ?>" maxlen="64" size="32"/>
+                </div>
+				<? } ?>
+            </fieldset>
+			<input type="submit" value="Save">
+        </form>
+    </div>
+</div>
+</body>
+</html>
+<? sock.send(); ?>

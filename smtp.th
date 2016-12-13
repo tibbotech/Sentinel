@@ -1,0 +1,26 @@
+#ifndef __SIMPLE_MAIL_TRANSFER_PROTOCOL_INCLUDED__
+#define __SIMPLE_MAIL_TRANSFER_PROTOCOL_INCLUDED__
+
+
+#include "global.th"
+#include "sensors_db.th"
+
+
+enum smtp_error {
+	SMTP_ERR_SUCCESS = 0,
+	SMTP_ERR_BUSY = -1,
+	SMTP_ERR_BAD_ADDRESS = -2,
+	SMTP_ERR_NXDOMAIN = -3,
+	SMTP_ERR_NO_RECIPIENT = -4,
+};
+
+
+#define SMTP_PORT 25
+
+
+extern bool smtp_init();
+extern int mail(byte, sensor *);
+extern void _mail_send_continue(string&, bool);
+
+
+#endif

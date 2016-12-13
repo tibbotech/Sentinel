@@ -1,0 +1,301 @@
+/* heap.tc
+ *
+ * Simple block chain memory allocator routines
+ *
+ * (c) 2016 Tibbo Technology, Inc.
+ *
+ * To reduce memory overhead only free blocks organized in chain, allowing fast
+ * memory allocation 
+ *
+ * Overhead is around 2 bytes per allocated block
+ *
+ * Smallest block size possible is 6 bytes: 2 for block size and 4 for contents, even if
+ * only one byte is requested by application
+ *
+ * Block size rounded up to nearest even number
+ */
+#ifdef _MSC_VER
+#include "Heap.h"
+#include <crtdbg.h>
+#else
+#include "heap.th"
+#endif
+
+
+static unsigned char _heap[HEAP_SIZE];
+static unsigned char *_heap_end = NULL;
+static heapblk _heap_free;
+#ifdef HEAP_STATS 
+static unsigned short _nblks;		// number of blocks in heap: both free and occupied
+static unsigned short _mallocd;		// number of bytes allocated including overhead
+#endif
+
+
+/* Disallow allocation of heap blocks lesser than size of general
+ * pointer type. Round block size up to the nearest even value. 
+ */
+static unsigned short
+_round(unsigned short cb)
+{
+	if(cb < sizeof(heapblk))
+		return sizeof(heapblk);
+		
+	return (0 != (cb & 1))? (cb | 1) + 1: cb;
+}
+
+
+#ifdef WIPE_HEAP_MEMORY
+static unsigned short
+_payload_size(heapblk *b)
+{
+	return b->cb - (b->data - (char *)b);
+}
+
+
+static void
+_memset(void *ptr, unsigned char c, unsigned short cb)
+{
+	for(unsigned char *cptr = (unsigned char *)ptr; cb; --cb)
+		*cptr++ = c;
+}
+#endif
+
+
+static
+#ifdef _MSC_VER
+inline
+#endif
+heapblk *
+_next(heapblk *b)
+{
+	return (heapblk *)((char *)b + b->cb);
+}
+
+
+/*! \brief Initialize heap
+ */
+void 
+heap_init()
+{
+	heapblk *blk = (heapblk *)_heap;
+	
+	/* Setup first free block pointer and free block itself
+	 */
+	_heap_free.cb = 0;
+	_heap_free.is_free = false;
+	_heap_free.next = blk;
+
+	blk->cb = sizeof(_heap);
+#ifdef USE_SIGNATURES
+	blk->sign = BLK_DEAD_SIGN;
+#endif
+	blk->is_free = true; // Free block
+	blk->next = NULL; // No next free block
+	
+	/* Setup heap end pointer
+	 */
+	_heap_end = &_heap[sizeof(_heap)];
+	
+#ifdef HEAP_STATS
+	_nblks = 1; // Only one block in the heap
+	_mallocd = 0; // 0 bytes allocated
+#endif	
+}
+
+
+/*! \brief Allocate block of memory from heap.
+ * \param cb Number of bytes to allocate
+ * \retval Address of allocated heap region
+ * \retval NULL if out of memory or 0 bytes requested
+ */
+void *
+heap_alloc(unsigned short cb)
+{
+	heapblk *blk, *prev, *cand; 
+	unsigned short cand_cb;
+	
+	if(0 == cb || cb > MAX_HEAP_BLOCK_SIZE)
+		return NULL; // Unlike stdlib's malloc() we disallow zero-sized heap blocks
+		
+	if(NULL == _heap_free.next)
+		return NULL; // Heap not initialized yet
+		
+	cb = _round(cb); // Take into the account block internal fields
+	
+	/* Find suitable free block 
+	 */
+	cand = NULL;
+	prev = &_heap_free; // so 'prev' never be NULL
+	
+	for(blk=_heap_free.next; NULL != blk; prev=blk, blk=blk->next) {
+		if(blk->cb >= cb) { // Candidate block found
+			cand = blk;
+			break;
+		}
+	}
+	
+	if(NULL == cand)
+		return NULL;
+		
+	cand_cb = cand->cb;
+	
+	/* If splitting free block produces very small fragment that cannot accomodate
+	 * out heapblk struct plus 4 bytes of payload then we use whole block
+	 */
+	if((cand_cb-cb) < sizeof(heapblk))
+		cb = cand_cb;
+		
+	if(cb == cand_cb) {
+		/* Simply exclude block from free block chain */
+		prev->next = cand->next;
+	} else {
+		/* Split block into two parts */
+		blk = (heapblk *)((unsigned char *)cand + cb);
+		blk->cb = (cand_cb - cb);
+#ifdef USE_SIGNATURES
+		blk->sign = BLK_DEAD_SIGN;
+#endif
+		blk->is_free = true;
+		blk->next = cand->next;
+		prev->next = blk;
+
+		cand->cb = cb;
+
+#ifdef HEAP_STATS
+		++_nblks;
+#endif		
+	}
+
+#ifdef HEAP_STATS
+	_mallocd += cb;
+#endif
+
+#ifdef USE_SIGNATURES
+	cand->sign = BLK_ALIVE_SIGN;
+#endif
+	cand->is_free = false;
+	
+#ifdef WIPE_HEAP_MEMORY
+	_memset(cand->data, WIPE_MEMORY_VALUE, _payload_size(cand));
+#endif
+
+	return (void *)cand->data;
+}
+
+
+/*! \brief Free specified heap block
+ * \param data Address of block to free
+ */
+void
+heap_free(void *data)
+{
+	unsigned char *ptr;
+	heapblk *blk, *prev, *last_free, *tmp;
+#ifdef WIPE_HEAP_MEMORY
+	heapblk *tmpnext;
+#endif
+	
+	if((unsigned char *)data < &_heap[0] || (unsigned char *)data >= _heap_end)
+		return; // Not our pointer at all
+		
+	if(NULL == data)
+		return; // mimic stdlib's free(NULL) behavior
+		
+	/* Walk through the list of heap blocks and try to find our target
+	 * Also remember last adjacent block address
+	 */
+	prev = NULL; 
+	last_free = &_heap_free;
+	
+	for(ptr = _heap; ptr < _heap_end; ptr += blk->cb) {
+		blk = (heapblk *)ptr;
+
+		if(data == (void *)blk->data) {
+			if(blk->is_free)
+				return; // Attempt to free already free block
+			else
+				break;
+		}
+				
+		if(blk->is_free)
+			last_free = blk;
+			
+		prev = blk;
+	}
+	
+	if(data != (void *)blk->data)
+		return; // Not found, do nothing
+
+	/* Insert free'd block back into the free block chain
+	 */
+#ifdef USE_SIGNATURES
+	blk->sign = BLK_DEAD_SIGN;
+#endif
+	blk->is_free = true;
+#ifdef HEAP_STATS
+	_mallocd -= blk->cb;
+#endif
+	blk->next = last_free->next;
+	last_free->next = blk;
+
+	/* Now try to merge adjacent blocks: previous (left-side)
+	 */
+	if(last_free != &_heap_free && blk == _next(last_free)) {
+		last_free->cb += blk->cb;
+#ifdef WIPE_HEAP_MEMORY
+		tmpnext = blk->next;
+		_memset(last_free->data, WIPE_MEMORY_VALUE, _payload_size(last_free));
+		last_free->next = tmpnext;
+#else
+		last_free->next = blk->next;
+#endif
+		blk = last_free;
+#ifdef HEAP_STATS
+		--_nblks;
+#endif			
+	}
+
+	/* If next (right-side) adjacent block is also a free block, join it with current
+	 */
+	tmp = _next(blk);
+	if((unsigned char *)tmp < _heap_end) {
+		if(tmp->is_free) {
+			blk->cb += tmp->cb;
+			blk->next = tmp->next;
+
+#ifdef WIPE_HEAP_MEMORY
+			tmpnext = blk->next;
+			_memset(blk->data, 0xFF, _payload_size(blk));
+			blk->next = tmpnext;
+#endif
+#ifdef HEAP_STATS
+			--_nblks;
+#endif			
+		}
+	}
+
+}
+
+
+bool 
+heap_check()
+{
+	heapblk *blk, *prev;
+	
+	/* Check free chain */
+	prev = NULL;
+	for(blk=_heap_free.next; blk; blk=blk->next) {
+		if(NULL != prev) {
+			if(blk <= prev || !blk->is_free) {
+#ifdef _MSC_VER
+				_CrtDbgBreak();
+#endif
+				//sys.debugprint(TEXT("HEAP CORRUPTED\n"));
+				return false;
+			}
+		}
+		prev = blk;
+	}
+	
+	return true; // Heap is healthy
+}

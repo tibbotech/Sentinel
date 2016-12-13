@@ -1,0 +1,78 @@
+#ifndef __HEAP_ALLOCATION_FUNCTIONS_INCLUDED__
+#define __HEAP_ALLOCATION_FUNCTIONS_INCLUDED__
+
+
+#define HEAP_STATS			// Define this to enable heap statistics tracking
+#undef USE_SIGNATURES		// Use debug heap block signatures
+#undef WIPE_HEAP_MEMORY		// Define to enable of wiping allocated/freed memory
+
+
+#ifdef WIPE_HEAP_MEMORY
+#define WIPE_MEMORY_VALUE	0xFF
+#endif
+
+
+/* Default 16K heap. You can increase this value
+ * if required. Please refer to your platform documentation
+ * for exact value of RAM available.
+ */
+#ifndef HEAP_SIZE
+#define	HEAP_SIZE			0x2000
+#endif
+
+
+#ifdef _MSC_VER // prevent compilation under TibboC
+#pragma pack(push)
+#pragma pack(1)
+#endif
+
+
+/*! \brief Heap block header
+ */
+struct heapblk {
+#ifdef USE_SIGNATURES
+	unsigned short sign;	//!< Two-byte block start signature to simplify debugging and memory inspection
+#endif
+	unsigned short cb: 15;	//!< Byte counter
+	unsigned short is_free: 1; //!< Block free/allocated flag. 1=block is free, 0=allocated
+	union {
+		heapblk *next;		//!< Pointer to the next block in chain
+		char data[1];		//!< Placeholder for data
+	};
+};
+
+
+#ifdef _MSC_VER // prevent compilation under TibboC
+#pragma pack(pop)
+#endif
+
+
+#ifndef NULL
+#define NULL 0
+#endif
+
+
+/* We use 16-bit block size counter with high bit dedicated to
+ * allocated/free flag, so maximum allocatable block size will be 
+ * 32767(0x7FFF) - size of constant 'heapblk' struct minus size of 'next'
+ * pointer, which resides in data area of heap block.
+ */
+#define MAX_HEAP_BLOCK_SIZE 	(0x7FFF-sizeof(heapblk)+sizeof(heapblk*))
+
+
+#ifdef USE_SIGNATURES
+/* Free/allocated block signatures. You can change it any time to any desired value.
+ * Signatures used only for debug purposes and does not have influence on code in any way
+ */
+#define BLK_DEAD_SIGN			0xDEAD
+#define BLK_ALIVE_SIGN			0xF00D
+#endif
+
+
+extern void heap_init();
+extern void *heap_alloc(unsigned short);
+extern void heap_free(void *);
+extern bool heap_check();
+
+
+#endif

@@ -1,0 +1,82 @@
+#include "global.th"
+#include "sensors_db.th"
+#include "device_funcs.th"
+#include "sensor_info.th"
+#include "utils.th"
+#include "sensors_assoc.th"
+
+
+
+string
+encode_zone(zone *z)
+{
+#if 0
+	dword *pdwl = (dword *)&z->lo;
+	dword *pdwh = (dword *)&z->hi;
+	sys.debugprint("l="+lhex(*pdwl)+" h="+lhex(*pdwh)+"\r\n");
+#endif	
+	string res = j_encode("lo", ftostr(z->lo, FTOSTR_MODE_AUTO, 6));
+	res += ","+j_encode("hi", ftostr(z->hi, FTOSTR_MODE_AUTO, 6));
+	res += ","+j_encode("flags", str(z->flags));
+	res += ","+j_encode("t_sms", str(z->sms_tpl));
+	res += ","+j_encode("t_email", str(z->email_tpl));
+	res += ","+j_encode("trap", str(z->snmp_trap));
+	
+	return "{"+res+"}";
+}
+
+
+void
+process_alarms()
+{
+	string q = query_string();
+	string res;
+	string<8> act;
+	sensor_id sid;
+	sensor *s;
+	byte ts, te, tt, tf;
+	float lo, hi;
+	
+	res = "";
+	act = query_arg(q, "a", ""); 
+	if(act == "get") {
+		sid = val(query_arg(q, "sid", "0"));
+		s = sensor_by_id(sid);
+		if(NULL != s) {
+			res = j_encode("info", sensor_info_get(sid));
+			res += ","+j_encoderaw("y", encode_zone(&s->y));
+			res += ","+j_encoderaw("r", encode_zone(&s->r));
+		} else {
+			res = j_error("notfound");
+		}
+	} else if(act == "save") {
+		s = sensor_by_id(sid);
+		if(NULL != s) {
+			sensor_info_set(sid, urldecode(query_arg(q, "info", "")));
+			
+			s->r.lo = strtof(query_arg(q, "rlo", "0"));
+			s->r.hi = strtof(query_arg(q, "rhi", "0"));
+			s->r.flags = val(query_arg(q, "rf", "0")); 
+			s->r.sms_tpl = val(query_arg(q, "rts", "0"));
+			s->r.email_tpl = val(query_arg(q, "rte", "0"));
+			s->r.snmp_trap = val(query_arg(q, "rtt", "0"));
+
+			s->y.lo = strtof(query_arg(q, "ylo", "0"));
+			s->y.hi = strtof(query_arg(q, "yhi", "0"));
+			s->y.flags = val(query_arg(q, "yf", "0"));
+			s->y.sms_tpl = val(query_arg(q, "yts", "0"));
+			s->y.email_tpl = val(query_arg(q, "yte", "0"));
+			s->y.snmp_trap = val(query_arg(q, "ytt", "0"));
+
+			if(sensor_assoc_save(DEFAULT_PSC_NAME))
+				res = j_encode("status", "ok");
+			else
+				res = j_error("assocsave");
+		} else {
+			res = j_error("notfound");
+		}
+	}
+	
+	sock_send("{"+res+"}");
+}
+

@@ -1,0 +1,110 @@
+#ifndef __DNS_RESOLVER_INCLUDED__
+#define __DNS_RESOLVER_INCLUDED__
+
+
+#include "global.th"
+
+
+#define DEFAULT_DNS_TIMEOUT		20
+
+
+/* Current resolver state
+ */
+enum dns_state {
+	DNS_IDLE,
+	DNS_AWAITING_RESPONSE
+};
+
+
+/* DNS opcodes for hdr.opcode field
+ */
+enum {
+	DNS_OPC_QUERY = 0,
+	DNS_OPC_IQUERY = 1,
+	DNS_OPC_STATUS = 2
+};
+
+
+/* Error codes for hdr.rcode field
+ */
+enum dns_error {
+	DNS_ERR_SUCCESS = 0,
+	DNS_ERR_FORMAT = 1,
+	DNS_ERR_FAILURE = 2,
+	DNS_ERR_NAME = 3,
+	DNS_ERR_NOT_IMPLEMENTED = 4,
+	DNS_ERR_REFUSED = 5
+};
+
+
+/* Resource records
+ */
+enum dns_record_type {
+	RR_A             = 1, // A host address
+	RR_NS            = 2, // An authoritative name server
+	RR_MD            = 3, // A mail destination (Obsolete - use MX)
+	RR_MF            = 4, // A mail forwarder (Obsolete - use MX)
+	RR_CNAME         = 5, // The canonical name for an alias
+	RR_SOA           = 6, // Marks the start of a zone of authority
+	RR_MB            = 7, // A mailbox domain name (EXPERIMENTAL)
+	RR_MG            = 8, // A mail group member (EXPERIMENTAL)
+	RR_MR            = 9, // A mail rename domain name (EXPERIMENTAL)
+	RR_NULL          = 10, // A null RR (EXPERIMENTAL)
+	RR_WKS           = 11, // A well known service description
+	RR_PTR           = 12, // A domain name pointer
+	RR_HINFO         = 13, // Host information
+	RR_MINFO         = 14, // Mailbox or mail list information
+	RR_MX            = 15, // Mail exchange
+	RR_TXT           = 16  // Text strings
+};
+
+
+struct dns_record {
+	word type;
+	word cls;
+	dword ttl;
+	word rdlen;
+};
+
+
+struct dns_hdr {
+#if 0
+	// word 0: request ID
+	word id: 16;
+	
+	// word 1: bit fields in REVERSED order, because TibboC compiler allocates bits from LSB to MSB
+	
+	word qr: 1;
+	word opcode: 4;
+	word aa: 1;
+	word tc: 1;
+	word rd: 1;
+	word ra: 1;
+	word z: 3;
+	word rcode: 4;
+	
+	// words 2, 3, 4 and 5
+	word qdcount: 16;
+	word ancount: 16;
+	word nscount: 16;
+	word arcount: 16;
+#else
+	word id;
+	word flags;
+	word qdcount;
+	word ancount;
+	word nscount;
+	word arcount;
+#endif
+};
+
+
+extern bool dns_init();
+extern bool dns_resolve(string&, dns_record_type);
+extern void dns_process_packet();
+extern void dns_wait();
+extern void dns_timer();
+
+extern void on_dns_resolved(dns_error, dns_record_type, string&);
+
+#endif

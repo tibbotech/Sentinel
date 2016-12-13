@@ -1,0 +1,170 @@
+#ifndef __SENSOR_DATABASE_INCLUDED__
+#define __SENSOR_DATABASE_INCLUDED__
+
+
+#include "global.th"
+#include "hal.th"
+#include "1wire.th"
+
+
+#define	MAX_HW_ADDR_SIZE		4
+
+
+/*! \brief Parameter types that can be reported by different sensors
+ */
+enum sensor_param_type {
+	SPT_NONE = 0,
+	SPT_TEMPERATURE = 1,		//!< Temperature (value)
+	SPT_HUMIDITY = 2,			//!< Humidity (value)
+	SPT_TEMP_AND_HUMIDITY = 3,	//!< Combined temperature and humidity (value)
+	SPT_FLOOD = 4,				//!< Water flood (bool)
+	SPT_FIRE = 5,				//!< Fire (bool)
+	SPT_SMOKE = 6,				//!< Smoke (bool)
+	SPT_MOVEMENT = 7,			//!< Movement (PIR or ultrasonic) (bool)
+	SPT_ACDC_CURRENT = 8,		//!< AC or DC current presence (bool)
+	SPT_SHOCK = 9,				//!< Shock (bool)
+	SPT_REED_SWITCH = 10,		//!< Door or window open sensor, magnetic (bool)
+	SPT_SWITCH = 11,			//!< Ordinary switch/button (bool)
+	SPT_PRESSURE = 12,			//!< Pressure: air or other medium (value)
+	SPT_LIGHT = 13,				//!< Light sensor, direct or indirect (value)
+	SPT_ACCELERATION_3AXIS = 14,
+	SPT_ACCELERATION_6AXIS = 15,
+/* abstract types */	
+	SPT_BIT = 16,
+	SPT_BYTE = 17,
+	SPT_WORD = 18,
+	SPT_DWORD = 19,
+/* Dangerous gases */	
+	SPT_CO = 20,				//!< CO
+	SPT_CO2 = 21,				//!< CO\s2
+	SPT_METHANE = 22,			//!< Methane
+	SPT_ALCOHOL = 23,			//!< C2H5OH
+/* Add new parameters after this point */	
+	SPT_PARAMETER_COUNT
+};
+
+
+enum var_type {
+	TYPE_LONG,
+	TYPE_ULONG,
+	TYPE_FLOAT
+};
+
+
+struct var {
+	var_type type;				//!< Variable type
+	union {
+		float f;				//!< Floating-point value
+		long l;					//!< Long integer value
+		unsigned long ul;		//!< Unsigned long integer value
+	};
+};
+
+
+/*! \breif Zone descriptor
+ */
+struct zone {
+	float lo;					//!< Low boundary
+	float hi;					//!< High boundary
+	byte flags;					//!< Action flags
+	byte sms_tpl;				//!< SMS template ID
+	byte email_tpl;				//!< E-mail template ID
+	byte snmp_trap;				//!< SNMP trap number
+};
+
+
+enum zone_color {
+	Z_NONE = 0,
+	Z_GREEN,
+	Z_YELLOW,
+	Z_RED
+};
+
+
+#define ZF_SEND_SMS		0x01
+#define ZF_SEND_EMAIL	0x02
+#define ZF_SEND_TRAP	0x04
+#define ZF_OUT0_ON		0x08
+#define ZF_OUT1_ON		0x10
+#define ZF_ENABLED		0x20
+
+
+/*! \brief Sensor descriptor
+ */
+struct sensor {
+	word id;					//!< Sensor unique ID
+	ioport *port;				//!< Mapped port
+	union {
+		byte drvid;				//!< Driver ID
+		byte pin;				//!< Pin # for dry contacts
+	};
+	iotype bus;					//!< Bus ID and flags
+	byte chnl;					//!< Channel number, if applicible
+	sensor_param_type ptype;	//!< Type of parameter reported by sensor
+	zone_color status;			//!< 
+	zone y;						//!< Yellow zone
+	zone r;						//!< Red zone
+	var c[4];					//!< Constants
+	var prev;					//!< Previous parameter value
+	var res;					//!< Current parameter value
+	union {
+		ow_devid ow_addr;		//!< Device address for addressable buses.
+		byte i2c_addr;			//!< I2C device ID
+		byte mac[MAX_HW_ADDR_SIZE]; //!< Tibbo Sensor MAC address
+	};
+	sensor *next;				//!< Next sensor in port chain
+};
+
+
+/*! \brief Sensor descriptor in assoc file
+ */
+struct sensor_file_rec {
+	word id;					//!< Sensor unique ID
+	byte drvid;					//!< Driver ID
+	iotype bus;					//!< Bus ID and flags
+	byte chnl;					//!< Channel number, if applicible
+	zone y;						//!< Yellow zone 
+	zone r;						//!< Red zone 
+	union {
+		ow_devid ow_addr;		//!< Device address for addressable buses.
+		byte i2c_addr;			//!< I2C device ID
+		byte mac[MAX_HW_ADDR_SIZE]; //!< Tibbo Sensor MAC address
+	};
+};
+
+
+#define SF_NEED_EXT_5V			0x10	// Sensor needs external +5Vdd
+#define SF_NEED_EXT_12V			0x20	// Sensor needs external +12Vdd
+
+
+struct sensor_file_info
+{
+	byte driver_id;				//!< Driver ID byte
+	iotype bus_type;			//!< Bus type
+	byte tibbo_id;				//!< 
+	sensor_param_type value_type; //!<
+};
+
+
+#define 	DRVID_NONE			0x00	
+
+
+#define		DEFAULT_SDB_NAME	"sensors.bin"
+#define		DEFAULT_PSC_NAME	"portassoc"
+#define		DEFAULT_DCC_NAME	"dcconfig"
+
+
+extern bool sensor_db_open();
+extern string sensor_db_getdrivername(byte, byte *);
+extern void sensor_db_http_enumsensors(byte);
+extern string sensor_db_get_read_command(byte);
+extern string sensor_db_get_read_program(byte);
+extern string sensor_db_get_init_command(byte);
+extern string sensor_db_get_init_program(byte);
+extern bool find_drvrec(byte, sensor_file_info *);
+extern byte iotype_to_flag(iotype);
+extern zone_color zone_check(var&, sensor *);
+extern void v_copy(var&, var&);
+
+
+#endif

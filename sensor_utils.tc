@@ -1,0 +1,293 @@
+#include "global.th"
+#include "sensors_db.th"
+#include "sensor_info.th"
+#include "device_map.th"
+#include "template.th"
+#include "utils.th"
+#include "smtp.th"
+#include "snmp.th"
+#include "modem.th"
+
+
+extern sensor *connected_sensors;
+
+
+static byte _out0 = 0;
+static byte _out1 = 0;
+
+
+/*! \brief Make HTML <select> with all drivers and their IDs
+ */
+void
+sensor_db_http_enumsensors(byte busid)
+{
+	word i;
+	string sn;
+	byte sbus, mask;
+	
+	mask = iotype_to_flag(busid);
+	
+	sensor_db_open(); 
+	for(i=1; i<256; ++i) {
+		sn = sensor_db_getdrivername((byte)i, &sbus); 
+		if(0 == len(sn))
+			continue;
+		
+		if(0 != busid)
+			if(0 == (sbus & mask))
+				continue;
+		
+		sock_send(html_option(str(i), sn, false));
+	}
+}
+
+
+void
+sensor_option_list()
+{
+	sensor *s;
+	iotype ipt;
+	int i;
+	
+	sensor_db_open(); 
+	for(i=0, s=connected_sensors; NULL != s; s=s->next, ++i) {
+		if(IO_DC == s->bus)
+			sock_send(html_option(str(s->id), "Dry Contact port #" + str(s->chnl), false));
+		else
+			sock_send(html_option(str(s->id), ioport_typestring(s->port) + ", ch #" + str(s->chnl) + ": " + sensor_db_getdrivername(s->drvid, NULL), false));
+	}
+}
+
+
+static bool
+_in_zone(var& v, zone *z)
+{
+	float f;
+	
+	if(0 == (z->flags & ZF_ENABLED))
+		return false;
+		
+	if((z->hi - z->lo) < 0.0001)
+		return false;
+		
+	if(z->lo > z->hi)
+		return false;
+		 
+	f = (TYPE_FLOAT == v.type)? v.f: (float)v.l;
+	return (f <= z->lo) || (f >= z->hi);
+}
+
+
+zone_color
+zone_check(var& v, sensor *s)
+{
+	if(_in_zone(v, &s->r))
+		return Z_RED;
+
+	if(_in_zone(v, &s->y))
+		return Z_YELLOW;
+	
+	return Z_GREEN;
+}
+
+
+static int
+_findsep(int f, string& s)
+{
+	int res;
+	
+	res = instr(f, s, ";", 1);
+	if(res == 0) {
+		res = instr(f, s, ",", 1);
+		if(res == 0)
+			res = len(s);
+	}
+		
+	return res;
+}
+
+
+static void 
+send_sms(byte tplid, sensor *s)
+{
+	ioport *port = map_device(IO_MODEM, 0);
+	string body;
+	string rcpt;
+	string<32> num;
+	int p, f, l;
+	dword dwtpl;
+	
+	if(NULL == port)
+		return;
+		
+	rcpt = stg_get("SMSA", 0);
+	l = len(rcpt);
+
+	if(l == 0)
+		return;
+		
+	//modem_readytocall(port, true);
+	
+	dwtpl = template_find(tplid);
+	if(dwtpl != 0) {
+		body = template_expand(template_load(), s);
+	} else {
+		body = "Template #"+str(tplid)+" not found";
+	}
+	
+	for(f=1; f != l; ) {
+		p = _findsep(f, rcpt);
+		num = trim(mid(rcpt, f, p-f+1));
+		modem_send_sms(port, num, body);
+		f = p;
+	}
+}
+
+
+void
+doalarm(sensor *s, zone *z)
+{
+	ioport *out;
+	
+	if(0 == (z->flags & ZF_ENABLED))
+		return;
+
+	/* Send SMS?
+	 */
+	if(0 != (z->flags & ZF_SEND_SMS)) {
+		if(0 != z->sms_tpl)
+			send_sms(z->sms_tpl, s);
+	}
+	
+	/* Send E-mail?
+	 */
+	if(0 != (z->flags & ZF_SEND_EMAIL)) {
+		if(0 != z->email_tpl)
+			mail(z->email_tpl, s);
+	}
+
+	/* Send SMTP trap?
+	 */
+	if(0 != (z->flags & ZF_SEND_TRAP)) {
+		snmp_send_trap(s->status, s);
+	}
+	
+	/* Turn on OUT#0?
+	 */
+	if(0 != (z->flags & ZF_OUT0_ON)) {
+		if(0 == _out0++) {
+			out = map_device(IO_OUT, 0);
+			if(NULL != out) {
+				// turn it on
+				gp4_enable(out, 0, YES);
+				gp4_setstate(out, 0, LOW);
+			}
+		}
+	}
+
+	/* Turn on OUT#1?
+	 */
+	if(0 != (z->flags & ZF_OUT1_ON)) {
+		if(0 == _out1++) {
+			out = map_device(IO_OUT, 0);
+			if(NULL != out) {
+				// turn it on
+				gp4_enable(out, 1, YES);
+				gp4_setstate(out, 1, LOW);
+			}
+		}
+	}
+
+}
+
+
+static void
+turn_off_relays(zone *z)
+{
+	ioport *out;
+	
+	/* Turn on OUT#0?
+	 */
+	if((0 != (z->flags & ZF_OUT0_ON)) && (_out0 > 0)) {
+		if(1 == _out0--) {
+			out = map_device(IO_OUT, 0);
+			if(NULL != out) {
+				// turn it off
+				gp4_setstate(out, 0, HIGH);
+			}
+		}
+	}
+
+	/* Turn on OUT#1?
+	 */
+	if((0 != (z->flags & ZF_OUT1_ON)) && (_out1 > 0)) {
+		if(1 == _out1--) {
+			out = map_device(IO_OUT, 0);
+			if(NULL != out) {
+				// turn it off
+				gp4_setstate(out, 1, HIGH);
+			}
+		}
+	}
+}
+
+
+void
+sensor_alarm_check(sensor *s)
+{
+	zone_color prevs = Z_NONE;
+	zone_color curs = zone_check(s->res, s);
+	
+#if 0	
+	if(ioport_type(s->port) == IO_DC || ioport_type(s->port) == IO_GPIO4) {
+		if(s->res.l == LOW && s->prev.l == HIGH) {
+			doalarm(s, &s->y);
+			doalarm(s, &s->r);
+		}
+		return;
+	}
+#endif
+
+	if(Z_NONE != s->status)
+		prevs = zone_check(s->prev, s);
+
+	if(Z_NONE != prevs) {
+		if(Z_GREEN == prevs) {
+			/* Green -> Yellow */
+			if(Z_YELLOW == curs)
+				doalarm(s, &s->y);
+			/* Green -> Red */
+			else if(Z_RED == curs)
+				doalarm(s, &s->r);
+		} else if(Z_YELLOW == prevs) {
+			/* Yellow -> Red */
+			if(Z_RED == curs)
+				doalarm(s, &s->r);
+		}
+	}
+	
+	/* Red alarm may be cleared only manually
+	 */
+	if(Z_RED != s->status) {
+		s->status = curs;
+		if(Z_GREEN == curs) {
+			/* Turn of relays OUT#0 and OUT#1 if it was previously turned on
+			 * by GREEN->YELLOW status escalation
+			 */
+			turn_off_relays(&s->y);
+			turn_off_relays(&s->r);
+		}
+	}
+#if 1
+	else {
+		/* THIS CODE IS A TEMPORARY CODE TO DEBUG SENSOR STATUS CHANGES! 
+		 * RED STATUS MUST NOT BE AUTOMATICALLY DOWNGRADED TO THE YELLOW, 
+		 * ONLY BY MANUAL INTERVENTION OF THE OPERATOR!	 
+		 */
+		s->status = curs;
+		if(Z_YELLOW == curs) {
+			turn_off_relays(&s->r);
+		}
+	}
+#endif	
+}

@@ -1,0 +1,222 @@
+#include "global.th"
+#include "dns.th"
+#include "template.th"
+#include "smtp.th"
+#include "utils.th"
+
+
+/* Copyright 2016 Tibbo Technology, Inc.
+ * All Rights Reserved
+ *
+ * Simple Mail Transfer Protocol (SMTP) functions
+ * As described in RFC 5321
+ * https://tools.ietf.org/html/rfc5321
+ */
+
+
+enum smtp_phase {
+	SMTP_PHASE_IDLE,
+	SMTP_PHASE_RESOLVING_MX,
+	SMTP_PHASE_RESOLVING_SERVER,
+	SMTP_PHASE_CONNECTING,
+	SMTP_PHASE_GREETINGS,
+	SMTP_PHASE_EHLO,
+	SMTP_PHASE_HELO,
+	SMTP_PHASE_MAILFROM,
+	SMTP_PHASE_RCPTTO,
+	SMTP_PHASE_DATA,
+	SMTP_PHASE_QUIT
+};
+
+
+static smtp_phase _phase = SMTP_PHASE_IDLE;
+static string<80> _email;
+static string _title;
+static string<8> _enc = "UTF-8";
+static byte _template_id = 0;
+static sensor *_sensor;
+
+
+bool
+smtp_init()
+{
+	sock.num = SOCK_NUM_SMTP;
+	sock.txbuffrq(1);
+	sock.rxbuffrq(2);
+	sys.buffalloc();
+	return true;
+}
+
+
+/*! \brief
+ */
+int
+mail(byte tpl_id, sensor *sens)
+{
+	string domain;
+	int p;
+
+	if(_phase != SMTP_PHASE_IDLE)
+		return SMTP_ERR_BUSY; 
+	
+	_email = stg_get("MDST", 0);
+	if(0 == len(_email)) {
+		sys.debugprint("Mail is sending disabled because recipient address is not set!\r\n");
+#if 0
+		return SMTP_ERR_NO_RECIPIENT;
+#else		
+		_email = "alexey.skoufyin@tibbo.com";
+#endif		
+	} 
+		
+	sys.debugprint("SMTP: mail to \""+_email+"\"\r\n");
+	
+	_title = "Default Message Title";
+	_sensor = sens;
+	_template_id = tpl_id;
+	
+	/* Get domain name of the mailbox and feed it to the DNS resolver
+	 */
+	p = instr(1, _email, "@", 1);
+	if(p == 0)
+		return SMTP_ERR_BAD_ADDRESS; 
+		
+	domain = right(_email, len(_email)-p);
+	
+	sys.debugprint("SMTP: Resolving mail exchanger for \""+domain+"\"\r\n");
+	
+	_phase = SMTP_PHASE_RESOLVING_MX;
+	return dns_resolve(domain, RR_MX);
+}
+
+
+static void
+_mail_connect(string& ip, word port)
+{
+	sys.debugprint("SMTP: Connecting...\r\n");
+	
+	sock.num = SOCK_NUM_SMTP;
+	sock.protocol = PL_SOCK_PROTOCOL_TCP;
+	sock.targetinterface = PL_SOCK_INTERFACE_NET;
+	sock.targetip = ddstr(ip);
+	sock.targetport = port;
+	
+	sock.connect();
+}
+
+
+/* This is exact copy of sock_send() from utils.tc
+ * but without doevents() call
+ */
+static void
+_smtp_sock_send(string& s)
+{
+	word w = sock.txlen;
+	
+	sock.num = SOCK_NUM_SMTP;
+	sock.setdata(s);
+	sock.send();
+
+	sys.debugprint("SMTP OUT: " + dump(s) + "\r\n");
+	
+	while(sock.txlen > 0) ;
+}
+
+
+static string
+_hostname()
+{
+	string<32> hn;
+	hn = stg_get("HN", 0);
+	if(0 == len(hn))
+		return "amnesiac.example.com";
+	return hn;
+}
+
+
+void
+_mail_send_continue(string& param, bool success)
+{
+	int scode;
+	string s;
+	string<32> hu = "do-not-reply";
+	dword tpp;
+	
+	switch(_phase) {
+		case SMTP_PHASE_RESOLVING_MX:
+			sys.debugprint("SMTP: Mail exchanger is \""+param+"\"\r\n");
+			_phase = SMTP_PHASE_RESOLVING_SERVER;
+			dns_resolve(param, RR_A);
+			break;
+			
+		case SMTP_PHASE_RESOLVING_SERVER:
+			sys.debugprint("SMTP: Mail exchanger IP: \""+ddstr(param)+"\"\r\n");
+			_phase = SMTP_PHASE_CONNECTING;
+			_mail_connect(param, SMTP_PORT);
+			break;
+			
+		case SMTP_PHASE_CONNECTING:
+			sys.debugprint("SMTP: Connected to server\r\n");
+			_phase = SMTP_PHASE_GREETINGS;
+			break;
+
+		case SMTP_PHASE_GREETINGS:
+			scode = val(param);
+			sys.debugprint("STATUS: " + str(scode) + "\r\n");
+			s = "EHLO "+_hostname()+"\r\n";
+			_smtp_sock_send(s);
+			_phase = SMTP_PHASE_EHLO;
+			break;
+			
+		case SMTP_PHASE_EHLO:
+			scode = val(param);
+			sys.debugprint("STATUS: " + str(scode) + "\r\n");
+			s = "MAIL FROM: " + hu + "@" + _hostname() + "\r\n";
+			_smtp_sock_send(s);
+			_phase = SMTP_PHASE_MAILFROM; 
+			break;
+			
+		case SMTP_PHASE_MAILFROM:
+			s = "RCPT TO: " + _email + "\r\n";
+			_smtp_sock_send(s);
+			_phase = SMTP_PHASE_RCPTTO; 
+			break;
+			
+		case SMTP_PHASE_RCPTTO:
+			s = "DATA\r\n";
+			_smtp_sock_send(s);
+			_phase = SMTP_PHASE_DATA;
+			break;
+			
+		case SMTP_PHASE_DATA:
+			scode = val(param);
+			if(scode == 354) { // 354 Continue
+				tpp = template_find(_template_id);
+				if(0 != tpp) {
+					_title = template_title();
+				} else {
+					sys.debugprint("SMTP: Template ID="+str(tpp)+" not found!\r\n");
+				}
+				
+				_smtp_sock_send("Mime-Version: 1.0\r\n");
+				_smtp_sock_send("From: \"Tibbo Sentinel Agent\" <" + hu + "@" + _hostname() + ">\r\n");
+				_smtp_sock_send("Subject: =?" + _enc + "?B?" + base64_encode(_title) + "?=\r\n");
+				_smtp_sock_send("Content-Transfer-Encoding: 8bit\r\n");
+				_smtp_sock_send("Content-Type: text/plain; charset=" + _enc + "\r\n");
+				_smtp_sock_send("X-Mailer: Tibbo Sentinel\r\n");
+				_smtp_sock_send("\r\n");
+				
+				if(0 == tpp) {
+					_smtp_sock_send("(template #"+str(_template_id)+" not found)");
+				} else {
+					template_process(_template_id, _sensor, TARGET_SOCK);
+				}
+
+				_smtp_sock_send("\r\n.\r\nQUIT\r\n");
+				_phase = SMTP_PHASE_DATA;
+			} else {
+				// error!
+			}
+			break;
+	}
+}

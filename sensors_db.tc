@@ -1,0 +1,243 @@
+#include "sensors_db.th"
+#include "utils.th"
+
+
+bool
+sensor_db_open()
+{
+	string<4> sign;
+	
+	romfile.open(DEFAULT_SDB_NAME);
+	if(0 == romfile.size)
+		return false;
+		
+	romfile.pointer32 = 1;
+	sign = romfile.getdata(4);
+	if(sign != "SNDB")
+		return false;
+	
+	return true;
+}
+
+
+static void
+romfile_seek(unsigned long ptr)
+{
+	romfile.pointer32 = ptr+1;
+}
+
+
+static byte
+romfile_getbyte()
+{
+	string<2> t = romfile.getdata(1);
+	return t[0];
+}
+
+
+static word
+romfile_getword()
+{
+	string<3> t = romfile.getdata(2);
+	word *res = (word *)&t[0];
+	return *res; 
+} 
+
+
+static string
+romfile_getstring()
+{
+	byte l = romfile_getbyte();
+	string s = l>0? romfile.getdata(l): "";
+	return s;
+}
+
+
+bool
+find_drvrec(byte id, sensor_file_info *finf)
+{
+	word ptr;
+	byte drvid, bt;
+	byte tibbo_id, valtype;
+	
+	romfile_seek(sizeof(word) * id + 4);
+	ptr = romfile_getword();
+	if(0 == ptr)
+		return false;
+		
+	romfile_seek(ptr);
+
+	drvid = romfile_getbyte();
+	bt = romfile_getbyte();
+	tibbo_id = romfile_getbyte();
+	valtype = romfile_getbyte();
+	
+	if(NULL != finf) {
+		finf->driver_id = drvid;
+		finf->bus_type = bt;
+		finf->tibbo_id = tibbo_id;
+		finf->value_type = valtype;
+	}
+	
+	return id == drvid;
+}
+
+
+/* Values from scomp.py:
+ *
+ * BUSF_I2C            = 0x01
+ * BUSF_1W             = 0x02
+ * BUSF_OW             = 0x04
+ * BUSF_SW             = 0x08
+ * BUSF_RS485          = 0x10
+ * BUSF_RS232          = 0x20
+ * BUSF_DC             = 0x40
+ * BUSF_TIBBO_GENUINE  = 0x80
+ */
+byte 
+iotype_to_flag(iotype t) {
+	switch(t) {
+		case IO_I2C:
+			return 0x01;
+		case IO_OW:
+			return 0x02;
+		case IO_SW:
+			return 0x08;
+		case IO_RS485:
+			return 0x10;
+		case IO_RS232:
+			return 0x20;
+		case IO_DC:
+			return 0x40;
+		default:
+			return 0;
+	}
+}
+
+
+/*! \brief Get specified driver name
+ */
+string
+sensor_db_getdrivername(byte id, byte *bus_type)
+{
+	sensor_file_info sfi;
+	string s;
+	word cb;
+	
+	if(!find_drvrec(id, &sfi))
+		return "";
+		
+	cb = romfile_getword(); // skip 16 bit of sizeof(var_record_info)
+	s = romfile_getstring() + " [" + romfile_getstring() + "]";
+	
+	if(NULL != bus_type)
+		*bus_type = sfi.bus_type;
+		
+	return s;
+}
+
+
+/*! \brief Retreive INIT command contents
+ */
+string
+sensor_db_get_init_command(byte id)
+{
+	sensor_file_info finf;
+	word l;
+	
+	if(!find_drvrec(id, &finf))
+		return "";
+		
+	l = romfile_getword(); 
+	romfile.pointer32 += l; // skip driver name and chipset id
+	
+	l = romfile_getword();
+	return romfile.getdata(l);
+}
+ 
+
+/*! \brief Retreive READ command contents
+ */
+string
+sensor_db_get_read_command(byte id)
+{
+	sensor_file_info finf;
+	word l;
+	
+	if(!find_drvrec(id, &finf))
+		return "";
+		
+	l = romfile_getword(); 
+	romfile.pointer32 += l; // skip driver name and chipset id
+	
+	l = romfile_getword();
+	romfile.pointer32 += l; // skip READ command chunk
+	
+	l = romfile_getword();
+	romfile.pointer32 += l; // skip READ command programs chunk
+
+	l = romfile_getword(); 
+	return romfile.getdata(l);
+}
+
+
+/*! \brief Retreive READ command contents
+ */
+string
+sensor_db_get_init_program(byte id)
+{
+	sensor_file_info finf;
+	word l;
+	
+	if(!find_drvrec(id, &finf))
+		return "";
+		
+	l = romfile_getword(); 
+	romfile.pointer32 += l; // skip driver name and chipset id
+	
+	l = romfile_getword();
+	romfile.pointer32 += l; // skip READ command chunk
+	
+	l = romfile_getword(); 
+	
+#if 0
+	if(l > 0)
+		LOG("Loading INIT program of "+str(l)+" bytes");
+#endif
+
+	return romfile.getdata(l); 
+}
+
+
+/*! \brief Retreive READ command contents
+ */
+string
+sensor_db_get_read_program(byte id)
+{
+	sensor_file_info finf;
+	word l;
+	
+	if(!find_drvrec(id, &finf)) 
+		return "";
+		
+	l = romfile_getword(); 
+	romfile.pointer32 += l; // skip driver name and chipset id
+	
+	l = romfile_getword();
+	romfile.pointer32 += l; // skip READ command chunk
+	
+	l = romfile_getword();
+	romfile.pointer32 += l; // skip READ program chunk
+
+	l = romfile_getword();
+	romfile.pointer32 += l; // skip INIT command chunk
+	 
+	l = romfile_getword(); 
+
+#if 0
+	if(l > 0)
+		LOG("Loading READ program of "+str(l)+" bytes");
+#endif
+
+	return romfile.getdata(l);
+}

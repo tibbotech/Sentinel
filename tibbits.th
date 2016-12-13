@@ -1,0 +1,115 @@
+#ifndef __TIBBIT_TYPES_ENUM_INCLUDED__
+#define __TIBBIT_TYPES_ENUM_INCLUDED__
+
+
+/*! \file tibbits.th
+ * \brief Tibbit types enum
+ *
+ * (c) 2016 Tibbo Technology, Inc.
+ *
+ * Please keep this file in sync with http://tibbo.com/store/tps/tibbits.html
+ */
+
+
+/*! \enum tibbit
+ * This enumeration type contain all tibbit types, manufactured by Tibbo for TPS systems
+ */
+enum tibbit
+{
+	TB_NONE = 0,				//!< No tibbit
+	TB_00_1,					//!< Four direct IO lines
+	TB_00_2,					//!< Three direct IO lines and ground
+	TB_00_3,					//!< Two direct IO lines, +5V power, ground
+	TB_01,						//!< Four-line RS-232 port
+	TB_02,						//!< RS232/422/485 port
+	TB_03_1,					//!< Two low-power relays (configuration 1)
+	TB_03_2,					//!< Two low-power relays (configuration 2)
+	TB_04_1,					//!< Two isolated inputs
+	TB_04_2,					//!< Three isolated inputs, common (-)
+	TB_04_3,					//!< Three isolated inputs, common (+)
+	TB_04_4,					//!< Four opto-inputs, common ground
+	TB_05,						//!< RS485 port
+	TB_06,						//!< Two high-power relays
+	TB_07,						//!< Two solid state relays
+	TB_08,						//!< Wiegand and clock/data reader port
+	TB_09, 						//!< Low-power 5V supply, 12V input
+	TB_10,						//!< Medium-power 5V supply, 12V input
+	TB_11,						//!< Four open collector outputs
+	TB_12,						//!< Low-power +15/-15V power supply, 5V input
+	TB_13,						//!< Four-channel ADC
+	TB_14,						//!< Four-channel DAC
+	TB_15,						//!< High-voltage AC solid state relay
+	TB_16, 						//!< Three PWMs with open collector outputs
+	TB_17,						//!< Three PWMs with power outputs
+/* Tibbits below is just connectors */
+	TB_18, 						//!< Power input
+	TB_19,						//!< DB9M connector
+	TB_20, 						//!< Nine terminal blocks
+	TB_21,						//!< Four terminal blocks
+/* Normal tibbits again */	
+	TB_22,						//!< **** Non-isolated PoE (NOT YET AVAILABLE)
+	TB_23,						//!< Isolated PoE power supply, 5V output
+	TB_24,						//!< **** Thermocouple temperature meter
+	TB_25,						//!< High-power 5V supply, 12/24/48V input
+	TB_26,						//!< **** IR code processor (NOT YET AVAILABLE)
+	TB_27,						//!< **** IR receiver/transmitter (NOT YET AVAILABLE)
+	TB_28,						//!< Ambient light sensor
+	TB_29,						//!< Ambient temperature meter
+	TB_30,						//!< Ambient humidity meter
+	TB_31,						//!< PIC coprocessor
+	TB_32,						//!< Reserved
+	TB_33,						//!< Reserved
+	TB_34,						//!< Reserved
+	TB_35,						//!< Barometric pressure sensor
+	TB_36,						//!< 3-axis accelerometer
+	TB_37,						//!< RF connector
+/* Tibbits below is buttons and LEDs */
+	TB_38,						//!< Pushbutton
+	TB_39_1,					//!< Large green LED (low brightness)
+	TB_39_2,					//!< Large red LED (high brightness)
+	TB_39_3, 					//!< Large yellow LED (low brightness)
+	TB_39_4,					//!< Large blue LED (high brightness)
+/* Normal tibbits again */	
+	TB_40_1,					//!< Digital potentiometer, 5KOhm
+	TB_40_2,					//!< Digital potentiometer, 10KOhm
+	TB_40_3,					//!< Digital potentiometer, 50KOhm
+	TB_40_4,					//!< Digital potentiometer, 100KOhm
+	TB_41,						//!< 8-bit port (supplied with 200mm cable)
+	TB_42,						//!< RTC and NVRAM with backup
+	TB_43,						//!< Reserved
+	TB_44,						//!< Reserved
+	TB_45,						//!< Reserved
+	TB_46,						//!< Reserved
+	TB_47,						//!< GPRS modem
+/* Add new tibbits here */
+	NUM_TIBBITS
+};
+
+
+/*! \brief Information about Tibbit
+ */
+struct tibbit_info {
+	tibbit type;				//!< Type of the Tibbit
+	unsigned char slots;		//!< Width of tibbit: 1 or 2 slots
+	unsigned char pins;			//!< Bit flag about pins used and unused by tibbit
+};
+
+
+#define TBSLOT_PIN_A_ALLOC		0x08
+#define TBSLOT_PIN_B_ALLOC		0x04
+#define TBSLOT_PIN_C_ALLOC		0x02
+#define TBSLOT_PIN_D_ALLOC		0x01
+#define TBSLOT_PINS_ALLOC		(TBSLOT_PIN_A_ALLOC|TBSLOT_PIN_B_ALLOC|TBSLOT_PIN_C_ALLOC|TBSLOT_PIN_D_ALLOC)
+
+#define TBSLOT_C1_OR_C2			0x10
+
+#define TBSLOT_PIN_B_UNUSED		0x20
+#define TBSLOT_PIN_C_UNUSED		0x40
+#define TBSLOT_PIN_D_UNUSED		0x80
+#define TBSLOT_PIN_USAGE_MASK	(TBSLOT_PIN_B_UNUSED|TBSLOT_PIN_C_UNUSED|TBSLOT_PIN_D_UNUSED)
+
+
+extern tibbit_info *tibbit_getinfo(tibbit);
+
+
+#endif

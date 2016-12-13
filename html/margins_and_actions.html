@@ -1,0 +1,189 @@
+<?
+
+extern void template_html_list();
+extern void sensor_option_list();
+extern void sensor_location();
+
+?>
+<!DOCTYPE html>
+<html>
+<head>
+<title>Margins, Alarms & Actions</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8"> 
+<link rel="stylesheet" type="text/css" href="style.css" />
+<link rel="stylesheet" type="text/css" href="swal2.css" /> 
+<script type="text/javascript" src="jq.js"></script>
+<script type="text/javascript" src="jqbm.js"></script>
+<script type="text/javascript" src="swal2.js"></script>
+<script type="text/javascript" src="ma.js"></script>
+<script type="text/javascript" src="aa.js"></script>
+</head>
+<body>
+<div class="body_outer">
+    <div class="heading">
+        <div class="main_heading">Margins, Alarms & Actions</div>
+        <div class="main_heading_descr">Configure acceptable ranges of sensor data, setup alarms and actions taken<br/>
+		when monitored data goes out of range</div>
+        <div class="back"><a href="index.html">&laquo;&nbsp;Return to main page</a></div>
+    </div>
+    <div class="body">
+		<div class="msg" id="msg">Configuration saved<div class="cb"><a id="close" href="#"><img src="del.png"></a></div></div>	
+
+		<form method="POST"> 
+			<input type="hidden" class="cff" name="src" value="maa">
+			<fieldset>
+				<!-- legend>Margins, Alarms & Actions</legend -->
+	
+				<div class="formrow help">
+				Full range of parameter value which is reported by a sensor is divided into 3 zones:
+				Green, Yellow and Red.<br/>
+				When measured value falls into specific zone limits, specified action(s) is taken.
+				</div><br/>
+				 
+				<div class="formrow">  
+					<label class="f_lbl" for="sns">Sensor</label>
+					<select class="cff" name="sid" id="sensor" style="min-width:30em">
+					<? sensor_option_list(); ?>
+					</select>
+				</div>
+	
+				<div class="formrow">  
+					<label class="f_lbl" for="loc">Location</label>
+					<input class="cff" name="loc" id="loc" maxlen="100" value="" style="min-width: 30em">
+				</div>
+
+				<!-- div class="formrow"> 
+					<hr/>
+				</div -->
+				
+				<table class="ht">
+					<tbody>
+						<tr>
+							<td colspan="2" align="center">
+								<strong>Value limits and zones</strong>
+							</td>
+						</tr>
+						<tr>
+							<td colspan="2" align="center">
+								<!-- Nested tables are bad, but I lazy today to do something with that -->
+								<table> 
+									<tr>
+										<td>Low&nbsp;</td>
+										<td>
+											<input id="lr" name="lr" type="number" class="zv R cff">&nbsp;&laquo;&nbsp;
+											<input id="ly" name="ly" type="number" class="zv Y cff">
+											&laquo;&nbsp;<div class="greenzone">Green zone</div>&nbsp;&raquo;
+											<input id="hy" name="hy" type="number" class="zv Y cff">&nbsp;&raquo;&nbsp;
+											<input id="hr" name="hr" type="number" class="zv R cff">
+										</td>
+										<td>&nbsp;High</td>
+									</tr>
+									<tr>
+										<td></td>
+										<td align="center"><div class="brackets"></div><div class="pin"></div></td>
+										<td></td>
+									</tr>
+									<tr>
+										<td></td>
+										<td align="center">Full value range</td>
+										<td></td>
+									</tr>
+								</table>
+								
+							</td>
+						</tr>
+						<tr>
+							<td align="center"><input type="checkbox" id="yen" name="yen" checked="checked"><label for="yen"><strong>Enable Yellow zone actions</strong></label></td>
+							<td align="center"><input type="checkbox" id="ren" name="ren" checked="checked"><label for="ren"><strong>Enable Red zone actions</strong></label></td>
+						</tr>
+						<tr>
+							<td style="padding-right:2em"> 
+								<table>
+									<tr> 
+										<td><input type="checkbox" id="ysms" name="ysms" class="cff"><label for="ysms">Send SMS</label></td>
+										<td><select class="wide cff" name="ysmt" id="ysmt">
+										<option value="" disabled selected>Choose template...</option>
+										<? template_html_list(); ?></select></td>
+									</tr>
+									<tr>
+										<td><input type="checkbox" id="yemail" name="yemail" class="cff"><label for="yemail">Send E-mail</label></td>
+										<td><select class="wide cff" name="yemt" id="yemt">
+											<option value="" disabled selected>Choose template...</option>
+										<? template_html_list(); ?></select></td>
+										</select></td>
+									</tr>
+									<tr>  
+										<td><input type="checkbox" class="cff" id="ysnmp" name="ysnmp"><label for="ysnmp">Send SNMP trap</label></td>
+										<td><select class="wide cff" name="ytrp" id="ytrp">
+											<option value="" disabled selected>Choose trap...</option>
+										</select></td>
+									</tr>
+									<tr>
+										<td><input type="checkbox" class="cff" name="yout0" id="yout0"><label for="yout0">Turn on <strong>OUT#0</strong></label></td>
+										<td></td>
+									</tr>
+									<tr>
+										<td><input type="checkbox" class="cff" name="yout1" id="yout1"><label for="yout1">Turn on <strong>OUT#1</strong></label></td>
+										<td></td>
+									</tr>
+									<tr>
+										<td></td>
+										<td><input id="ytest" class="left" type="button" value="Test"></td>
+									</tr>
+								</table>
+							</td>
+	
+							<td>
+								<table> 
+									<tr>
+										<td><input type="checkbox" id="rsms" name="rsms" class="cff"><label for="rsms">Send SMS</label></td>
+										<td><select class="wide cff" name="rsmt" id="rsmt">
+											<option value="" disabled selected>Choose template...</option>
+											<? template_html_list(); ?></select></td>
+										</select></td>
+									</tr>
+									<tr>
+										<td><input type="checkbox" id="remail" name="remail" class="cff"><label for="remail">Send E-mail</label></td>
+										<td><select class="wide cff" name="remt" id="remt">
+											<option value="" disabled selected>Choose template...</option>
+											<? template_html_list(); ?></select></td>
+										</select></td>
+									</tr>
+									<tr>
+										<td><input type="checkbox" name="rsnmp" id="rsnmp" class="cff"><label for="rsnmp">Send SNMP trap</label></td>
+										<td><select class="wide" name="rtrp" id="rtrp">
+											<option value="" disabled selected>Choose trap...</option>
+										</select></td> 
+									</tr>
+									<tr>
+										<td><input type="checkbox" name="rout0" id="rout0" class="cff"><label for="rout0">Turn on <strong>OUT#0</strong></label></td>
+										<td></td>
+									</tr>
+									<tr>
+										<td><input type="checkbox" name="rout1" id="rout1" class="cff"><label for="rout1">Turn on <strong>OUT#1</strong></label></td>
+										<td></td>
+									</tr>
+									<tr>
+										<td></td>
+										<td><input id="rtest" class="left" type="button" value="Test"></td>
+									</tr>
+								</table>
+							</td>
+						</tr>
+						<tr>
+							<td colspan="2">
+								<input type="button" id="save" value="Save">
+							</td>
+						</tr>
+					</tbody>
+				</table>
+			</fieldset>
+			
+
+		</form>
+	</div>
+</div>
+
+</body> 
+</html>
+<? sock.send(); ?> 

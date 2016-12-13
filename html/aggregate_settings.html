@@ -1,0 +1,82 @@
+<?
+
+#include "global.th"
+#include "hal.th"
+#include "utils.th"
+#include "validators.th"
+
+
+bool gprs = is_tibbit_installed(TB_47);
+bool gen = !!val(stg_get("GEN", 0));
+bool wifi = wifi_card_installed();
+byte en = val(stg_get("ETH", 0));
+string<4> agif = stg_get("AGIF", 0);
+
+
+?><!DOCTYPE html>
+<html>
+<head>
+<title>AggreGate Settings</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link rel="stylesheet" type="text/css" href="style.css" />
+<link rel="stylesheet" type="text/css" href="swal2.css" /> 
+<script type="text/javascript" src="jq.js"></script>
+<script type="text/javascript" src="jqbm.js"></script>
+<script type="text/javascript" src="swal2.js"></script>
+<script type="text/javascript" src="ma.js"></script>
+</head>
+<body>
+<div class="body_outer">
+    <div class="heading">
+        <div class="main_heading">AggreGate Settings</div>
+        <div class="main_heading_descr">This page contains settings that control connection to AggreGate SCADA software</div>
+        <div class="back"><a href="index.html">&laquo;&nbsp;Return to main page</a></div>
+    </div>
+    <div class="body">
+		<div class="msg" id="msg">Settings saved</div>	
+		<form action="" method="POST">
+		<input type="hidden" name="src" class="cff" value="agg" />
+		<fieldset>
+		<legend><input type="checkbox" <? 
+			echo(html_checked(!!val(stg_get("AGEN", 0)))); 
+		?> id="agen" class="cff" name="agen"><label for="agen">Enable AggreGate&trade; server integration</legend>
+		<div class="formrow">
+			<label class="f_lbl" for="net_ag"><div class="l_win">Server IP address</div></label><input class="cff" id="net_ag" name="agip" value="<? 
+				string<16> ip = stg_get("AGIP", 0);
+				echo(ip); 
+			?>" />
+		</div>
+		<div class="formrow">
+			<label class="f_lbl" for="net_ap"><div class="l_win">Server port</div></label><input class="cff" id="net_ap" name="agp" value="<? echo_setting("AGP"); ?>" />
+		</div>
+		<div class="formrow">
+			<label class="f_lbl" for="net_un"><div class="l_win">User</div></label><input class="cff" id="net_un" name="agun" value="<? echo_setting("AGUN"); ?>" />
+		</div>
+		<div class="formrow">
+			<label class="f_lbl" for="agg_pw"><div class="l_win">Password</div></label><input class="cff" id="agg_pw" name="agpw" value="<? echo_setting("AGPW"); ?>" />
+		</div>
+		<div class="formrow">
+			<label class="f_lbl" for="agg_if"><div class="l_win">Connect via</div></label>
+			<select name="agif" class="cff wide" id="agg_if">
+			<? 
+				if(en != 0)
+					echo(html_option("eth", "Ethernet", agif == "eth"));
+				if(gprs && gen)
+					echo(html_option("gprs", "GPRS", agif == "gprs"));
+				if(wifi)
+					echo(html_option("wifi", "Wi-Fi", agif == "wifi"));
+			?>
+			</select>
+		</div>
+		</fieldset>
+		<div class="formrow">
+		<br/>
+		<input type="submit" value="Save">
+		</div>
+		</form>
+	</div>
+</div>
+
+</body>
+</html>
+<? sock.send(); ?>

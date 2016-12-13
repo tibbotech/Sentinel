@@ -1,0 +1,108 @@
+#ifndef __TPS_DCMON_GLOBAL_HEADER_INCLUDED__
+#define __TPS_DCMON_GLOBAL_HEADER_INCLUDED__
+
+
+#include "version.th"
+#include "debug.th"
+
+
+/*! \file global.th
+ * \brief Global typedefs, defines and settings for Data Center Monitoring TPS firmware
+ *
+ * (c) 2016 Tibbo Technology Inc.
+ */
+
+
+typedef unsigned char 			byte;
+typedef unsigned short 			word;
+typedef unsigned long 			dword;
+
+/* Internal representation of Unicode character: 16 bits per character
+ */
+typedef unsigned short			wchar;
+#define wchar_t					wchar
+
+#ifndef size_t
+#define size_t					word
+#endif
+
+typedef unsigned short			sensor_id;
+
+
+#define COUNTOF(x)				(sizeof(x)/sizeof((x)[0]))
+#define BITS_IN(x)				(sizeof(x)*8)
+
+
+#define MSB(x)					((x)1<<(BITS_IN((x)0)-1))
+//#define LSB(x)					(1)
+
+
+#ifndef NULL
+#define NULL					((void *)0)
+#endif
+
+
+/* For TPS3W:
+ *
+ *		3 I2C channels x 8 sensors per channel
+ *		3 1W channels x 8 sensors per channel
+ *		8 DC channels
+ *		2 H-485 channels
+ *
+ */
+#define MAX_SENSOR_COUNT			64
+
+
+/* Hardware configuration section
+ */
+#ifndef INLINE
+#define INLINE
+#endif
+
+
+#define CHAR_BITS 					8
+
+
+#includeb "global.tbh"
+
+
+/* Dedicated socket numbers
+ */
+#define SOCK_NUM_DNS				0
+#define SOCK_NUM_SNMP				1
+#define SOCK_NUM_SNMP_TRAP			2
+#define SOCK_NUM_SMTP				3
+#define SOCK_NUM_SMS				4
+#define SOCK_NUM_GPRS				5
+#define SOCK_NUM_DHCP				6
+#define SOCK_NUM_AGG				7
+#define SOCK_NUM_HTTP				8
+
+
+#define FILENO_BASE					8
+
+#define FILENO_SENSOR_DB			(FILENO_BASE+0)
+#define FILENO_ASSOC_DB				(FILENO_BASE+1)
+#define FILENO_TEMPLATE_FILE 		(FILENO_BASE+2)
+#define FILENO_TEMPLATE_FILE_NEW 	(FILENO_BASE+3)
+#define FILENO_SENSOR_NAMES			(FILENO_BASE+4)
+#define FILENO_TEMP					(FILENO_BASE+5)
+
+
+/* 10 seconds update interval by default
+ */
+#define DEFAULT_UPDATE_INTERVAL		20
+
+
+extern string<4> sim_pin;
+extern bool update_enabled;
+extern word update_interval;
+extern word sensor_count;
+extern word unknown_sensor_count;
+
+
+#define DEFAULT_AGG_PORT			6480
+
+
+#endif
+ 

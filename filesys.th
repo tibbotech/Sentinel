@@ -1,0 +1,16 @@
+#ifndef __TPS_FILESYSTEM_FUNCTIONS_INCLUDED__
+#define __TPS_FILESYSTEM_FUNCTIONS_INCLUDED__
+
+
+#include "global.th"
+
+
+extern bool filesys_init();
+extern string file_getstring();
+extern void file_putstring(string&);
+extern word file_getword();
+extern void file_putword(word);
+extern void file_putdata(char *, word);
+
+
+#endif

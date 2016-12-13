@@ -1,0 +1,19 @@
+#include "global.th"
+
+
+/* Global variables
+ */
+string<4> sim_pin = "";								//!< GSM modem PIN code
+string<32> snmp_read_comm = "public";
+string<32> snmp_write_comm = "public";
+ 
+
+bool update_enabled = true;							//!< Update enabled/disabled flag
+word update_interval = DEFAULT_UPDATE_INTERVAL;		//!< Sensor value update interval in 0.5 sec units
+ 
+ 
+//sensor *connected_sensors = NULL;
+word sensor_count = 0;
+word unknown_sensor_count = 0;
+
+

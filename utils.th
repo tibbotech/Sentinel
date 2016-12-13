@@ -1,0 +1,56 @@
+#ifndef __DCMON_UTILS_INCLUDED__
+#define __DCMON_UTILS_INCLUDED__
+
+
+/*! \file utils.th
+ * \brief Utility functions for project
+ */
+extern void halt(unsigned char);
+extern string dump(string&);
+extern string sdump(string&);
+extern string<2> tohex(unsigned char);
+extern string<8> tobin(unsigned char);
+extern unsigned char unhex(char& *);
+extern void delay(unsigned int);
+extern void delay_ms(unsigned int);
+extern unsigned char hexdigit(char);
+extern string hexdump(unsigned char *, unsigned char);
+extern int bit_alloc(unsigned char *, unsigned char);
+extern void bit_free(unsigned char *, unsigned char, unsigned int);
+extern bool bit_used(unsigned char *, unsigned char, unsigned int);
+extern string j_encode(string&, string&);
+extern string j_encoderaw(string&, string&);
+extern string j_error(string);
+extern string query_string();
+extern string query_arg(string&, string, string);
+extern string htmlspecialchars(string);
+extern void echo(string);
+extern void echo_setting(string&);
+extern bool is_space(char);
+extern string trim(string);
+extern string urlencode(string&);
+extern string urldecode(string&);
+extern string format_serial(string&);
+extern void sock_send(string&);
+extern void ser_send(string&);
+extern void _memset(void *, unsigned char, unsigned short);
+extern void _memcpy(void *, void *, unsigned short);
+extern unsigned short htons(unsigned short);
+extern unsigned long htonl(unsigned long);
+extern unsigned short ntohs(unsigned short);
+extern unsigned long ntohl(unsigned long);
+extern string base64_encode(string&);
+extern string base64_decode(string&);
+extern bool open_always(unsigned char, string&);
+extern string html_checked(bool);
+extern string html_option(string&, string&, bool);
+extern bool contains_only(string&, string&);
+
+
+enum halt_reason_code {
+	HALT_GENERIC = 1,
+	HALT_TOTAL
+};
+
+
+#endif

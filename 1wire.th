@@ -1,0 +1,64 @@
+#ifndef __1WIRE_FUNCTIONS_INCLUDED__
+#define __1WIRE_FUNCTIONS_INCLUDED__
+
+
+/*! \file 1wire.th
+ * \brief 1-Wire protocol support functions and constants
+ */
+
+
+#include "global.th"
+#include "hal.th"
+
+
+/* Uncommenting this macro will save 256 bytes of memory in exchange of some
+ * performance loss
+ */
+//#define __MEMORY_ECONOMY__
+
+
+#define OW_NONE			0x00
+#define OW_SKIP_ROM		0xCC
+#define	OW_READ_ROM		0x33
+#define	OW_MATCH_ROM	0x55
+#define	OW_SEARCH_ROM	0xF0
+#define OW_SEARCH_ROM_INIT 0xF1		// This is non-standart command, our firmware specific. 
+
+/* Commands below is non-standart, Tibbo tibbit specific and used to
+ * communicate with PIC firmware
+ */
+#define	OW_DETECT_ROM	0x0F		// Returns 00 if no presence pulse detected on bus, FF otherwise
+#define	OW_READFCV		0xAA		// Initiate read sequence of so-called "Single Wire" bus
+
+
+/* Low bit of I2C address is R/~W flag.
+ */
+#define OW_WRITE_FLAG	0x00
+#define OW_READ_FLAG	0x01
+
+
+/*! \brief 1-Wire device ID
+ */
+struct ow_devid {
+	byte class;						//!< Device class ID
+	byte serial[6];					//!< Device serial number
+	byte crc;						//!< CRC value of class + serial
+};
+
+
+extern void ow_setdevaddr(ioport *, byte);
+extern bool ow_start(ioport *, byte, byte, ow_devid *);
+extern void ow_stop(ioport *);
+extern void ow_send(ioport *, byte *, byte);
+extern void ow_sendstr(ioport *, string&);
+extern void ow_sendb(ioport *, byte);
+extern byte ow_recv(ioport *, byte *, byte);
+extern string ow_recvstr(ioport *, byte);
+extern byte ow_recvb(ioport *, bool);
+extern bool ow_recv_addr(ioport *, ow_devid *);
+extern void ow_send_addr(ioport *, ow_devid *);
+extern bool ow_addr_valid(ow_devid *);
+extern void ow_enum_start(ioport *, byte);
+extern bool ow_enum_next(ioport *, byte, ow_devid *);
+
+#endif

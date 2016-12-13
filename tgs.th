@@ -1,0 +1,80 @@
+#ifndef __TIBBO_GENUINE_SENSORS_LIB_INCLUDED__
+#define __TIBBO_GENUINE_SENSORS_LIB_INCLUDED__
+
+
+#include "global.th"
+#include "hal.th"
+
+
+/* Misc. defines
+ */
+#define TGS_MAX_PACKET_SIZE		48
+#define TGS_ADDR_LEN			4
+#define TGS_TIMEOUT				2
+#define TGS_TIMEOUT_MS			1000
+#define TGS_RQ_QUEUE_LEN		16
+
+
+/* Packet start and end markers
+ */
+#define TGS_STX					chr(0x02)
+#define TGS_ETX					chr(0x0D)
+
+
+typedef string<TGS_ADDR_LEN> 	tgs_addr;
+
+
+enum tgs_state {
+	TGS_STATE_IDLE = 0,
+	TGS_STATE_TIMEOUT,
+	TGS_STATE_SUCCESS,
+	TGS_STATE_WAIT_REPLY,
+	TGS_STATE_FAILED
+};
+
+
+enum tgs_rq_type {
+	RQT_NONE = 0,
+	RQT_DETECT,
+	RQT_DETECT_PORT,
+	RQT_READ,
+	RQT_REPROGRAM
+};
+
+
+struct tos_request {
+	byte 		id;				//!< Request unique ID
+	tgs_rq_type type;			//!< Request type
+	tgs_state	state;			//!< Request state
+	dword		timeout;		//!< Timeout counter
+	tgs_addr 	addr;			//!< Request address
+	tgs_addr	naddr;			//!< New address for S/N reprogramming
+	void 		*data;			//!< Associated data
+	tos_request	*next;			//!< Next request in chain
+};
+
+
+struct tgs_sensor_info {
+	tgs_addr addr;
+	byte np;
+};
+
+
+extern tgs_addr _tgs_addr_any;
+extern tgs_addr _tgs_addr_undef;
+
+extern void tibbo_sensors_init();
+extern void on_tibbo_data_arrival(string);
+extern void tibbo_sensor_timer();
+extern word tibbo_query_sensor(ioport *, tgs_addr, int, void *);
+extern word tibbo_query_port(ioport *);
+extern word tibbo_reprogram_sensor(ioport *, tgs_addr, tgs_addr); 
+extern word tibbo_detect_sensor(ioport *, tgs_addr);
+extern bool tibbo_task_finished(word);
+extern void tibbo_task_done(word);
+extern void tibbo_sensors_poll();
+extern tgs_addr tibbo_detected_addr();
+extern tgs_state tibbo_task_status(word);
+
+
+#endif

@@ -1,0 +1,58 @@
+==info	root	<R=<Tibbo Sentinel><apoint>>
+==variables	root	<R=<date><<<date><D>> <M=1> <X=1>><Date/Time><1><0><^><^><^>>
+~~<R=<version><<<version><S>> <M=1> <X=1>><Version><1><0><^><remote|General><^>>
+~~<R=<datex><<<datex><D>> <M=1> <X=1>><Date/Time><1><0><^><remote|General><^>>
+~~<R=<modtime><<<variable><S>> <<modtime><D><F=N>>><Modification time><1><0><^><^><^>>
+>>SYSN	S	<R=<SYSN><<<SYSN><S><V=<L=0 50>>><M=1><X=1>><System Name><1><1><Human-readable name of this device><remote|System Info><^>>
+>>SYSL	S	<R=<SYSL><<<SYSL><S><V=<L=0 50>>><M=1><X=1>><System Location><1><1><String, that describes physical location of this device><remote|System Info><^>>
+>>SYSD	S	<R=<SYSD><<<SYSD><S><V=<L=0 40>>><M=1><X=1>><System Description><1><0><Human-readable description of this device><remote|System Info><^>>
+>>SYSC	S	<R=<SYSC><<<SYSC><S><V=<L=0 50>>><M=1><X=1>><System Contact><1><1><E-mail or other contact info of person who manages this device><remote|System Info><^>>
+>>IP	S	<R=<IP><<<IP><S><E=ip><O=0>><M=1><X=1>><IP address><1><1><Primary IP address of this device><remote|Network><^>>
+>>NM	S	<R=<NM><<<NM><S><E=ip><O=0>><M=1><X=1>><Network mask><1><1><Subnet mask for primary network interface><remote|Network><^>>
+>>GW	S	<R=<GW><<<GW><S><E=ip><O=0>><M=1><X=1>><Gateway><1><1><Gateway address><remote|Network><^>>
+>>DNS	S	<R=<DNS><<<DNS><S><E=ip><O=0>><M=1><X=1>><DNS server><1><1><Domain name server address><remote|Network><^>>
+>>HN	S	<R=<HN><<<HN><S><V=<L=0 32>>><M=1><X=1>><Host name><1><1><Host name of this device><remote|Network><^>>
+>>HPN	S	<R=<HPN><<<HPN><L><V=<L=0 65535>>><M=1><X=1>><HTTP server port><1><1><HTTP server port number (0=disable)><remote|Network><^>>
+>>SNMP	S	<R=<SNMP><<<SNMP><B>><M=1><X=1>><Enable SNMP server><1><1><Enable embedded SNMP server><remote|SNMP><^>>
+>>SRC	S	<R=<SRC><<<SRC><S><V=<L=0 32>>><M=1><X=1>><Read community><1><1><SNMP read community string><remote|SNMP><^>>
+>>SWC	S	<R=<SWC><<<SWC><S><V=<L=0 32>>><M=1><X=1>><Write community><1><1><SNMP write community string><remote|SNMP><^>>
+>>STEN	S	<R=<STEN><<<STEN><B>><M=1><X=1>><Enable SNMP traps><1><1><Enable sending SNMP traps to clients><remote|SNMP><^>>
+>>STS	S	<R=<STS><<<STS><S><E=ip><O=0><V=<L=0 32>>><M=1><X=1>><Trap receiver address><1><1><IP address of the SNMP trap receiver><remote|SNMP><^>>
+>>STP	S	<R=<STP><<<STP><L><V=<L=0 65535>>><M=1><X=1>><Trap receiver port><1><1><Port number of the SNMP trap receiver><remote|SNMP><^>>
+>>MPIN	S	<R=<MPIN><<<MPIN><S><V=<L=0 4>>><M=1><X=1>><PIN><1><1><PIN code for installed SIM card><remote|SMS><^>>
+>>SMSA	S	<R=<SMSA><<<SMSA><S><V=<L=0 32>>><M=1><X=1>><SMS receivers><1><1><Phone numbers for receiving SMS notifications><remote|SMS><^>>
+>>AGEN	S	<R=<AGEN><<<AGEN><B>><M=1><X=1>><AggreGate integration><1><1><Enable/Disable AggreGate integration><remote|AggreGate><^>>
+>>AGIP	S	<R=<AGIP><<<AGIP><S>><M=1><X=1>><AGIP><1><1><^><remote|Default><^>>
+>>AGP	S	<R=<AGP><<<AGP><L><V=<L=0 65535>>><M=1><X=1>><AggreGate server port><1><1><AggreGate server port number><remote|AggreGate><^>>
+>>AGUN	S	<R=<AGUN><<<AGUN><S><V=<L=0 32>>><M=1><X=1>><User name><1><1><AggreGate server user name><remote|AggreGate><^>>
+>>AGPW	S	<R=<AGPW><<<AGPW><S><V=<L=0 32>>><M=1><X=1>><Password><1><1><Password><remote|AggreGate><^>>
+>>sensortable	T	<R=<sensortable><<<id><L><F=RH><V=<L=0 65535>>><<type><I><F=R><D=Parameter><H=Parameter Type><S=<none=0><temperature=1><humidity=2><temperature_and_humidity=3><flood=4><fire=5><smoke=6><movement=7><acdc_current=8><shock=9><reed_switch=10><switch=11><pressure=12><light=13><acceleration_three_axis=14><acceleration_six_axis=15><bit=16><byte=17><word=18><dword=19><gas_presence_co=20><gas_presence_co2=21><gas_presence_methane=22><alcohol=23>><V=<L=0 255>>><<port><I><F=R><D=Bus><H=Bus name><S=<None=0><I2C=1><SPI=2><1-Wire=3><Single Wire=4><Dry Contact=5><Wet Contact=6><RS-232=7><RS-422=8><RS-485=9><OUT=10>><V=<L=0 255>>><<channel><I><F=R><D=Channel><H=Channel number><V=<L=0 255>>><<driver><I><F=H><V=<L=0 255>>><<serial><S><F=R><V=<L=0 16>>><<value><S><F=R><V=<L=0 16>>><<status><I><F=R><S=<Unknown=0><ok=1><Pre-Alert=2><ALARM!=3>><V=<L=0 255>>><<info><S><V=<L=0 48>>><M=0><X=64>><Sensor Values><1><1><This table shows all collected sensor data><remote|Sensors><^>>
+==functions	root	<R=<hash><<<context><S>><<variable><S>><M=1><X=1>><<<hash><I>><M=1><X=1>><Table Hash><^><^>>
+~~<R=<finishTable><<<context><S>><<variable><S>><M=1><X=1>><<<hash><I>><M=1><X=1>><Finish Table><^><^>>
+~~<R=<startTable><<<context><S>><<variable><S>><M=1><X=1>><<M=0><X=0>><Start Table><^><^>>
+~~<R=<addRecord><<<context><S>><<variable><S>><<record><S>><M=1><X=1>><<M=0><X=0>><Add Record><^><^>>
+~~<R=<removeRecord><<<context><S>><<variable><S>><<id><S>><M=1><X=1>><<M=0><X=0>><Remove Record><^><^>>
+~~<R=<updateRecord><<<context><S>><<variable><S>><<record><S>><M=1><X=1>><<M=0><X=0>><Update Record><^><^>>
+~~<R=<putRecords><<<record><S>><M=1><X=1>><<M=0><X=0>><Put Record><^><^>>
+~~<R=<login><<<challenge><S>><M=1><X=1>><<<owner><S>><<name><S>><<response><S>><M=1><X=1>><Login><^><^>>
+~~<R=<register><<M=0><X=0>><<<password><S>><M=1><X=1>><Auto Register><^><^>>
+~~<R=<synchronized><<M=0><X=0>><<M=0><X=0>><Synchronized><^><^>>
+>>init	<R=<init><<M=0><X=0>><<<status><S>><M=1><X=1>><Initialize><^><remote>>
+>>reboot	<R=<reboot><<M=0><X=0>><<M=0><X=0>><Reboot><^><remote>>
+==events	root
+>>zonechanged	I2	<R=<zonechanged><<<id><L><D=Sensor ID>><<info><S><D=Sensor Info><H=Info string of sensor, that fired event>><<zfrom><I><D=Zone From><S=<None=0><Green=1><Yellow=2><Red=3>>><<zto><I><D=Zone To><S=<None=0><Green=1><Yellow=2><Red=3>>><M=1><X=1>><Zone transition occured><Fired, when some sensor makes zone transition><2><remote>>
+#define TBL_TIMESTAMP 1
+#define STG_TIMESTAMP 1
+#define AGG_DESCRIPTOR_FILE "aggregate.xtxt"
+#define AGG_TABLE_CONTROL 1
+#define AGG_SETTING_CONTROL 1
+#define AGG_MAX_RECONNECTION_DELAY 15
+#define AGG_DEBUG_PRINT 1
+#define AGG_MAX_NUM_ENTITY_TYPES 4
+#define AGG_MAX_CONTEXT_NAME_LEN 4
+#define AGG_MAX_NUM_SCRIPT_LINES 27
+#define AGG_MAX_SCRIPT_LINE_NAME_LEN 11
+#define AGG_MAX_FUNCTION_NAME_LEN 12
+#define AGG_MAX_NUM_STORED_EVENTS 0
+@@STG_RefPath=settings.xtxt
+@@TBL_RefPath=tables.xtxt

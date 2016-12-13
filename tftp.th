@@ -1,0 +1,24 @@
+#ifndef __TFTP_CLIENT_AND_SERVER_INCLUDED__
+#define __TFTP_CLIENT_AND_SERVER_INCLUDED__
+
+
+#include "global.th"
+
+
+enum {
+	TFTP_RRQ = 1,
+	TFTP_WRQ = 2,
+	TFTP_DATA = 3,
+	TFTP_ACK = 4,
+	TFTP_ERR = 5
+};
+
+
+#define TFTP_PORT 69
+
+
+extern bool tftp_init();
+extern void on_tftp_data_arrival(string);
+
+
+#endif

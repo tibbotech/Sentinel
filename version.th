@@ -1,0 +1,17 @@
+#ifndef __VERSION_HEADER_INCLUDED__
+#define __VERSION_HEADER_INCLUDED__
+
+
+#define VERSION_MAJOR	1
+#define VERSION_MINOR	1
+#define BUILD_NUMBER	132
+#define BUILD_SUFFIX	" (beta)"
+
+#define __DEVNAME__ 	"Tibbo Sentinel"
+
+#define _S(x)		_SS(x)
+#define	_SS(x)		#x
+#define __VERSION__ (_S(VERSION_MAJOR) "." _S(VERSION_MINOR) "." _S(BUILD_NUMBER) _S(BUILD_SUFFIX))
+
+
+#endif

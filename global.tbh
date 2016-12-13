@@ -1,0 +1,27 @@
+' This header file proveded for compatibility with standard libraries
+' which requires "global.tbh" header to be included
+'
+includepp "aggregate.xtxt"
+includepp "settings.xtxt"
+includepp "tables.xtxt"
+
+
+enum login_comparison_codes
+	LC_WILL_ACCEPT,
+	LC_WILL_ACCEPT_REPEATED_LOGIN,
+	LC_WILL_ACCEPT_LOWER_IN_PROGRESS,
+	LC_WILL_REJECT_HIGHER_IN_PROGRESS,
+	LC_WILL_REJECT_SAME_IN_PROGRESS
+end enum
+
+
+include "settings\trunk\settings.tbh"
+include "sock\trunk\sock.tbh"
+include "wln\trunk\wln.tbh"
+include "dhcp\trunk\dhcp.tbh"
+include "time\trunk\time.tbh"
+include "filenum\trunk\filenum.tbh"
+include "tables\trunk\tables.tbh"
+include "aggregate\trunk\aggregate.tbh"
+
+

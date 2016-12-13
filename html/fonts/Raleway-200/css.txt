@@ -1,0 +1,24 @@
+@font-face {
+
+  font-family: 'Raleway';
+  
+  font-style: normal;
+  
+  font-weight: 200;
+  
+  src: local('Raleway ExtraLight'), local('Raleway-ExtraLight'), url(https://fonts.gstatic.com/s/raleway/v11/8KhZd3VQBtXTAznvKjw-kxsxEYwM7FgeyaSgU71cLG0.woff) format('woff');
+
+}
+
+
+@font-face {
+  
+  font-family: 'Raleway';
+
+  font-style: normal;
+
+  font-weight: 300;
+
+  src: local('Raleway Light'), local('Raleway-Light'), url(https://fonts.gstatic.com/s/raleway/v11/-_Ctzj9b56b8RgXW8FAriRsxEYwM7FgeyaSgU71cLG0.woff) format('woff');
+
+}

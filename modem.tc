@@ -1,0 +1,616 @@
+#include "global.th"
+#include "utils.th"
+#include "modem.th"
+#include "device_map.th"
+#include "debug.th"
+#includeb "gprs-g2.tbh"
+
+
+/* Module internal variables
+ */
+static string<2> _delim = "\r\n";
+static byte state = 0;					// Modem response parser internal state
+static byte substate = 0;				// Modem response parser internal sub-state
+static byte _flags = 0;					// Various module flags, extracted from modem responses
+
+
+static string<16> _sms_number;
+static string _sms_body;
+
+
+/* Module variables, visible to outside code
+ */
+bool modem_need_pin = false;			// After inital handshake set to true, if modem needs PIN code for SIM card, false otherwise
+string<4> modem_pin = "0000";			// 4-digit SIM PIN code
+byte modem_func_type = 0;				// Modem functionality: 0=limited, 1=full, 4=modem transiever is offline
+byte modem_debug_flags = 0; 			// set this to MODEM_DEBUG_xxx OR'ed to print debug_log info
+bool modem_instf = false;
+
+
+/* Callbacks to implement in main program
+ */
+extern bool on_custom_modem_command(string&);
+extern void on_modem_sms_arrival(byte);
+
+/* Temporary here, to prevent inclusion of basic headers.
+ * Code of the GPRS library will be moved here
+ */
+extern void gprs_proc_timer();
+extern void gprs_proc_sock_data();
+
+
+
+static void
+debug_log(string& str)
+{
+	if(modem_debug_flags & MODEM_DEBUG_LOG)
+		DBG(str);
+}
+
+
+static void
+at_command(ioport *p, string& command)
+{
+	string gprs_cmd = "AT" + command; 
+	
+	serial_send(p, gprs_cmd + chr(13));
+
+	ser.send();
+	
+	while(ser.txlen != 0)
+		;
+
+	if(modem_debug_flags & MODEM_DEBUG_OUT)
+		DBG("> " + gprs_cmd);
+}
+
+
+static void
+pulse(ioport *p, byte line)
+{
+	gp4_setstate(p, line, HIGH);
+	delay_ms(500);
+	gp4_setstate(p, line, LOW);
+}
+
+
+/*! \brief Hard-reset the modem to default state by manipulating RESET GPIO line
+ * \note Changes io.num to MODEM_RESET value upon exit
+ * \note Can be called without calling modem_init() first
+ */
+void
+modem_reset(ioport *p)
+{
+	gp4_enable(p, MODEM_RESET, YES);
+	pulse(p, MODEM_RESET);
+	
+	/* Also reset internal vars 
+	 */
+	state = 0;
+	substate = 0;
+	_flags = 0;
+}
+
+
+/*! \brief Initialize modem module
+ * Initialize modem module powering it on, if needed or resetting, if power is already on, then initiates handshake procedure.
+ * \param pin PIN-code for installed SIM card, 4 digits. If no pin code needed you can pass empty string ""
+ */
+void
+modem_init(ioport *p, string& pin)
+{
+	debug_log("Initializing");
+	 
+	gp4_enable(p, MODEM_SWDN, YES);
+	gp4_enable(p, MODEM_RESET, YES);
+	gp4_enable(p, MODEM_PWRKEY, YES);
+	gp4_enable(p, MODEM_STATUS, NO);
+	
+	if(LOW == gp4_state(p, MODEM_STATUS)) { 
+		gp4_setstate(p, MODEM_SWDN, HIGH);
+		
+		gp4_setstate(p, MODEM_RESET, HIGH);
+		delay_ms(500);
+		
+		/* -SHDN turn on 
+		 */
+		//gp4_enable(p, MODEM_SWDN, YES);
+		//gp4_setstate(p, MODEM_SWDN, HIGH);
+	
+		/* PWRKEY turn on if modem isn't powered up yet
+		 */
+		pulse(p, MODEM_PWRKEY);
+		
+		delay_ms(500);
+		gp4_setstate(p, MODEM_RESET, LOW);
+		
+		debug_log("Power is " + (gp4_state(p, MODEM_STATUS) == LOW? "OFF": "ON"));
+	} else {
+		debug_log("Resetting");
+		modem_reset(p);
+	}
+
+	/* Initialize internal variables
+	 */
+	state = 0;
+	substate = 0;
+	_flags = 0;
+	modem_need_pin = false;
+	modem_pin = pin;
+	modem_func_type = 0;
+	
+	/* Modem configuration commands 
+     * IPR=modem baud rate, 
+	 * IFC=flow control: 0,0 for no flow control, 2,2 for CTS/RTS on both sides
+	 * ICF=data bits, stop bit and parity, 3,3 for 8 bit, no parity, 1 stop bit on 
+	 * both sides
+	 */
+	at_command(p, "+IPR=115200;+IFC=0,0;+ICF=3,3");	
+}
+
+
+static byte
+state_parse_handshake(ioport *p, string& reply)
+{
+	string <16>arg;
+
+	if(reply == "RDY") {
+		debug_log("Ready to communicate");
+		substate |= SUBSTATE_GOT_RDY;
+		_flags |= MODEM_FLAG_READY;
+	} else if(left(reply, 7) == "+CFUN: ") {
+		arg = mid(reply, 8, 255);
+		modem_func_type = (byte)val(arg); // 0=limited, 1=full, 4=transiever off
+		substate |= SUBSTATE_GOT_FUNC;
+	} else if(left(reply, 7) == "+CPIN: ") {
+		arg = mid(reply, 8, 255);
+		modem_need_pin = (arg != "READY"); // "READY"-no pin, "SIM PIN"-we need pin code
+		substate |= SUBSTATE_GOT_PIN;
+	}
+	
+	if(substate == SUBSTATE_HANDSHAKE_DONE) {
+		debug_log("Functionality code: " + str(modem_func_type));
+		arg = modem_need_pin? "Need PIN code": "Don't need PIN"; // TCC bug JIRA #320
+		debug_log(arg);
+		substate = 0;
+		at_command(p, "E0");
+		return MODEM_STATE_DISABLE_ECHO;
+	}
+	
+	return MODEM_STATE_HANDSHAKE;
+}
+
+
+static byte
+state_wait_call_ready(ioport *p, string& reply)
+{
+	if(reply == "Call Ready") {
+		debug_log(reply);
+		_flags |= MODEM_FLAG_CALL_READY;
+		if(0 != (_flags & MODEM_FLAG_GPRS_ENABLED)) {
+			DBG("Trying to make GPRS connection");
+			return MODEM_STATE_GPRS_INIT;
+		}
+		return MODEM_LAST_STATE;
+	}
+	
+	return MODEM_STATE_WAIT_CALL_READY;
+}
+
+
+static byte
+state_await_connected(string& reply, byte okstate, byte failstate)
+{
+	if(reply == "CONNECT") {
+		debug_log(reply);
+		_flags |= MODEM_FLAG_CONNECTED;
+		
+		gprs_start(
+			stg_get("GNTD", 0), 
+			stg_get("GAPN", 0), 
+			stg_get("GUSR", 0), 
+			stg_get("GPWD", 0)
+		);
+		
+		return MODEM_LAST_STATE;
+	} else if(reply == "BUSY" || reply == "NO CARRIER" || reply == "NO DIALTONE" || reply == "NO ANSWER") {
+		_flags &= ~MODEM_FLAG_CONNECTED;
+		return MODEM_LAST_STATE;
+	}
+	
+	return MODEM_STATE_GPRS_CONNECTED;
+}
+
+
+static byte
+state_send_pin_code(ioport *p, string& reply)
+{
+	switch(substate) {
+		case 0:
+			at_command(p, "+CPIN="+modem_pin);
+			++substate = 1;
+			break;
+		case 1:
+			if(reply == "OK") {
+				substate = 0;
+				return MODEM_LAST_STATE;
+			} else {
+				_flags |= MODEM_FLAG_INCORRECT_PIN; // invalid PIN-code
+			}
+			break;
+		default:
+			break;
+	}
+	
+	return MODEM_STATE_SEND_PIN;
+}
+
+
+static byte
+state_await_response(string& reply, byte okstate, byte failstate)
+{
+	if(reply == "OK")
+		return okstate;
+		
+	if(reply == "ERROR")
+		return failstate;
+		
+	return state;
+}
+
+
+/*! \brief Parse modem responses.
+ * \note This function MUST be called from on_ser_data_arrival() callback
+ * Serial data from modem can be received at any time with unpredicted length. For example
+ * "RDY\r\n" response often arrives in two pieces: "RD" and "Y\r\n" so we need to implement
+ * some buffering algorithm.
+ *
+ */
+void
+on_modem_data_arrival()
+{
+	string reply;
+	byte p, id;
+	ioport *port;
+	gprs_state ns;
+	
+	port = map_device(IO_MODEM, 0);
+	if(NULL == port)
+		return;
+	
+	if(0 != (_flags & MODEM_FLAG_CONNECTED)) {
+		gprs_proc_ser_data();
+		return;
+	}
+	
+	reply = ser.peekdata(255); 
+	
+	while((p = instr(0, reply, _delim, 1)) > 0) {
+
+		if(_delim == "\r\n") {
+			reply = ser.getdata(p-1);
+			ser.getdata(2); // discard trailing CR+LF
+		} else {
+			reply = ser.getdata(len(_delim));
+		}
+
+		if(len(reply) == 0)
+			continue;
+			
+		if(modem_debug_flags & MODEM_DEBUG_IN)
+			DBG("< " + dump(reply));
+		
+		ns = state_wait_call_ready(port, reply); // "Call Ready" may arrive at any time
+		if(ns == MODEM_STATE_GPRS_INIT)
+			state = ns;
+		
+		switch(state) {
+			case MODEM_STATE_HANDSHAKE:
+				state = state_parse_handshake(port, reply);
+				break;
+				
+			case MODEM_STATE_DISABLE_ECHO:
+				state = state_await_response(reply, modem_need_pin? MODEM_STATE_SEND_PIN: MODEM_LAST_STATE, MODEM_LAST_STATE);
+				break;
+				
+			case MODEM_STATE_SEND_PIN:
+				state = state_send_pin_code(port, reply);
+				break;
+				
+			case MODEM_STATE_GET_REG:
+				state = state_await_response(reply, MODEM_STATE_GET_INFO1, MODEM_LAST_STATE);
+				if(state == MODEM_STATE_GET_REG) {
+					if(left(reply, 6) == "+CREG:") {
+						reply = mid(reply, 8, 255);
+						debug_log("Registration info: " + reply);
+					}
+				}
+				if(state == MODEM_STATE_GET_INFO1) {
+					at_command(port, "+COPS?");
+				}
+				break;
+				
+			case MODEM_STATE_GET_INFO1: 
+				state = state_await_response(reply, MODEM_LAST_STATE, MODEM_LAST_STATE);
+				if(state == MODEM_STATE_GET_INFO1) {
+					if(left(reply, 6) == "+COPS:") {
+						p = instr(1, reply, ",", 2);
+						if(p > 0)
+							debug_log("Registered with op " + mid(reply, p+1, 255));
+					}
+				}
+				break;
+			
+			case MODEM_STATE_GPRS_INIT:
+				at_command(port, "+CGDCONT=1,\"IP\",\"internet.mts.ru\"");
+				state = MODEM_STATE_GPRS_DOCONNECT;
+				break;
+				
+			case MODEM_STATE_GPRS_DOCONNECT:
+				state = state_await_response(reply, MODEM_STATE_GPRS_CONNECTING, MODEM_LAST_STATE);
+				if(state == MODEM_STATE_GPRS_CONNECTING) 
+					at_command(port, "DT"+"*99#");
+				break;
+				
+			case MODEM_STATE_GPRS_CONNECTING:
+				state = state_await_connected(reply, MODEM_STATE_GPRS_CONNECTED, MODEM_LAST_STATE);
+				if(state == MODEM_STATE_GPRS_CONNECTED)
+					state = MODEM_LAST_STATE;
+				break;
+				
+			case MODEM_STATE_BEGIN_SMS:
+				state = state_await_response(reply, MODEM_STATE_WAIT_PROMPT, MODEM_LAST_STATE);
+				if(state == MODEM_STATE_WAIT_PROMPT) {
+					debug_log("Mode set to TEXT");
+					at_command(port, "+CMGS=\""+_sms_number+"\"");
+					_delim = "> ";
+				}
+				break;
+				
+			case MODEM_STATE_WAIT_PROMPT:
+				if(reply == _delim) {
+					ser.setdata(_sms_body);
+					ser.setdata(chr(0x1A));
+					ser.send();
+					debug_log("SMS text sent: \""+_sms_body+"\".");
+					state = MODEM_STATE_SEND_SMS;
+					_delim ="\r\n";
+				}
+				break;
+				
+			case MODEM_STATE_SEND_SMS:
+				state = state_await_response(reply, MODEM_LAST_STATE, MODEM_LAST_STATE);
+				if(state == MODEM_STATE_SEND_SMS) {
+					if(left(reply, 6) == "+CMGS:")
+						debug_log("Outcoming SMS #"+mid(reply,7,255));
+				} else {
+					debug_log("SMS to "+_sms_number+" sent successfully");
+					_flags &= ~MODEM_FLAG_SMS_INPROGRESS;
+				} 
+				break;
+				
+			case MODEM_STATE_CUSTOM_COMMAND:
+				if(!on_custom_modem_command(reply)) {
+					state = MODEM_LAST_STATE;
+				}
+				break;
+				
+			case MODEM_STATE_READ_SMS:
+				state = state_await_response(reply, MODEM_LAST_STATE, MODEM_LAST_STATE);
+				break;
+				
+			case MODEM_LAST_STATE:
+				if(0 != _flags & MODEM_FLAG_SMS_INPROGRESS)
+					_flags &= ~MODEM_FLAG_SMS_INPROGRESS;
+				
+				if(left(reply, 6) == "+CMTI:") {
+					reply = mid(reply, 7, 255);
+					p = instr(1, reply, ",", 1);
+					if(p != 0) {
+						id = val(mid(reply, p+1, 255));
+						debug_log("New SMS received ID=" + str(id));
+						on_modem_sms_arrival(id);
+					}
+				} else {
+					//debug_log("CMD: " + reply);
+				}
+				break;
+				
+			default:
+				break;
+		}
+	}
+}
+
+
+/*! \brief Returns modem ready-to-call state.
+ * \returns true if modem can send/receive voice call, data or SMS, false otherwise
+ * \param wait Pass true to wait until modem becomes ready to call, false to just peek on value
+ */
+bool
+modem_readytocall(ioport *p, bool wait)
+{
+	while(wait && 0 == (_flags & MODEM_FLAG_CALL_READY))
+		doevents;
+	
+	return 0 != (_flags & MODEM_FLAG_CALL_READY);
+}
+
+
+/*! \brief Enables or disables establishing of the GPRS connection after modem initialization
+ * \param en Enable flag
+ * \note Calling this function _after_ modem initialization have no effect. You must
+ *		re-initialize modem to make things work
+ */
+void
+modem_gprs_enable(bool en)
+{
+	_flags &= ~MODEM_FLAG_GPRS_ENABLED;
+	if(en)
+		_flags |= MODEM_FLAG_GPRS_ENABLED;
+}
+
+
+/*! \brief Sends SMS message
+ * \param to Full (with country code) cellular phone number of SMS recipient
+ * \param body SMS text, in unicode encoding
+ * \returns true, if SMS succesfully delivered, false otherwise
+ */
+modem_status_code
+modem_send_sms(ioport *p, string& to, string& body)
+{
+	if(0 == _flags & MODEM_FLAG_CALL_READY)
+		return MODEM_NOTREADY;
+		
+	if(0 != _flags & MODEM_FLAG_SMS_INPROGRESS)
+		return MODEM_INPROGRESS;
+		
+	state = MODEM_STATE_BEGIN_SMS;
+	substate = 0;
+	_flags |= MODEM_FLAG_SMS_INPROGRESS;
+	_sms_number = to;
+	_sms_body = body;
+
+	// Text mode, Encoding GSM, PDU not supported, Parameters for text mode
+	at_command(p, "+CMGF=1;+CSCS=\"GSM\";+CSMP=17,167,0,0"); 			
+	
+	return MODEM_SUCCESS;
+}
+
+
+/*! \brief Sends custom AT-command to modem
+ * \param cmd Modem command without \c AT prefix. Prefix is added automatically
+ * \param wait When \c false is passed, operation completes asynchronously. \c true makes function to wait upon operation completion
+ */
+modem_status_code
+modem_command(ioport *p, string& cmd, bool wait)
+{
+	if(!wait) {
+		if(0 == _flags & MODEM_FLAG_CALL_READY)
+			return MODEM_NOTREADY;
+		if(state != MODEM_LAST_STATE)
+			return MODEM_INPROGRESS;
+	} else {
+		while((0 == _flags & MODEM_FLAG_CALL_READY) || (state != MODEM_LAST_STATE))
+			doevents;
+	}
+	
+	state = MODEM_STATE_CUSTOM_COMMAND;
+	at_command(p, cmd);
+	
+	while(wait && state != MODEM_LAST_STATE)
+		doevents;
+	
+	return MODEM_SUCCESS;
+}
+
+
+/*! \brief Query modem info
+ * Queries modem firmware version, cellular OP modem currently registered with, other GSM-related info
+ * \returns Operation status code
+ */
+modem_status_code
+modem_query_info(ioport *p)
+{
+	while(0 == _flags & MODEM_FLAG_CALL_READY && state != MODEM_LAST_STATE)
+		doevents;
+		
+	state = MODEM_STATE_GET_REG;
+	at_command(p, "+CREG?");
+	
+	while(state != MODEM_LAST_STATE)
+		doevents;
+		
+	return MODEM_SUCCESS;
+}
+
+
+string
+modem_get_sms(ioport *p, byte id, bool del)
+{
+	while(0 == _flags & MODEM_FLAG_CALL_READY && state != MODEM_LAST_STATE)
+		doevents;
+
+	state = MODEM_STATE_READ_SMS;
+	substate = 0;
+	at_command(p, "+CMGR="+str(id));
+	
+	while(state != MODEM_LAST_STATE)
+		doevents;
+		
+	return _sms_body;
+}
+
+
+void
+modem_escape(ioport *p)
+{
+	unsigned int tmr;
+
+	// Escape sequence: Wait T1 (1 seconds), send "+++", wait T2 (0.5 seeconds)
+	for(tmr=sys.timercount+2; sys.timercount < tmr; tmr ) ; //  do nothing, wait 1.0 sec
+
+	ser.setdata("+++");
+	ser.send();
+
+	for(tmr=sys.timercount+1; sys.timercount<tmr; tmr ) ; // do nothing, wait 0.5 sec
+
+	// Now we are in command mode. To return to the data mode
+	// issue the 'ATO' command.
+}
+
+
+/*! \brief Send SMS while maintaining GPRS/PPP connection
+ * \param to Fully-qualified cellular number, including country code
+ * \param body SMS text
+ * \note We assume that sys.ontimerperiod is set to 50 (default 500 ms interval, 2 ticks per sec)
+ */
+modem_status_code
+modem_send_sms_inband(ioport *p, string to, string body)
+{
+	string tmp;
+	
+	modem_escape(p);
+	 
+	at_command(p, "+CMGS=\""+to+"\"");
+	
+	tmp = ser.getdata(255);
+	if(instr(1, tmp, "> ", 1) != 0) {
+		ser.setdata(_sms_body);
+		ser.setdata(chr(0x1A));
+		ser.send();
+		
+		tmp = ser.getdata(255);
+		
+		if(left(tmp, 6) == "+CMGS:")
+			tmp = mid(tmp, 7, 255);
+	}
+
+	at_command(p, "O"); // ATO: resume data flow
+	return MODEM_SUCCESS;
+}
+
+
+void
+modem_timer()
+{
+	if(0 != (_flags & MODEM_FLAG_CONNECTED)) {
+		gprs_proc_timer();
+	}
+}
+
+
+void
+modem_set_established(bool est)
+{
+	_flags &= ~MODEM_FLAG_ESTABLISHED;
+	if(est)
+		_flags |= MODEM_FLAG_ESTABLISHED;
+}
+
+
+bool
+modem_session_established()
+{
+	return 0 != (_flags & MODEM_FLAG_ESTABLISHED);
+}

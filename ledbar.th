@@ -1,0 +1,13 @@
+#ifndef __LED_BAR_CONTROL_INCLUDED__
+#define __LED_BAR_CONTROL_INCLUDED__
+
+
+#include "global.th"
+
+
+extern void led_bar_init();
+extern void led_bar_set_pattern(byte);
+extern void led_bar_set_strength(byte);
+
+
+#endif // __LED_BAR_CONTROL_INCLUDED__

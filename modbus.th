@@ -1,0 +1,71 @@
+#ifndef __MODBUS_HEADER_INCLUDED__
+#define __MODBUS_HEADER_INCLUDED__
+
+
+#include "global.th"
+
+
+enum modbus_source {
+	MODBUS_TCP,
+	MODBUS_SERIAL
+};
+
+
+enum modbus_state {
+	MODBUS_IDLE,
+	MODBUS_RECEIVING
+};
+
+
+enum modbus_func_code {
+	READ_COILS 					= 1,
+	READ_DISCRETE_INPUTS 		= 2,
+	READ_HOLDING_REGISTERS 		= 3,
+	READ_INPUT_REGISTERS 		= 4,
+//
+	FORCE_SINGLE_COIL			= 5,
+	PRESET_SINGLE_REGISTER		= 6,
+//
+	READ_EXCEPTION_STATUS		= 7,
+	DIAGNOSTIC					= 8,
+// 9 reserved
+// 10 reserved
+	GET_COM_EVENT_COUNTER		= 11,
+	GET_COM_EVENT_LOG			= 12,
+// 13 reserved
+// 14 reserved
+	FORCE_MULTIPLE_COILS		= 15,
+	PRESET_MULTIPLE_REGISTERS 	= 16
+};
+
+
+/* ModBus request header
+ */
+struct modbus_reqhdr {
+	byte func_code;
+	word address;
+	word count;
+};
+
+
+struct modbus_tcphdr {
+	unsigned short transact;
+	unsigned short proto;
+	unsigned short length;
+};
+
+
+struct modbus_apu {
+	unsigned char addr;
+	unsigned char fun;
+
+};
+
+
+extern void modbus_request(modbus_source, byte, byte, bool);
+extern bool modbus_complete(modbus_source);
+extern void on_modbus_data_arrival(modbus_source);
+extern void modbus_init();
+
+
+#endif

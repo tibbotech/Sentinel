@@ -1,0 +1,349 @@
+#include "global.th"
+#include "hal.th"
+#include "utils.th"
+#include "tgs.th"
+#include "device_map.th"
+#include "sensors_db.th"
+
+
+/* Tibbo Original Sensors support functions and procedures
+ *
+ * (c) 2016 Tibbo Technology, Inc.
+ * All Rights Reserved
+ */
+ 
+
+static string<TGS_MAX_PACKET_SIZE*2> _ser_buf;
+static tgs_addr _found;
+static byte _serial;
+static tos_request *_free;
+static tos_request *_pending;
+static tos_request _queue[TGS_RQ_QUEUE_LEN];
+static word _nrq;
+
+
+tgs_addr _tgs_addr_any   = "\x00\x00\x00\x00"; 	// Broadcast address
+tgs_addr _tgs_addr_undef = "\xFF\xFF\xFF\xFF";	// Invalid address
+
+
+void
+tibbo_sensors_init()
+{
+	int i, n;
+	tos_request *t;
+	
+	_serial = 1;
+	_free = NULL;
+	_pending = NULL;
+	_nrq = 0;
+	
+	n = COUNTOF(_queue);
+	for(i=0; i<n; ++i) {
+		t = &_queue[i];
+		t->id = 0;
+		t->type = RQT_NONE;
+		t->state = TGS_STATE_IDLE;
+		t->timeout = 0;
+		t->addr = _tgs_addr_any;
+		t->data = NULL;
+		t->next = _free;
+		_free = t;
+	}
+}
+
+
+static tos_request *
+_alloc_request(tgs_rq_type type)
+{
+	tos_request *res;
+	
+	if(0 == _serial)
+		++_serial; /* Skip zero value, because it is reserved */
+		
+	res = _free;
+	if(NULL != res) {
+		++_nrq;
+		res->id = _serial++;
+		res->type = type;
+		res->timeout = sys.timercountms + TGS_TIMEOUT_MS;
+		res->state = TGS_STATE_IDLE;
+		res->addr = _tgs_addr_any;
+		res->data = NULL;
+		_free = res->next;
+		res->next = _pending;
+		_pending = res;
+	}
+	
+	return res;
+}
+
+
+static tos_request *
+_find_request(word id, bool remove)
+{
+	tos_request **p = &_pending;
+	tos_request *rq;
+	
+	for(rq=_pending; NULL != rq; rq=rq->next) {
+		if(id == rq->id) {
+			if(remove) {
+				*p = rq->next;
+				--_nrq;
+			}
+			return rq;
+		}
+		p = &rq->next;
+	}
+	
+	return NULL;
+}
+
+
+static void
+_timeout_task(tos_request *rq)
+{
+	if(NULL != rq && sys.timercountms >= rq->timeout && rq->state != TGS_STATE_TIMEOUT) {
+		sys.debugprint("Request timeout #"+str(rq->id)+"\r\n");
+		rq->state = TGS_STATE_TIMEOUT;
+	}
+}
+
+
+#if 0
+static string<2>
+tohexw(word w)
+{
+	return chr((w >> 8) & 0xFF) + chr(w & 0xFF);
+}
+
+
+static word
+fromhexw(string<2> h)
+{
+	return (hexdigit(h[0]) << 4) | hexdigit(h[1]);
+}
+#endif
+
+
+void
+tibbo_sensors_poll()
+{
+	ioport *p;
+	tos_request *rq;
+	string<64> rqtext;
+	
+	p = map_device(IO_RS485, 0);
+	if(NULL == p)
+		return;
+		
+	for(rq=_pending; NULL != rq; rq=rq->next) {
+		_timeout_task(rq);
+		if(TGS_STATE_IDLE == rq->state) {
+			rqtext = ddstr(rq->addr) + " " + tohex(rq->id) + " ";
+
+			switch(rq->type) {
+				case RQT_DETECT:
+					rqtext += "G0";
+					break;
+				case RQT_DETECT_PORT:
+					rqtext += "GI";
+					break;
+				case RQT_READ:
+					rqtext += "G0";
+					break;
+				case RQT_REPROGRAM:
+					rqtext += "SI" + ddstr(rq->naddr);
+					break;
+			}
+			
+#if 0
+			sys.debugprint(dump(TGS_STX + rqtext + TGS_ETX) + "\r\n");
+#endif
+			serial_send(p, TGS_STX + rqtext + TGS_ETX);
+			delay(100);
+			rq->state = TGS_STATE_WAIT_REPLY;
+		}
+	}
+}
+
+// 0x02 0.0.0.0 XX GI 0x0D
+
+tgs_addr
+tibbo_detected_addr()
+{
+	return _found;
+}
+
+
+word
+tibbo_query_port(ioport *p)
+{
+	tos_request *rq = _alloc_request(RQT_DETECT_PORT);
+	if(NULL == rq)
+		return 0;
+
+	_found = "";
+	rq->addr = _tgs_addr_any;
+	return rq->id;
+}
+
+
+word
+tibbo_query_sensor(ioport *p, tgs_addr addr, int pn, void *data)
+{
+	tos_request *rq = _alloc_request(RQT_READ);
+	if(NULL == rq)
+		return 0;
+
+	rq->addr = addr;
+	rq->data = data;
+	return rq->id;
+}
+
+
+word
+tibbo_reprogram_sensor(ioport *p, tgs_addr oldsn, tgs_addr newsn)
+{
+	tos_request *rq = _alloc_request(RQT_REPROGRAM);
+	if(NULL == rq)
+		return 0;
+
+	rq->addr = oldsn;
+	rq->naddr = newsn;
+	return rq->id;
+}
+
+
+word
+tibbo_detect_sensor(ioport *p, tgs_addr serial)
+{
+	tos_request *rq = _alloc_request(RQT_DETECT);
+	if(NULL == rq)
+		return 0;
+
+	rq->addr = serial;
+	return rq->id;
+}
+
+
+bool
+tibbo_task_finished(word id)
+{
+	tos_request *rq = _find_request(id, false);
+	if(NULL == rq)
+		return true;
+	_timeout_task(rq);
+	return (rq->state == TGS_STATE_TIMEOUT) || (rq->state == TGS_STATE_SUCCESS); // || (rq->state == TGS_STATE_IDLE);
+}
+
+
+tgs_state
+tibbo_task_status(word id)
+{
+	tos_request *rq = _find_request(id, false);
+	_timeout_task(rq);
+	return (NULL == rq)? TGS_STATE_SUCCESS: rq->state;
+}
+
+
+void
+tibbo_task_done(word id)
+{
+	tos_request *rq = _find_request(id, true);
+	if(NULL != rq) {
+		rq->next = _free;
+		_free = rq;
+	}
+}
+
+
+void
+on_tibbo_data_arrival(string data)
+{
+	string<TGS_MAX_PACKET_SIZE> d, tmp, v; // 32 bytes max packet size
+	string<TGS_ADDR_LEN> id;
+	int p;
+	tos_request *rq;
+	word rqid;
+	byte s, e, *pp;
+	sensor *sens;
+	
+	_ser_buf += data;
+	
+	s = instr(1, _ser_buf, TGS_STX, 1);
+	if(s == 0)
+		return;
+
+	e = instr(s, _ser_buf, TGS_ETX, 1);
+	if(e == 0)
+		return;
+	
+#if 0
+	sys.debugprint("SER_RECV (#"+str(ser.num)+"): " + dump(_ser_buf) + "\r\n");
+#endif
+
+	d = mid(_ser_buf, s+1, e-s-1);
+	_ser_buf = right(_ser_buf, len(_ser_buf)-e); 
+
+	p = instr(1, d, " ", 1);
+	if(p == 0)
+		return;
+		
+	pp = (byte *)&d[p];
+	rqid = (hexdigit(pp[0])<<4) | hexdigit(pp[1]);
+	
+	rq = _find_request(rqid, false);
+	if(NULL == rq) {
+		sys.debugprint("Request #"+str(rqid)+" not found!\r\n");
+		return;
+	}
+		
+	if(TGS_STATE_WAIT_REPLY == rq->state) { 
+		switch(rq->type) {
+			case RQT_DETECT:
+			case RQT_DETECT_PORT:
+				_found = ddval(d);
+				rq->state = TGS_STATE_SUCCESS;
+				break;
+			
+			case RQT_READ:
+				p = instr(1, d, " ", 1);
+				if(0 == p)
+					p = len(d);
+				else
+					p += 3;
+				
+				id = ddval(left(d, p));
+				tmp = right(d, len(d)-p);
+				
+				sens = (sensor *)rq->data;
+				v = left(tmp, len(tmp)-2);
+
+				if(NULL != sens) {
+					if(instr(1, v, ".", 1) != 0) {
+						sens->res.type = TYPE_FLOAT;
+						sens->res.f = strtof(v);
+					} else {
+						sens->res.type = TYPE_LONG;
+						sens->res.l = lval(v);
+					}
+				}
+
+				rq->state = TGS_STATE_SUCCESS;
+				break;
+		}
+	}
+}
+
+
+void
+tibbo_sensor_timer()
+{
+	tibbo_sensors_poll();
+
+	for(tos_request *rq=_pending; NULL != rq; rq=rq->next) {
+		if(rq->state == TGS_STATE_WAIT_REPLY)
+			if(0 == --rq->timeout)
+				rq->state = TGS_STATE_TIMEOUT;
+	}
+}

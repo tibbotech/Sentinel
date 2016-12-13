@@ -1,0 +1,77 @@
+<?
+	#include "utils.th"
+	
+?><!DOCTYPE html> 
+<html>
+<head>
+<title>Notifications</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link rel="stylesheet" type="text/css" href="style.css" />
+<link rel="stylesheet" type="text/css" href="swal2.css" /> 
+<script type="text/javascript" src="jq.js"></script>
+<script type="text/javascript" src="jqbm.js"></script>
+<script type="text/javascript" src="swal2.js"></script>
+<script type="text/javascript" src="ma.js"></script>
+</head>
+<body>
+<div class="body_outer">
+    <div class="heading">
+        <div class="main_heading">Notifications</div>
+        <div class="main_heading_descr">Configure addresses of SMTP and SMS recipients</div>
+        <div class="back"><a href="index.html">&laquo;&nbsp;Return to main page</a></div>
+    </div>
+    <div class="body">
+		<div class="msg" id="msg">Electronic message was sucessfully sent to the specified E-mail address</div>	
+        <form action="" method="POST">
+            <fieldset>
+                <legend>SMTP server settings</legend>
+				<div class="form-wrapper">
+					<div class="formrow">
+						<label class="f_lbl" for="sa"><div class="l_win">Server address:port</div></label><input id="sa" name="sa" />
+					</div>
+					<div class="formrow">
+						<label class="f_lbl" for="un"><div class="l_win">Username</div></label><input id="un" name="un" />
+					</div>
+					<div class="formrow">
+						<label class="f_lbl" for="pw"><div class="l_win">Password</div></label><input id="pw" name="pw" />
+					</div>
+					<div class="formrow">
+						<label class="f_lbl" for="fr"><div class="l_win">Originator (From:)</div></label><input size="50" id="fr" name="fr" />
+					</div>
+					<div class="formrow">
+						<label class="f_lbl" for="rl"><div class="l_win top">Recipient list (To:)</div></label><input size="50" id="rl" name="rl" />
+					</div>
+					<div class="formrow">
+						<div class="l_win"></div>
+						<input class="left" type="button" name="test_smtp" id="test_smtp" value="Test SMTP server" />
+					</div>
+				</div>
+            </fieldset>
+            
+            <fieldset>
+				<form action="">
+				<input type="hidden" class="cff" name="src" value="sms">
+                <legend>SMS settings</legend>
+				<div class="form-wrapper">
+					<div class="formrow">
+						<label class="f_lbl" for="pin"><div class="l_win">SIM pin code</div></label>
+						<input class="cff" size="4" maxlength="4" id="pin" name="pin" value="<? echo_setting("MPIN"); ?>"/>
+					</div>
+					<div class="formrow">
+						<label class="f_lbl" for="rl"><div class="l_win top">Recipient list</div></label>
+						<input class="cff" id="srl" name="srl" value="<? echo_setting("SMSA"); ?>">
+					</div>
+					<div class="formrow">
+						<div class="l_win"></div>
+						<input class="left" type="button" name="test_sms" id="test_sms" value="Test SMS" /><br/>
+						<input class="left" type="submit" value="Save">
+					</div>
+				</div>
+				</form>
+            </fieldset>
+        </form>
+    </div>
+</div>
+</body>
+</html>
+<? sock.send(); ?>

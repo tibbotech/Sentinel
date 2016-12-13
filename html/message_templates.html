@@ -1,0 +1,60 @@
+<?
+
+//а-я
+extern void template_html_list();
+//extern void template_body(string);
+
+?>
+<!DOCTYPE html>
+<html>
+<head>
+<title>Message Templates</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link rel="stylesheet" type="text/css" href="style.css" />
+<link rel="stylesheet" type="text/css" href="swal2.css" /> 
+<script type="text/javascript" src="jq.js"></script>
+<script type="text/javascript" src="jqbm.js"></script>
+<script type="text/javascript" src="swal2.js"></script>
+<script type="text/javascript" src="ma.js"></script>
+<script type="text/javascript" src="tp.js"></script>
+</head>
+<body>
+<div class="body_outer">
+    <div class="heading">
+        <div class="main_heading">Message Templates</div>
+        <div class="main_heading_descr">This page contains all message templates used for SMS or E-mail notifications</div>
+        <div class="back"><a href="index.html">&laquo;&nbsp;Return to main page</a></div>
+    </div>
+    <div class="body">
+		<form action="nonexistent" method="POST" accept-charset="utf-8">
+		<fieldset>
+		<legend>Templates</legend>
+		<div class="formrow">
+			<select id="name" name="name" style="min-width: 25em; margin-left:0">
+            <? template_html_list(); ?></select>
+            <input type="button" name="new" id="new" accesskey="N" value="New" style="margin-left: 0.5em">
+            <input type="button" name="del" id="del" accesskey="D" value="Delete" style="margin-left: 0.5em">
+			<img src="loading.gif" style=" display:none; margin-left: 1em" id="wheel" />
+		</div>
+		<div class="formrow">
+			<input size="66" maxlength="80" placeholder="Message title" id="mt" name="mt" />
+		</div>
+		<div class="formrow">
+			<textarea rows="15" zcols="80" style="width:70em" id="tt" name="tt"></textarea>
+		</div>
+		<div class="formrow" style="text-align: right">
+			<div style="float: left; font-size: smaller">Did you know? You can use <a href="macros.html">substitution macros</a> inside both template body and title.</div>
+			<div style="float: right">
+            <input type="button" name="test" id="test" value="Preview">
+            <button name="save" id="save" value="">Save changes<img src="loading.gif" style="display:none; margin-left: 0.5em;" id="wheel2" /></button>
+			</div><br/>
+		</div>
+		<div class="formrow" style="font-size: smaller">
+		</div>
+		</fieldset>
+		</form>
+	</div>
+</div>
+</body>
+</html>
+<? sock.send(); ?>

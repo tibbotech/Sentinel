@@ -1,0 +1,477 @@
+#include "snmp.th"
+
+
+long
+_is_chunk(pbyte& p, byte type)
+{
+	if(*p != type)
+		return -1;
+
+	return _decode_length(++p);
+}
+
+
+void
+_encode_length(pbyte& buf, long l)
+{
+	unsigned char sz;
+	
+	if(l <= 0x7F) {
+		// dummy
+	} else if(l <= 0xFF) {
+		*buf++ = 0x80 | 1;
+	} else {
+		if(l <= 0xFFFF) {
+			*buf++ = 0x80 | 2;
+		} else {
+			*buf++ = 0x80 | 4;
+			*buf++ = (l >> 24) & 0xFF;
+			*buf++ = (l >> 16) & 0xFF;
+		}
+		*buf++ = (l >> 8) & 0xFF;
+	}
+	*buf++ = l & 0xFF;
+}
+
+
+/* Decode length field of data block.
+ *
+ * If length < 0x80 (128) then values is encoded by single byte.
+ * If length of the block >= 0x80 (128), then lengths is encoded by multiple bytes:
+ * first byte equal to the value 0x80 or'ed with number of bytes follow. Bytes
+ * contain significant bytes of length value. (High bytes which equals to zero
+ * is not stored)
+ */
+long
+_decode_length(pbyte& buf)
+{
+	unsigned char c;
+	unsigned long res;
+	
+	c = *buf++;
+	if(0 == (c & 0x80))
+		return c;
+		
+	c &= 0x7F;
+	
+	for(res=0; c!=0; --c)
+		res = (res << 8) | *buf++;
+		
+	return res;
+}
+
+
+static int
+_int_raw_sz(long v)
+{
+	byte j;
+	
+	if(v == 0)
+		return 1;
+		
+	for(j=0; v != 0; ++j)
+		v >>= 7;
+	
+	return j;
+}
+
+
+static void
+_encode_int_raw(pbyte& buf, long v)
+{
+	unsigned char i, j, temp[8];
+	
+	if(v < 0x80) { // special case
+		*buf++ = v & 0x7F;
+		return;
+	}
+	
+	if(v > 0xFFFFFF) {
+		/* 4 bytes in network byte order */
+		*buf++ = (v >> 24) & 0xFF;
+		*buf++ = (v >> 16) & 0xFF;
+		*buf++ = (v >> 8) & 0xFF;
+		*buf++ = v & 0xFF;
+		return;
+	}
+	
+	for(j=0; v != 0; ++j) {
+		temp[j] = (v & 0x7F) | ((j != 0)? 0x80: 0x00);
+		v >>= 7;
+	}
+	
+	for(i=0; i<j; ++i)
+		*buf++ = temp[j-i-1];
+}
+
+
+void
+_encode_int(pbyte& buf, long v)
+{
+	*buf++ = SDT_INTEGER;
+	_encode_length(buf, num_sz(v));
+	_encode_int_raw(buf, v);
+}
+
+
+union _ut {
+	long v;
+	byte b[4];
+};
+
+
+void
+_encode_long(pbyte& buf, long v)
+{
+	_ut tv;
+	
+	tv.v = v;
+	
+	*buf++ = SDT_INTEGER;
+	if(v == 0) {
+		*buf++ = 1;
+		*buf++ = 0;
+	} else if(v < 0) {
+		if(v >= -128) {
+			*buf++ = 1;
+			*buf++ = tv.b[0];
+		} else if(v > -65535) {
+			*buf++ = 2;
+			*buf++ = tv.b[1];
+			*buf++ = tv.b[0];
+		} else {
+			*buf++ = 4;
+			*buf++ = tv.b[3];
+			*buf++ = tv.b[2];
+			*buf++ = tv.b[1];
+			*buf++ = tv.b[0];
+		}
+	} else { //if(v > 0)
+		if(v <= 128) {
+			*buf++ = 1;
+			*buf++ = tv.b[0];
+		} else if(v < 65536) {
+			*buf++ = 2;
+			*buf++ = tv.b[1];
+			*buf++ = tv.b[0];
+		} else {
+			*buf++ = 4;
+			*buf++ = tv.b[3];
+			*buf++ = tv.b[2];
+			*buf++ = tv.b[1];
+			*buf++ = tv.b[0];
+		}
+	}
+	
+}
+
+
+long
+_decode_int(pbyte& buf, long l)
+{
+	long res;
+	
+	for(res = 0; l > 0; --l)
+		res = (res << 7) | (*buf++ & 0x7F);
+	
+	return res;
+}
+
+
+void
+_encode_uint(pbyte& buf, unsigned long v)
+{
+	unsigned char i, j, temp[8];
+	
+	*buf++ = SDT_INTEGER;
+	_encode_length(buf, num_sz(v));
+	
+	if(v < 0x80) { // special case
+		*buf++ = v & 0x7F;
+		return;
+	}
+	
+	if(v > 0xFFFFFF) {
+		/* 4 bytes in network byte order */
+		*buf++ = (v >> 24) & 0xFF;
+		*buf++ = (v >> 16) & 0xFF;
+		*buf++ = (v >> 8) & 0xFF;
+		*buf++ = v & 0xFF;
+		return;
+	}
+	
+	for(j=0; v != 0; ++j) {
+		temp[j] = (v & 0x7F) | ((j != 0)? 0x80: 0x00);
+		v >>= 7;
+	}
+	
+	for(i=0; i<j; ++i)
+		*buf++ = temp[j-i-1];
+}
+
+
+void
+_encode_ts(pbyte& buf, unsigned long v)
+{
+	unsigned char i, j, temp[8];
+	
+	*buf++ = SDT_TIMESTAMP;
+	_encode_length(buf, num_sz(v));
+	
+	if(v < 0x80) { // special case
+		*buf++ = v & 0x7F;
+		return;
+	}
+	
+	if(v > 0xFFFFFF) {
+		/* 4 bytes in network byte order */
+		*buf++ = (v >> 24) & 0xFF;
+		*buf++ = (v >> 16) & 0xFF;
+		*buf++ = (v >> 8) & 0xFF;
+		*buf++ = v & 0xFF;
+		return;
+	}
+	
+	for(j=0; v != 0; ++j) {
+		temp[j] = (v & 0x7F) | ((j != 0)? 0x80: 0x00);
+		v >>= 7;
+	}
+	
+	for(i=0; i<j; ++i)
+		*buf++ = temp[j-i-1];
+}
+
+
+#if 0
+int
+ts_sz(unsigned long v)
+{
+	unsigned char i, j, temp[8];
+	
+	if(v < 0x80) { // special case
+		return 1 + len_sz(1) + 1;
+	
+	if(v > 0xFFFFFF)
+		return 4 + len_sz(4) + 1;
+	
+	for(j=0; v != 0; ++j) {
+		temp[j] = (v & 0x7F) | ((j != 0)? 0x80: 0x00);
+		v >>= 7;
+	}
+
+	return j + len(j) + 1;
+}
+#endif
+
+
+unsigned long
+_decode_uint(pbyte& buf, long l)
+{
+	unsigned long res;
+	
+	if(l == 1)
+		return *buf++;
+		
+	if(l == 4)
+		return ((unsigned long)*buf++ << 24) |
+			   ((unsigned long)*buf++ << 16) |
+			   ((unsigned long)*buf++ << 8) |
+			   ((unsigned long)*buf++);
+			   
+	for(res = 0; l > 0; --l)
+		res = (res << 7) | (*buf++ & 0x7F);
+	
+	return res;
+}
+
+
+void
+_encode_str(pbyte& p, string& s)
+{
+	int i, l = len(s);
+	
+	*p++ = SDT_OCTET_STRING;
+	_encode_length(p, l);
+	
+	for(i=0; i<l; ++i)
+		*p++ = s[i];
+}
+
+
+void
+_encode_ip(pbyte& p, string& s)
+{
+	int i, l = len(s);
+	
+	*p++ = SDT_IP_STRING;
+	_encode_length(p, l);
+	
+	for(i=0; i<l; ++i)
+		*p++ = s[i];
+}
+
+
+string 
+_decode_str(pbyte& p, long l)
+{
+	string res;
+	
+	for(res=""; l > 0; --l)
+		res += chr(*p++);
+		
+	return res;
+}
+
+
+void
+_encode_oid(pbyte& p, snmp_oid *oid)
+{
+	int l, start_from;
+	pbyte ol;
+	word i;
+
+	if(oid->data[0] == 1 && oid->data[1] == 3) {
+		start_from = 2;
+		l = 1; //num_sz(43);
+	} else {
+		start_from = 0;
+		l = 0;
+	}
+
+	for(i = start_from; i < oid->size; ++i)
+		l += _int_raw_sz(oid->data[i]);
+
+	*p++ = SDT_OID;
+	_encode_length(p, l);
+
+	if(start_from == 2)
+		_encode_int_raw(p, 43);
+
+	for(i = start_from; i<oid->size; ++i)
+		_encode_int_raw(p, oid->data[i]);
+}
+
+
+bool
+_decode_oid(pbyte& p, snmp_oid *oid)
+{
+	int i, j, l;
+	byte b;
+	
+	if((l = _is_chunk(p, SDT_OID)) < 0)
+		return false;
+		
+	/* First two parts of OID (.iso(1).org(3)) is traditionally encoded by single 
+	 * byte using formula: 40*X + Y, where X=1 and Y=3, thus giving constant 43 
+	 * for this byte
+	 */
+	if(*p != 43)
+		return false;
+	
+	oid->data[0] = 1; // .iso
+	oid->data[1] = 3; // .dod
+	oid->data[2] = 0;
+	
+	p++;
+	
+	for(i=1, j=2; i<l; ++i) {
+		b = *p++;
+		oid->data[j] = (oid->data[j] << 7) | (b & 0x7F);
+		if(0 == (b & 0x80)) {
+			if(++j >= MAX_OID_LENGTH) // prevent buffer overruns
+				break;
+			oid->data[j] = 0;
+		}
+	}
+	
+	oid->size = j;
+	return true;
+}
+
+
+void
+_encode_null(pbyte& p)
+{
+	*p++ = SDT_NULL;
+	*p++ = 0;
+}
+
+
+int
+num_sz(long v)
+{
+	int res = 4;
+	
+	if(0 == (v & 0xFF000000))
+		--res;
+	
+	if(0 == (v & 0x00FF0000))
+		--res;
+	
+	if(0 == (v & 0x0000FF00))
+		--res;
+		
+	return res; // at least one byte
+}
+
+
+int
+len_sz(long l)
+{
+	if(l < 0x80)
+		return 1;
+		
+	if(l <= 0xFF)
+		return 2;
+		
+	if(l <= 0xFFFF)
+		return 3;
+		
+	return 5;
+}
+
+
+int 
+int_sz(long v)
+{
+	int l = num_sz(v);
+	return 1 + len_sz(l) + l;
+}
+
+
+int
+str_sz(string& s)
+{
+	int l = len(s);
+	return 1 + len_sz(l) + l;
+}
+
+
+int
+ip_sz(string& s)
+{
+	int l = len(s);
+	return 1 + len_sz(l) + l;
+}
+
+
+int
+oid_sz(snmp_oid *oid)
+{
+	int l, start_from;
+	pbyte ol;
+	word i;
+
+	if(oid->data[0] == 1 && oid->data[1] == 3) {
+		start_from = 2;
+		l = 1; //num_sz(43);
+	} else {
+		start_from = 0;
+		l = 0;
+	}
+
+	for(i = start_from; i < oid->size; ++i)
+		l += _int_raw_sz(oid->data[i]);
+
+	return l + len_sz(l) + 1;
+}

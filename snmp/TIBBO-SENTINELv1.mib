@@ -1,0 +1,337 @@
+TIBBO-SENTINELv1 DEFINITIONS ::= BEGIN
+
+
+IMPORTS
+            MODULE-IDENTITY, OBJECT-TYPE, OBJECT-IDENTITY, Integer32 FROM SNMPv2-SMI
+            tibbo                                   FROM TIBBO-SMI
+            RowStatus, StorageType                  FROM SNMPv2-TC
+            InetAddressType, InetAddress            FROM INET-ADDRESS-MIB;
+
+
+sentinel    MODULE-IDENTITY
+            LAST-UPDATED "201606010000Z"
+            ORGANIZATION "Tibbo Technology, Inc."
+            CONTACT-INFO "alexey.skoufyin@tibbo.com"
+            DESCRIPTION "MIB objects for Tibbo Sentinel platform"
+            ::= { tibbo 1 }
+
+
+PortType ::= TEXTUAL-CONVENTION
+            STATUS current
+            DESCRIPTION ""
+            SYNTAX INTEGER {
+                i2c(1),
+                spi(2),
+                one_wire(3),
+                single_wire(4),
+                dry_contact(5),
+                wet_contact(6),
+                rs232(7),
+                rs422(8),
+                rs485(9),
+                out(10)
+            }
+    
+    
+ValueType ::= TEXTUAL-CONVENTION
+            STATUS current
+            DESCRIPTION "This is types of physical parameters that can be reported by
+            sensors. Keep it in sync wirh enum in sensors_db.th header file
+            "
+            SYNTAX INTEGER {
+                none(0),
+                temperature(1),
+                humidity(2),
+                temperature_and_humidity(3),
+                flood(4),
+                fire(5),
+                smoke(6),
+                movement(7),
+                acdc_current(8),
+                shock(9),
+                reed_switch(10),
+                switch(11),
+                pressure(12),
+                light(13),
+                acceleration_three_axis(14),
+                acceleration_six_axis(15),
+                bit(16),
+                byte(17),
+                word(18),
+                dword(19),
+                gas_presence_co(20),
+                gas_presence_co2(21),
+                gas_presence_methane(22),
+                alcohol(23)
+            }
+  
+StatusType ::= TEXTUAL-CONVENTION
+            STATUS current
+            DESCRIPTION ""
+            SYNTAX INTEGER {
+                Normal(1),
+                Pre-Alert(2),
+                Alert(3)
+            }
+                    
+--
+-- PORTS table
+--
+
+ports       OBJECT IDENTIFIER ::= { sentinel 1 }
+
+pNumber     OBJECT-TYPE
+            SYNTAX INTEGER
+            ACCESS read-only
+            STATUS mandatory
+            DESCRIPTION "Number of ports in the system"
+            ::= { ports 1 }
+
+pTable      OBJECT-TYPE
+            SYNTAX SEQUENCE OF Port
+            MAX-ACCESS not-accessible
+            STATUS mandatory
+            DESCRIPTION "This table contains all physical ports installed in the device along with it associated names"
+            INDEX { pIndex }
+            ::= { ports 2 }
+
+pEntry      OBJECT-TYPE
+            SYNTAX Port
+            ACCESS not-accesible
+            STATUS mandatory
+            DESCRIPTION "Single physical port entry"
+            INDEX { pIndex }
+            ::= { pTable 1 }
+            
+pIndex      OBJECT-TYPE
+            SYNTAX INTEGER
+            MAX-ACCESS read-only
+            STATUS mandatory
+            DESCRIPTION ""
+            ::= { pEntry 1 }
+
+pType       OBJECT-TYPE
+            STATUS mandatory
+            MAX-ACCESS read-write
+            SYNTAX PortType
+            DESCRIPTION "Type of the port"
+            ::= { pEntry 2 }
+
+pName       OBJECT-TYPE
+            STATUS mandatory
+            MAX-ACCESS read-write
+            SYNTAX DisplayString
+            DESCRIPTION "Port identification string, user-assignable"
+            ::= { pEntry 3 }
+
+Port        ::= SEQUENCE {
+                pIndex INTEGER,
+                pType PortType,
+                pName DisplayString
+            }
+
+--
+-- SENSORS table
+--
+
+sensors     OBJECT IDENTIFIER ::= { sentinel 2 }
+
+sNumber     OBJECT-TYPE
+            SYNTAX INTEGER
+            ACCESS read-only
+            STATUS mandatory
+            DESCRIPTION "Number of sensors connected to the system"
+            ::= { sensors 1 }
+            
+sTable      OBJECT-TYPE
+            SYNTAX SEQUENCE OF Sensor
+            MAX-ACCESS not-accessible
+            STATUS mandatory
+            DESCRIPTION "Table of all alive sensors connected to the device"
+            INDEX { sIndex }
+            ::= { sensors 2 }
+
+sEntry      OBJECT-TYPE
+            SYNTAX Sensor
+            ACCESS not-accesible
+            STATUS mandatory
+            DESCRIPTION ""
+            INDEX { sIndex }
+            ::= { sTable 1 }
+
+Sensor      ::= SEQUENCE {
+                sIndex INTEGER,
+                sId INTEGER,
+                sType ValueType,
+                sPort PortType,
+                sChannel INTEGER,
+                sDriver DisplayString,
+                sSerial OCTET STRING (SIZE(1..16)),
+                sValue DisplayString,
+                sStatus StatusType,
+                sInfo OCTET STRING (SIZE(1..64))
+            }
+    
+sIndex      OBJECT-TYPE
+            SYNTAX INTEGER
+            MAX-ACCESS read-only
+            STATUS mandatory
+            DESCRIPTION "Sensor index in sensor table"
+            ::= { sEntry 1 }
+
+sId         OBJECT-TYPE
+            SYNTAX INTEGER
+            MAX-ACCESS read-only
+            STATUS mandatory
+            DESCRIPTION "Unique sensor ID"
+            ::= { sEntry 2 }
+            
+sType       OBJECT-TYPE
+            STATUS mandatory
+            MAX-ACCESS read-only
+            SYNTAX ValueType
+            DESCRIPTION "Type of the value reported by sensor"
+            ::= { sEntry 3 }
+            
+sPort       OBJECT-TYPE
+            STATUS mandatory
+            MAX-ACCESS read-only
+            SYNTAX PortType
+            DESCRIPTION ""
+            ::= { sEntry 4 }
+            
+sChannel    OBJECT-TYPE
+            STATUS mandatory
+            MAX-ACCESS read-only
+            SYNTAX INTEGER (0..255)
+            DESCRIPTION ""
+            ::= { sEntry 5 }
+
+sDriver     OBJECT-TYPE
+            STATUS mandatory
+            MAX-ACCESS read-only
+            SYNTAX DisplayString
+            DESCRIPTION ""
+            ::= { sEntry 6 }
+
+sSerial     OBJECT-TYPE
+            STATUS mandatory
+            MAX-ACCESS read-only
+            SYNTAX OCTET STRING (SIZE(1..8))
+            DISPLAY-HINT "1x."
+            DESCRIPTION "Serial number of the sensor (if applicible)"
+            ::= { sEntry 7 }
+            
+sValue      OBJECT-TYPE
+            STATUS mandatory
+            DISPLAY-HINT "d-2" -- decimal, 2 digits after point
+            -- UNITS "mV" <-- appended after value
+            MAX-ACCESS read-only
+            SYNTAX Integer32
+            DESCRIPTION "Last value, reported by this sensor"
+            ::= { sEntry 8 }
+
+sStatus     OBJECT-TYPE
+            STATUS mandatory
+            MAX-ACCESS read-only
+            SYNTAX StatusType
+            DESCRIPTION ""
+            ::= { sEntry 9 }
+            
+sInfo       OBJECT-TYPE
+            STATUS mandatory
+            DISPLAY-HINT "d-2" -- decimal, 2 digits after point
+            -- UNITS "mV" <-- appended after value
+            MAX-ACCESS read-write
+            SYNTAX OCTET STRIN (SIZE(1..64))
+            DESCRIPTION "Sensor location or other textual info"
+            ::= { sEntry 10 }
+            
+--
+-- Main config section
+--
+
+config      OBJECT-IDENTITY
+            STATUS current
+            DESCRIPTION "General device configuration section"
+            ::= { sentinel 3 }
+
+network     OBJECT-IDENTITY
+            STATUS current
+            DESCRIPTION "SMTP notification transport settings"
+            ::= { config 1 }
+            
+ip          STATUS mandatory
+            MAX-ACCESS read-only
+            SYNTAX InetAddress
+            DESCRIPTION ""
+            ::= { network 1 }
+            
+--
+-- MAIL config
+--
+            
+mailer      OBJECT-IDENTITY
+            STATUS current
+            DESCRIPTION "SMTP notification transport settings"
+            ::= { config 2 }
+            
+relay       OBJECT-TYPE
+            STATUS mandatory
+            MAX-ACCESS read-write
+            SYNTAX DisplayString
+            DESCRIPTION "Mail relay host address"
+            ::= { mailer 1 }
+
+user        OBJECT-TYPE
+            STATUS mandatory
+            MAX-ACCESS read-write
+            SYNTAX DisplayString
+            DESCRIPTION "Mail relay user name"
+            ::= { mailer 2 }
+
+password    OBJECT-TYPE
+            STATUS mandatory
+            MAX-ACCESS read-write
+            SYNTAX DisplayString
+            DESCRIPTION "Mail relay user password"
+            ::= { mailer 3 }
+
+from        OBJECT-TYPE
+            STATUS mandatory
+            MAX-ACCESS read-write
+            SYNTAX DisplayString
+            DESCRIPTION "Mail 'From' field"
+            ::= { mailer 4 }
+
+to          OBJECT-TYPE
+            STATUS mandatory
+            MAX-ACCESS read-write
+            SYNTAX DisplayString
+            DESCRIPTION "Mail recipient list"
+            ::= { mailer 5 }
+
+--
+-- SMS config
+--
+
+sms         OBJECT-IDENTITY
+            STATUS current
+            DESCRIPTION "SMS notification transport settings"
+            ::= { config 3 }
+
+pin         OBJECT-TYPE
+            STATUS mandatory
+            MAX-ACCESS read-write
+            SYNTAX OCTET STRING (SIZE(4))
+            DESCRIPTION "SIM PIN code"
+            ::= { sms 1 }
+
+recipient   OBJECT-TYPE
+            STATUS mandatory
+            MAX-ACCESS read-write
+            SYNTAX DisplayString
+            DESCRIPTION "SIM PIN code"
+            ::= { sms 1 }
+
+END

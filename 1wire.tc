@@ -1,0 +1,368 @@
+#include "1wire.th"
+#include "ssi.th"
+
+
+#ifndef __MEMORY_ECONOMY__
+/* Pre-calculated CRC value table
+ */
+static byte onewire_crc_table[256] = 
+{
+	0x00, 0x5e, 0xbc, 0xe2, 0x61, 0x3f, 0xdd, 0x83, 0xc2, 0x9c, 0x7e, 0x20, 0xa3, 0xfd, 0x1f, 0x41, 
+	0x9d, 0xc3, 0x21, 0x7f, 0xfc, 0xa2, 0x40, 0x1e, 0x5f, 0x01, 0xe3, 0xbd, 0x3e, 0x60, 0x82, 0xdc, 
+	0x23, 0x7d, 0x9f, 0xc1, 0x42, 0x1c, 0xfe, 0xa0, 0xe1, 0xbf, 0x5d, 0x03, 0x80, 0xde, 0x3c, 0x62, 
+	0xbe, 0xe0, 0x02, 0x5c, 0xdf, 0x81, 0x63, 0x3d, 0x7c, 0x22, 0xc0, 0x9e, 0x1d, 0x43, 0xa1, 0xff, 
+	0x46, 0x18, 0xfa, 0xa4, 0x27, 0x79, 0x9b, 0xc5, 0x84, 0xda, 0x38, 0x66, 0xe5, 0xbb, 0x59, 0x07, 
+	0xdb, 0x85, 0x67, 0x39, 0xba, 0xe4, 0x06, 0x58, 0x19, 0x47, 0xa5, 0xfb, 0x78, 0x26, 0xc4, 0x9a, 
+	0x65, 0x3b, 0xd9, 0x87, 0x04, 0x5a, 0xb8, 0xe6, 0xa7, 0xf9, 0x1b, 0x45, 0xc6, 0x98, 0x7a, 0x24, 
+	0xf8, 0xa6, 0x44, 0x1a, 0x99, 0xc7, 0x25, 0x7b, 0x3a, 0x64, 0x86, 0xd8, 0x5b, 0x05, 0xe7, 0xb9, 
+	0x8c, 0xd2, 0x30, 0x6e, 0xed, 0xb3, 0x51, 0x0f, 0x4e, 0x10, 0xf2, 0xac, 0x2f, 0x71, 0x93, 0xcd, 
+	0x11, 0x4f, 0xad, 0xf3, 0x70, 0x2e, 0xcc, 0x92, 0xd3, 0x8d, 0x6f, 0x31, 0xb2, 0xec, 0x0e, 0x50, 
+	0xaf, 0xf1, 0x13, 0x4d, 0xce, 0x90, 0x72, 0x2c, 0x6d, 0x33, 0xd1, 0x8f, 0x0c, 0x52, 0xb0, 0xee, 
+	0x32, 0x6c, 0x8e, 0xd0, 0x53, 0x0d, 0xef, 0xb1, 0xf0, 0xae, 0x4c, 0x12, 0x91, 0xcf, 0x2d, 0x73, 
+	0xca, 0x94, 0x76, 0x28, 0xab, 0xf5, 0x17, 0x49, 0x08, 0x56, 0xb4, 0xea, 0x69, 0x37, 0xd5, 0x8b, 
+	0x57, 0x09, 0xeb, 0xb5, 0x36, 0x68, 0x8a, 0xd4, 0x95, 0xcb, 0x29, 0x77, 0xf4, 0xaa, 0x48, 0x16, 
+	0xe9, 0xb7, 0x55, 0x0b, 0x88, 0xd6, 0x34, 0x6a, 0x2b, 0x75, 0x97, 0xc9, 0x4a, 0x14, 0xf6, 0xa8, 
+	0x74, 0x2a, 0xc8, 0x96, 0x15, 0x4b, 0xa9, 0xf7, 0xb6, 0xe8, 0x0a, 0x54, 0xd7, 0x89, 0x6b, 0x35  
+};
+#endif
+
+
+/*! \brief Updates CRC value using specified byte
+ * \param[in] crc Current CRC value
+ * \param[in] b Byte value
+ * \returns Updated CRC value
+ */
+byte
+ow_crc_update(byte crc, byte b) 
+{
+#ifndef __MEMORY_ECONOMY__
+	return onewire_crc_table[crc ^ b];
+#else
+	byte p;
+	
+	for(p = 8; p; p--) {
+		crc = ((crc ^ b) & 1) ? (crc >> 1) ^ 0x8C /* 10001100 */ : (crc >> 1);
+		b >>= 1;
+	}
+  
+	return crc;
+#endif
+}
+
+
+/*! \brief Set device address, associated with given I/O port.
+ * \note Only low 7 bits matters, because one bit is used as read or write flag
+ */
+void
+ow_setdevaddr(ioport *port, byte addr)
+{
+	if(port->type == IO_I2C || port->type == IO_OW)
+		port->d.ssi.devid = (addr & 0x7F) << 1;
+}
+
+
+/* PIC firmware holds control line 'stat' high while performing operation on
+ * output pins. This is a workaround for clock stretching absence in current 
+ * TiOS release.
+ *
+ * We don't want to use interrupt scheme because we want to be free
+ * from any form of initialization code.
+ */
+static bool
+ow_wait(ioport *port)
+{
+	word tmo = sys.timercount + 2; // 1 secs assuming 0.5 sec timer cycle
+	
+	while(io.lineget(port->d.ssi.stat) == HIGH) 
+		if(tmo == sys.timercount)
+			return false;
+			
+	return true;
+}
+
+
+/*! \brief Send device address via 1-wire bus
+ * \param[in] port 1-wire port descriptor
+ * \param[in] devid Device address
+ */
+void
+ow_send_addr(ioport *port, ow_devid *devid)
+{
+	byte n;
+	
+	if(NULL != devid && NULL != port) {
+		ow_sendb(port, devid->class);
+		for(n=0; n<6; ++n)
+			ow_sendb(port, devid->serial[n]);
+		ow_sendb(port, devid->crc);
+	}
+}
+
+
+/*! \brief Receives 8 bytes of 1-wire address.
+ * Last byte of address is checksum, which is compared against calculated checksum to detect errors
+ * \param[in] port I/O port to read address from
+ * \param[out] devid Address of device ID structure to receive device address
+ * \returns Address validity flag
+ * \retval true If checksums match, \c devid contains valid device address
+ * \retval false If checksums doesnt match, \c devid not changed
+ */
+bool
+ow_recv_addr(ioport *port, ow_devid *devid)
+{
+	byte n;
+
+	if(NULL == devid || NULL == port)
+		return false;
+	
+	devid->class = ow_recvb(port, true);
+	
+	for(n=0; n<6; ++n)
+		devid->serial[n] = ow_recvb(port, true);
+		
+	devid->crc = ow_recvb(port, false);
+	
+	return true;
+}
+
+
+/*! \brief Check given device address for validity
+ * \retval true Device ID is valid
+ * \retval false Device ID is invalid
+ */
+bool
+ow_addr_valid(ow_devid *devid)
+{
+	byte i, crc;
+	
+	if(devid->class == 0)
+		if(devid->serial[0] == 0 && devid->serial[1] == 0 && devid->serial[2] == 0 && 
+			devid->serial[3] == 0 && devid->serial[4] == 0 && devid->serial[5] == 0)
+				return false;
+	
+	crc = ow_crc_update(0, devid->class);
+	for(i=0; i<6; ++i)
+		crc = ow_crc_update(crc, devid->serial[i]);
+
+	return crc == devid->crc;
+} 
+
+
+/*! \brief Start 1-wire transaction
+ * \param[in] port I/O port descriptor, allocated by ioport_alloc()
+ * \param[in] chnl Channel number 0...3
+ * \param[in] cmd General 1-Wire command: OW_SKIP_ROM, etc.
+ * \param[in] devid 1-Wire device address, or NULL if don't care
+ *
+ * Transaction can consists of the one of the following sequences:
+ * RESET-WRITE-READ or RESET-READ
+ */
+bool
+ow_start(ioport *port, byte chnl, byte cmd, ow_devid *devid)
+{
+	byte n, ch;
+	
+	/* Perform some error and parameter sanity checking
+	 */
+	if(NULL == port)
+		return false;
+	
+	if(IO_I2C != port->type && IO_OW != port->type)
+		return false;
+
+	/* bit 0 indicated operation type: 0=write, 1=read
+	 * bits 7 and 6 contains channel number: 00 01 10 11 
+	 * bit 5 determines FCV mode: 0=ordinary 1-wire, 1=FCV
+	 */
+	ch = (chnl & 0x03) << 6;
+	n = ch | (port->d.ssi.devid & 0x1E);
+
+	if(OW_READFCV == cmd)
+		n |= 0x20 | OW_READ_FLAG;
+	else 
+		n |= OW_WRITE_FLAG;
+
+	/* PIC issues Reset-PresenceDetect-pulse upon I2C Start condition
+	 */
+	ow_wait(port);
+	i2c_start(port);	
+
+	ow_wait(port);
+	i2c_write(port, n);
+	
+#if 1
+	if(OW_NONE != cmd && OW_READFCV != cmd) {
+		ow_wait(port);
+		i2c_write(port, cmd);
+
+		if(OW_MATCH_ROM == cmd)
+			ow_send_addr(port, devid);
+	}
+#else
+	/* Code disabled due to JIRA ticket #339 */
+	switch(cmd) {
+		case 0x00: //OW_NONE:
+			break;
+		case OW_READFCV:
+			break;
+		case OW_MATCH_ROM:
+			ow_wait(port);
+			i2c_write(port, cmd);
+			ow_send_addr(port, devid);
+			break;
+		case OW_READ_ROM:
+			if(NULL != devid) {
+				ow_wait(port);
+				i2c_write(port, cmd);
+				ow_read_addr(port, devid);
+			}
+			break;
+		default:
+			ow_wait(port);
+			i2c_write(port, cmd);
+			break;
+	}
+#endif
+
+	port->d.ssi.flags = ch; 
+
+	if(OW_READFCV == cmd) {
+		port->d.ssi.flags |= 1;
+	}
+	
+	return true;
+}
+
+
+/*! \brief Stop 1-wire transaction
+ * \param[in] I/O port descriptor
+ */
+void
+ow_stop(ioport *port)
+{
+	ow_wait(port);
+	i2c_stop(port);
+	
+	port->d.ssi.flags &= 0x3F;
+}
+
+
+void
+ow_sendb(ioport *port, byte data)
+{
+	if(ow_wait(port))
+		i2c_write(port, data);
+}
+
+
+void
+ow_send(ioport *port, byte *data, byte cb)
+{
+	byte i;
+	
+	for(i=0; i<cb; ++i) {
+		if(!ow_wait(port))
+			break;
+		i2c_write(port, data[i]);
+	}
+}
+
+
+void
+ow_sendstr(ioport *port, string& data)
+{
+	byte i;
+	
+	for(i=0; i<len(data); ++i) {
+		if(!ow_wait(port))
+			break;
+		i2c_write(port, data[i]);
+	}
+}
+
+
+byte
+ow_recvb(ioport *port, bool f)
+{
+	byte n, chnl;
+	
+	if(!ow_wait(port))
+		return 0xFF;
+
+	if(0 == (port->d.ssi.flags & OW_READ_FLAG)) {
+		port->d.ssi.flags |= OW_READ_FLAG;
+		
+		i2c_start(port);
+		
+		chnl = port->d.ssi.flags & 0xC0;
+		n = chnl | (port->d.ssi.devid & 0x1E) | OW_READ_FLAG;
+		
+		if(!ow_wait(port))
+			return 0xFF;
+			
+		i2c_write(port, n);
+		
+		if(!ow_wait(port))
+			return 0xFF;
+	}
+
+	return i2c_read(port, f);
+}
+
+
+byte
+ow_recv(ioport *port, byte *buf, byte cbmax)
+{
+	byte i;
+	bool last;
+	
+	if(0 == cbmax)
+		return 0;
+	
+	for(i=0; i<cbmax; ++i) {
+		buf[i] = ow_recvb(port, i < (cbmax-1));
+	}
+	
+	return cbmax;
+}
+
+
+string
+ow_recvstr(ioport *port, byte cbmax)
+{
+	string res = "";
+	bool last;
+	
+	if(0 == cbmax)
+		return res;
+		
+	for(byte i=0; i<cbmax; ++i) {
+		last = i < (cbmax-1); // To avoid JIRA bug #340
+		res += chr(ow_recvb(port, last));
+	}
+		
+	return res;
+}
+
+
+/*! \brief Initializes device enumerator
+ */
+void
+ow_enum_start(ioport *port, byte chnl)
+{
+	ow_start(port, chnl, OW_SEARCH_ROM_INIT, NULL);
+	ow_stop(port);
+}
+
+
+/*! \brief Enumerates devices attached to specific channel.
+ * \returns \c true is there more devices or \c false if no more devices found
+ */
+bool
+ow_enum_next(ioport *port, byte chnl, ow_devid *addr)
+{
+	ow_start(port, chnl, OW_SEARCH_ROM, NULL);
+	ow_recv_addr(port, addr);
+	ow_stop(port);
+	return ow_addr_valid(addr);
+}

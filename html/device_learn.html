@@ -1,0 +1,84 @@
+<?
+
+#include "sensors_db.th"
+	
+?>
+<!DOCTYPE html>
+<html>
+<head> 
+<title>Learn Sensors</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link rel="stylesheet" type="text/css" href="style.css" />
+<link rel="stylesheet" type="text/css" href="swal2.css" /> 
+<script type="text/javascript" src="jq.js"></script>
+<script type="text/javascript" src="jqbm.js"></script>
+<script type="text/javascript" src="swal2.js"></script>
+<script type="text/javascript" src="ma.js"></script>
+<script type="text/javascript" src="dl.js"></script>
+</head>
+<body>
+<div class="body_outer">
+    <div class="heading">
+        <div class="main_heading">Learn Sensors</div>
+        <div class="main_heading_descr">Device need to know sensors serial numbers in order to distinguish it from each other</div>
+        <div class="back"><a href="index.html">&laquo;&nbsp;Return to main page</a></div>
+    </div>
+    <div class="body">
+		<div class="msg" id="msg"><div style="float:left; display:inline-block;">Configuration saved</div><div class="cb"><a id="close" href="#"><img src="del.png"></a></div></div>	
+        <fieldset>
+        <legend>Learn</legend>
+        <div class="formrow">Please, follow these simple steps for each 1-Wire or I<sup>2</sup>C sensor you want to be remembered by device. Do not connect 
+        sensors assembled in chain, connect it strictly one-by-one.
+        </div>
+		
+		<div class="formrow">
+			<div id="fl1" class="numeric"><div>1</div></div>
+			<div class="fixsz">Plug sensor into</div>
+			<select name="bi" id="bi">
+				<option value="i2c">I2C</option>
+				<option value="1w">1-Wire</option>
+				<option value="rs485">RS-485</option>
+			</select>
+			<div class="lrpad">port #</div>
+			<select name="bn" id="bn">
+			</select>
+		</div>
+		<div class="formrow">
+			<div id="fl2" class="numeric"><div>2</div></div>
+			<div class="fixsz">Wait a little until device detects connected sensor</div>
+			<!-- TODO: merge these three divs into one -->
+				<div class="nod" id="di">No sensor detected</div>
+				<div class="sensfnd hid" id="df"></div>
+				<div class="senserr hid" id="de"></div>
+			<!-- END TODO -->				
+				<div class="lrpad hid" id="csnd"><input type="button" id="csn" name="csn" value="Change S/N..."></div>
+				<div class="lrpad"><img id="l" src="loading.gif"></div>
+		</div>
+		<div class="formrow">
+			<div id="fl3" class="numeric"><div>3</div></div> 
+			<div class="fixsz">Choose sensor type from list of supported sensors</div>
+			<select name="st" id="st">
+			<option value="0">No association</option>
+			<? sensor_db_http_enumsensors(0); ?>
+			</select>
+		</div>
+		<div class="formrow">
+			<div id="fl4" class="numeric"><div>4</div></div>
+			<div class="fixsz">Save sensor association</div>
+			<input type="button" value="Save" id="save" style="margin-left:0">
+			<div class="lrpad"><img id="s" class="hid" src="loading.gif"><!--<img id="ok" class="hid" src="ok.gif">-->
+			</div>
+		</div>
+		<div class="formrow">
+			<br/>Database contains 0 records (0 bytes) 
+		</div>
+		<div class="formrow">
+			<input type="button" value="Clear All" id="clr" style="margin-left:0">
+		</div>
+
+		</fieldset>
+    </div>
+</div>
+</body>
+</html>
+<? sock.send(); ?>

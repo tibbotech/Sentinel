@@ -1,0 +1,17 @@
+<?
+
+
+/* There is NASTY bug in html parser: C/Basic code will not be executed
+ * if there is no html data. Adding CR/LF at the end of the file
+ * when html code is absent is mandatory to code to function.
+ */
+extern void template_manage();
+extern void http_post_parse();
+
+
+http_post_parse();
+template_manage();
+sock.send();
+
+
+?>

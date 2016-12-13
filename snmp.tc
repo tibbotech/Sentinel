@@ -1,0 +1,345 @@
+#include "global.th"
+#include "snmp.th"
+#include "utils.th"
+
+
+bool
+snmp_enabled()
+{
+	return !!val(stg_get("SNMP", 0));
+}
+
+
+bool
+snmp_trap_enabled()
+{
+	return !!val(stg_get("STEN", 0));
+}
+
+
+static void
+clear_oid(snmp_oid *oid)
+{
+	int i;
+	for(i=0; i<MAX_OID_LENGTH; ++i)
+		oid->data[i] = -1;
+	oid->size = 0;
+}
+
+
+static bool
+varbind_list_parse(snmp_pdu *pkt)
+{
+	long l, l2;
+	snmp_oid oid;
+	
+	if((l = _is_chunk(pkt->p, SDT_SEQUENCE)) < 0)
+		return false;
+	
+	/* Variable binding consists of two parts: variable name and variable value,
+	 * wrapped in 'SEQUENCE' 
+	 */
+	pkt->erridx = 0;
+	while(l > 0) {
+		if((l2 = _is_chunk(pkt->p, SDT_SEQUENCE)) < 0)
+			return false;
+		
+		clear_oid(&oid);
+		if(!_decode_oid(pkt->p, &oid))
+			return false;
+
+		/* This is valid only for GET/BULK GET requests! */
+		if(pkt->pdu_type != SNMP_SET) {
+			if(_is_chunk(pkt->p, SDT_NULL) < 0)
+				return false;
+		} else {
+			// any chunk allowed
+		}
+		
+		if(!snmp_oid_handler(pkt, &oid))
+			return false;
+			
+		l -= (l2 + 1 + len_sz(l2));
+		pkt->erridx++;
+	}
+	
+	return true;
+}
+
+
+static bool
+process_request_pdu(snmp_pdu *pkt)
+{
+	long l;
+	bool res;
+
+	if((l = _is_chunk(pkt->p, SDT_INTEGER)) < 0)
+		return false;
+	
+	pkt->seq = _decode_uint(pkt->p, l);
+
+#if 0
+	sys.debugprint("SNMP request #" + lstr(pkt->seq) + "\n");
+#endif
+
+	if((l = _is_chunk(pkt->p, SDT_INTEGER)) < 0)
+		return false;
+	
+	// Must be 0 for GET/BULK GET/GET NEXT
+	pkt->errno  = _decode_int(pkt->p, l); 
+
+	if((l = _is_chunk(pkt->p, SDT_INTEGER)) < 0)
+		return false;
+	
+	// Must be 0 for GET/BULK GET/GET NEXT
+	pkt->erridx = _decode_int(pkt->p, l); 
+
+	return varbind_list_parse(pkt);
+} 
+ 
+
+bool
+snmp_init()
+{
+	sock.num = SOCK_NUM_SNMP;
+	sock.protocol = PL_SOCK_PROTOCOL_UDP;
+	sock.inconmode = PL_SOCK_INCONMODE_ANY_IP_ANY_PORT;
+	sock.localportlist = str(SNMP_PORT);
+	sock.reconmode = PL_SOCK_RECONMODE_3;
+	
+	sock.rxbuffrq(4);
+	sock.txbuffrq(6); // 1536 bytes max datagram size for us
+
+	sock.num = SOCK_NUM_SNMP_TRAP;
+	sock.protocol = PL_SOCK_PROTOCOL_UDP;
+	sock.inconmode = PL_SOCK_INCONMODE_NONE; // PL_SOCK_INCONMODE_ANY_IP_ANY_PORT;
+	sock.reconmode = PL_SOCK_RECONMODE_3;
+
+	sock.txbuffrq(6); // // 1536 bytes max datagram size for us
+	
+	return true;
+}
+
+
+static void
+_send_reply_part(pbyte data, byte sz)
+{
+	string r;
+	byte i;
+	
+	r = strgen(sz, " "); 
+	for(i=0; i<sz; ++i) 
+		r[i] = data[i];
+
+	sock.setdata(r);
+//	sock.send();
+}
+
+
+static void
+send_reply(pbyte data, unsigned short sz)
+{
+	unsigned short cb;
+	
+	while(sz != 0) {
+		cb = sz > 255? 255: sz;
+		_send_reply_part(data, cb);
+		data += cb;
+		sz -= cb;
+	}
+}
+
+
+bool
+snmp_process_packet()
+{
+	snmp_pdu pkt;
+	long l, tlen, plen, wlen;
+	bool res;
+	byte pdu_type;
+	byte pkt_hdr[64];
+	pbyte hdr;
+	
+	pkt.request = sock.getdata(255);
+
+	//pkt.request = _snmp_dbg_packet; // Uncomment this to perform debug test without SNMP message source
+#if 0
+	sys.debugprint("QUERY: " + sdump(pkt.request)+"\n");
+#endif
+
+	pkt.p = (pbyte)&pkt.request[0];
+	pkt.w = pkt.reply;
+	
+	if((l = _is_chunk(pkt.p, SDT_SEQUENCE)) < 0)
+		return false;
+		
+	if((l = _is_chunk(pkt.p, SDT_INTEGER)) < 0)
+		return false;
+	
+	pkt.version = _decode_int(pkt.p, l);
+
+	if((l = _is_chunk(pkt.p, SDT_OCTET_STRING)) < 0)
+		return false;
+	
+	pkt.community = _decode_str(pkt.p, l);
+	
+	pkt.pdu_type = *pkt.p++;
+	
+	/* Under no circumstances PDU length will not exceed 64K */
+	pkt.pdu_length = (word)_decode_length(pkt.p);
+
+	switch(pkt.pdu_type) {
+		case SNMP_GET:
+		case SNMP_SET:
+		case SNMP_GET_NEXT:
+			res = process_request_pdu(&pkt);
+			break;
+			
+		case SNMP_GET_BULK:
+			break;
+			
+		default:
+			pkt.errno = SNMP_ERR_GENERIC;
+			break;
+	}
+
+	if(res)
+		pkt.erridx = 0;
+		
+/* Generate and send final packet
+ *	
+ * SEQUENCE [total_length] ver(int) community(str) PDU_TYPE [pdu_length] seq_id(int) err(int) err_index(int) SEQUENCE [vblist_length] varbind_list
+ */
+	// length of the message body
+	wlen = pkt.w - &pkt.reply; 
+	
+	// length of the PDU body
+	plen = int_sz(pkt.seq) + int_sz(pkt.errno) + int_sz(pkt.erridx) + 1 + len_sz(wlen) + wlen; 
+	
+	// total length of the packet
+	tlen = int_sz(pkt.version) + str_sz(pkt.community) + (1 + len_sz(plen) + plen); 
+	
+	/* Now encode and send all data, including headers
+	 */
+	hdr = pkt_hdr;
+
+	*hdr++ = SDT_SEQUENCE;
+	
+	_encode_length(hdr, tlen);
+	_encode_int(hdr, pkt.version);
+	_encode_str(hdr, pkt.community);
+	
+	*hdr++ = SNMP_RESPONSE;
+	
+	_encode_length(hdr, plen);
+	_encode_uint(hdr, pkt.seq);
+	_encode_int(hdr, pkt.errno);
+	_encode_int(hdr, pkt.erridx);
+
+	*hdr++ = SDT_SEQUENCE;
+	_encode_length(hdr, wlen);
+	
+	sock.num = SOCK_NUM_SNMP;
+	
+	send_reply(pkt_hdr, hdr - &pkt_hdr);
+	send_reply(pkt.reply, pkt.w - &pkt.reply);
+	sock.send();
+
+	return true;
+}
+
+
+void
+snmp_send_trap(word trapId, sensor *s)
+{
+	byte pkt_hdr[64];
+	pbyte hdr;
+	byte ver;
+	long plen, tlen, wlen;
+	string<32> comm;
+	string<4> ip = ddval(net.ip);
+	word trap_port;
+	string<32> trap_ip;
+	
+	if(!snmp_enabled() || !snmp_trap_enabled())
+		return;
+		
+	/* Fetch trap receiver IP and port
+	 */
+	trap_ip = stg_get("STS", 0);
+
+	trap_port = val(stg_get("STP", 0));
+	if(0 == trap_port)
+		trap_port = SNMP_TRAP_PORT;
+	
+	if(0 == len(trap_ip)) {
+		// return;
+		trap_ip = "192.168.75.146";
+	}
+	
+	ver = 0;
+	comm = stg_get("SWC", 0);
+	if(0 == len(comm))
+		comm = "public";
+	
+	/* Length of the PDU payload
+	 */
+	wlen = 0;
+	
+	// length of the PDU body
+	plen = 1;
+	plen += oid_sz(&_snmp_tibbo_prefix);
+	plen += ip_sz(ip);
+	plen += int_sz(enterpriseSpecific);
+	plen += int_sz(trapId);
+	plen += int_sz(sys.timercount32);
+	plen += 1 /* SDT_SEQUENCE */;
+	plen += len_sz(wlen);
+	plen += wlen; 
+	
+	// total length of the PDU
+	tlen = 0;
+	tlen += int_sz(ver);
+	tlen += str_sz(comm);
+	tlen += 1 /* SNMP_OLD_TRAP */;
+	tlen += len_sz(plen);
+	tlen += plen;
+	
+	hdr = pkt_hdr;
+
+	*hdr++ = SDT_SEQUENCE;
+
+	_encode_length(hdr, tlen);
+	_encode_int(hdr, ver);
+	_encode_str(hdr, comm);
+
+	*hdr++ = SNMP_OLD_TRAP;
+
+	_encode_length(hdr, plen);
+	_encode_oid(hdr, &_snmp_tibbo_prefix);
+	_encode_ip(hdr, ip);
+	_encode_int(hdr, enterpriseSpecific);
+	_encode_uint(hdr, trapId);
+	_encode_ts(hdr, sys.timercountms);
+
+	*hdr++ = SDT_SEQUENCE;
+	_encode_length(hdr, wlen);
+
+	sock.num = SOCK_NUM_SNMP_TRAP;
+	sock.targetip = trap_ip;
+	sock.targetport = str(trap_port);
+	sock.connect();
+	
+	while(sock.statesimple != PL_SSTS_EST) ;
+	
+	send_reply(pkt_hdr, hdr - &pkt_hdr);
+	//send_reply(pkt.reply, pkt.w - &pkt.reply);
+	
+	sock.send();
+	
+	/* Wait until all data goes out
+	 */
+	while(sock.tx2len > 0) ;
+	
+	sock.close();
+}

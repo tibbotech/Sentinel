@@ -1,0 +1,327 @@
+#include "utils.th"
+#include "hal.th"
+#include "ssi.th"
+#include "1wire.th"
+#include "device_map.th"
+#include "sensors_db.th"
+#include "sensors_assoc.th"
+#include "tgs.th"
+#include "validators.th"
+
+
+enum {
+	ERR_OK = 1,
+	ERR_NO_DEVS = 0,
+	ERR_CANT_MAP = -1,
+	ERR_TOO_MANY_DEVS = -2,
+	ERR_NOT_IMPLEMENTED = -3,
+};
+
+
+string
+err_msg(int e) 
+{
+	switch(e) {
+		case ERR_CANT_MAP:
+			return "Hardware fault: Cannot map device";
+		case ERR_TOO_MANY_DEVS:
+			return "Too many devices connected";
+		case ERR_NOT_IMPLEMENTED:
+			return "Not implemented yet";
+		case ERR_NO_DEVS:
+			return "No sensor detected";
+	}
+	return "";
+}
+
+
+static word rqid = 0;
+
+
+int
+device_detect(byte bi, byte bn, byte *addr)
+{
+	ioport *port;
+	string<127> i2c;
+	word nd;
+	ow_devid owd;
+	tgs_state st;
+	tgs_addr ta;
+	
+	port = map_device(bi, bn);
+	if(NULL == port)
+		return ERR_CANT_MAP;
+
+	switch(bi) {
+		case IO_I2C:
+			i2c = i2c_port_scan(port);
+			if(len(i2c)>1)
+				return ERR_TOO_MANY_DEVS;
+
+			if(len(i2c)==0)
+				return ERR_NO_DEVS;
+				
+			*addr = i2c[0];
+			break;
+			
+		case IO_OW:
+			nd = 0;
+			
+			ow_enum_start(port, bn);
+			while(ow_enum_next(port, bn, &owd)) {
+				if(++nd == 1) {
+					for(byte i=0; i<8; ++i)
+						addr[i] = ((byte *)&owd)[i];
+				}
+			}
+				
+			if(0 == nd)
+				return ERR_NO_DEVS;
+			
+			if(nd > 1)
+				return ERR_TOO_MANY_DEVS;
+				
+			break;
+		
+		case IO_RS485:
+			nd = tibbo_query_port(port);
+			if(0 == nd)
+				return ERR_NO_DEVS;
+			
+			tibbo_sensors_poll();
+			while((st = tibbo_task_status(nd)) == TGS_STATE_WAIT_REPLY)
+				doevents;
+				
+			tibbo_task_done(nd); 
+			
+			if(TGS_STATE_TIMEOUT == st)
+				return ERR_NO_DEVS;
+
+			ta = tibbo_detected_addr();
+			
+			addr[0] = ta[0];
+			addr[1] = ta[1];
+			addr[2] = ta[2];
+			addr[3] = ta[3];
+			break;
+			
+		default:
+			return ERR_NOT_IMPLEMENTED;
+	}
+	
+	return ERR_OK;
+}
+
+
+static string
+_busname(word bi)
+{
+	switch(bi) {
+		case IO_I2C:
+			return "I2C";
+		case IO_OW:
+			return "1-WIRE";
+		case IO_RS485:
+			return "RS-485";
+	}
+	
+	return "???";
+}
+
+
+static string<16> 
+_sn(tgs_addr a)
+{
+	return (0 == len(a))? "": ddstr(a);
+}
+
+
+static string
+_do_detect(word bi, word bn)
+{
+	int err;
+	string res;
+	byte addr[8];
+	sensor *dba;
+	tgs_addr sn;
+
+	sys.debugprint("Detecting on "+_busname(bi)+"#"+str(bn)+"...");
+
+	err = device_detect(bi, bn, addr);
+	if(err < 0) {
+		sys.debugprint(" FAILED!\n");
+		res = j_error(err_msg(err));
+	} else {
+		res = j_encode("status", "ok");
+		res += "," + j_encode("ch", str(bn));
+	
+		dba = sensor_assoc_find(bi, bn, addr);
+		if(NULL != dba) {
+			res += "," + j_encode("st", dba->drvid);
+			sys.debugprint(" (DrvID="+tohex(dba->drvid)+")");
+		}
+		
+		res += "," + j_encode("bus", _busname(bi));
+		if(err != ERR_OK) {
+			res += "," + j_encode("hwaddr", "");
+		} else {
+			switch(bi) {
+				case IO_I2C:
+					res += "," + j_encode("hwaddr", tohex(addr[0]));
+					break;
+				case IO_OW:
+					res += "," + j_encode("hwaddr", "Class "+tohex(addr[0]) + ", S/N # " + hexdump(&addr[1], 6));
+					break;
+				case IO_RS485:
+					sn = tibbo_detected_addr();
+					res += "," + j_encode("hwaddr", _sn(sn));
+					break;
+				default:
+					res += "," + j_encode("hwaddr", "");
+					break;
+			}
+		}
+	}
+	
+	sys.debugprint(" OK\n");
+	return res;
+}
+
+
+static string
+_do_save(word bi, word bn, word st)
+{
+	sensor *sa;
+	byte addr[8];
+	int err;
+	string r;
+	
+	for(byte i=0; i<8; ++i)
+		addr[i] = 0;
+		
+	sys.debugprint("Saving...\n");
+	
+	err = device_detect(bi, bn, addr);
+	if(err < 0)
+		return j_error(err_msg(err)); 
+		
+	sa = sensor_assoc_find(bi, bn, addr);
+	if(NULL != sa) {
+		if(0 == st) {
+			sensor_assoc_remove(bi, bn, addr); // remove association from db
+			r = "," + j_encode("action", "removed");
+		} else {
+			sa->drvid = st; // or just change sensor association
+			r = "," + j_encode("action", "changed");
+		}
+	} else {
+		sensor_assoc_add(bi, bn, st, addr);
+		r = "," + j_encode("action", "added");
+	}
+	
+	if(sensor_assoc_save(DEFAULT_PSC_NAME))
+		return j_encode("status", "ok") + r;
+
+	return j_error("Error saving " + DEFAULT_PSC_NAME);
+}
+
+
+static string
+_do_reset()
+{
+	sensor_assoc_reset();
+	return j_encode("status", "ok");
+}
+
+
+static string
+_do_reprogram(word bi, word bn, string<16> osn, string<16> nsn)
+{
+	ioport *p;
+	word rqid;
+	tgs_state st;
+	
+	if(bi != IO_RS485)
+		return j_error("Unsupported bus: "+str(bi));
+		
+	if(!is_valid_ip(osn) || !is_valid_ip(nsn))
+		return j_error("Bad serial number format");
+	
+	p = map_device(bi, bn);
+	if(NULL == p)
+		return j_error("Cannot map device");
+	
+	rqid = tibbo_reprogram_sensor(p, ddval(osn), ddval(nsn));
+	if(0 == rqid) {
+		return j_error("Request failed");
+	}
+	
+	tibbo_sensors_poll();
+	while((st = tibbo_task_status(rqid)) == TGS_STATE_WAIT_REPLY) doevents;
+	
+	tibbo_task_done(rqid);
+	return j_encode("status", "ok");
+}
+
+
+void 
+device_learn()
+{
+	string s, res;
+	string<4> ac; 
+	word bi, bn, st;
+	
+	s = query_string();
+	res = "";
+	
+	ac = query_arg(s, "a", "");
+	bi = val(query_arg(s, "bi", "0"));	// Bus Id, 0=I2C, 1=1-Wire
+	bn = val(query_arg(s, "bn", "0"));	// Bus Number: 0...3
+	st = val(query_arg(s, "st", "0")); 	// Driver ID aka Sensor Type
+	
+	/* Map query device ID to real device ID
+	 */
+	switch(bi) {
+		case 0:
+			bi = IO_I2C;
+			break;
+		case 1:
+			bi = IO_OW;
+			break;
+		case 2:
+			bi = IO_RS485;
+			break;
+		default:
+			res = j_error("Bad query parameters");
+			break;
+	}
+	
+	/* Check device port number
+	 */
+	if(bn < 0 || bn > 2)
+		res = j_error("Bad query parameters");
+	
+	/* Check sensor type ID
+	 */
+	if(st > 0xFF)
+		res = j_error("Bad query parameters");
+
+	if(len(res) == 0) {
+		if(ac == "dl") { 
+			/* Device learn */
+			res = _do_detect(bi, bn);
+		} else if(ac == "s") { 
+			/* Save assoc */
+			res = _do_save(bi, bn, st);
+		} else if(ac == "rst") {
+			sys.debugprint("RESET\n");
+			res = _do_reset();
+		} else if(ac == "ssn") {
+			res = _do_reprogram(bi, bn, query_arg(s, "osn", ""), query_arg(s, "nsn", ""));
+		} else {
+			res = j_error("Bad request");
+		}
+	}
+	
+	sock_send("{"+res+"}");
+}

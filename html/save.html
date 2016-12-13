@@ -1,0 +1,10 @@
+<?
+
+#include "utils.th"
+
+extern string saveData();
+
+sock_send("{" + saveData() + "}");
+sock.send();
+
+?>  

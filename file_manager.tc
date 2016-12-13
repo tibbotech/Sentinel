@@ -1,0 +1,180 @@
+#include "global.th"
+#include "utils.th"
+
+
+#define DUMP_W	16
+
+
+static string<8>
+_hexdw(dword d)
+{
+	return tohex((d>>24)&0xFF) + tohex((d>>16)&0xFF) + tohex((d>>8)&0xFF) + tohex(d & 0xFF);
+}
+
+
+void
+_flash_dump(string& fn)
+{
+	string s, res, tmp;
+	string<DUMP_W * 3> rs;
+	string<DUMP_W> cs;
+	byte c;
+	byte eof;
+	dword i, n, off;
+	
+	fd.filenum = FILENO_TEMP;
+	fd.open(fn);
+	
+	sock.setdata("<pre>\r\n");
+	sock.send();
+	
+	s = "";
+	for(off=0; ; off+=DUMP_W) {
+		if(len(s) < DUMP_W) {
+			tmp = fd.getdata(255);
+			eof = len(tmp) == 0;
+			s += tmp;
+		}
+		
+		n = len(s);
+		if(n > DUMP_W)
+			n = DUMP_W;
+			
+		rs = "";
+		cs = "";
+		
+		for(i=0; i<n; ++i) {
+			c = s[i];
+			rs += tohex(c)+" ";
+			cs += (c >= 32) && (c < 128)? chr(c): ".";
+		}
+	
+		if(len(rs) < (DUMP_W*3))
+			rs += strgen((DUMP_W*3)-len(rs), " ");
+			
+		res = _hexdw(off) + ": " + rs + cs + "\r\n";
+		
+		if(sock.txfree < len(res)) {
+			sock.send();
+			while(sock.txlen > 0)
+				doevents;
+		}
+		
+		sock.setdata(res);
+
+		s = right(s, len(s)-n);
+		if(eof && len(s) == 0)
+			break;
+	}
+	
+	fd.close();	
+
+	sock.setdata("</pre>\r\n");
+	sock.send();
+}
+
+
+void
+_flash_text(string& fn)
+{
+	string tmp;
+	byte n;
+	
+	fd.filenum = FILENO_TEMP;
+	fd.open(fn);
+	
+	sock.setdata("<p class=\"filedata\">\r\n");
+	sock.send();
+	
+	for(;;) {
+		tmp = fd.getdata(255);
+		if(len(tmp) == 0)
+			break;
+			
+		sock.setdata(tmp);
+		sock.send();
+
+		while(sock.txlen > 0)
+			doevents;
+	}
+	
+	sock.setdata("</p>\r\n");
+	sock.send();
+
+	fd.close();	
+}
+
+
+void
+_flash_list()
+{
+	string<32> s;
+	string<8> fs;
+	string r;
+	
+	sock.setdata("<pre>\r\n");
+	
+	fd.resetdirpointer();
+	for(;;) {
+		s = fd.getnextdirmember();
+		if(len(s) == 0)
+			break;
+			
+		if(fd.laststatus != PL_FD_STATUS_OK)
+			break;
+			
+		fd.filenum = FILENO_TEMP;
+		fd.open(s);
+
+		r = "<a href=\"?a=h&f="+s+"\">"+s+"</a>";
+		r += strgen(32-len(s), " ");
+		fs = lstr(fd.filesize);
+		r += strgen(8-len(fs), " ") + fs;
+		r += " [ ";
+		r += "<a href=\"?a=hex&f="+s+"\">hex</a> | ";
+		r += "<a href=\"?a=text&f="+s+"\">text</a> | ";
+		r += "<a href=\"?a=del&f="+s+"\">X</a>";
+		r += " ]\r\n";
+
+		fd.close();
+		
+		if(sock.txfree < len(r)) {
+			sock.send();
+			while(sock.txlen > 0)
+				doevents;
+		}
+		
+		sock.setdata(r);
+	}
+
+	sock.setdata("</pre>\r\n");
+	sock.send();
+}
+
+
+void
+file_manager()
+{
+	string q = query_string();
+	string<8> a = query_arg(q, "a", "");
+	
+	for(int i=0; i<5; ++i) {
+		fd.filenum = i;
+		fd.close();
+	}
+	
+	if(a == "") 
+		_flash_list();
+	else if(a == "hex")
+		_flash_dump(query_arg(q, "f", ""));
+	else if(a == "text")
+		_flash_text(query_arg(q, "f", ""));
+	else if(a == "del") {
+		fd.delete(query_arg(q, "f", ""));
+		_flash_list();
+	}
+	
+	fd.filenum = FILENO_TEMP;
+	fd.close();
+}
+

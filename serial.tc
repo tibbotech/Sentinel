@@ -1,0 +1,172 @@
+#include "global.th"
+#include "hal.th"
+#include "utils.th"
+
+
+static word _rates[RATE_MAX]; 					// Precalculated baud rate divisors for 'ser' object
+
+
+void
+serial_init()
+{
+	int d = ser.div9600;
+	
+	/* Precalculate divisors for specified baud rates
+	 */
+	_rates[R_1200] = d * 8; 	// 1200
+	_rates[R_2400] = d * 4; 	// 2400
+	_rates[R_4800] = d * 2; 	// 4800
+	_rates[R_9600] = d;	  		// 9600
+	_rates[R_19200] = d / 2; 	// 19200
+	_rates[R_38400] = d / 4; 	// 38400
+	_rates[R_57600] = d / 6; 	// 57600
+	_rates[R_115200] = d / 12; 	// 115200
+}
+
+
+bool
+is_serial_port(ioport *p)
+{
+	byte t = ioport_type(p);
+	return (t==IO_RS232) || (t==IO_RS422) || (t==IO_RS485);
+}
+
+
+void
+serial_set_rate(ioport *p, serial_rate rate)
+{
+	if(is_serial_port(p)) {
+		ser.num = p->d.ser.spn;
+		ser.baudrate = _rates[rate];
+	}
+}
+
+
+void
+serial_setup(ioport *p)
+{
+	pl_io_num rts, cts;
+	
+	if(!is_serial_port(p))
+		return;
+		
+	ser.num = p->d.ser.spn;
+
+	ser.rxbuffrq(1);
+	ser.txbuffrq(1);
+	//ser.redir(PL_REDIR_SER + ser.num);
+	sys.buffalloc();
+
+	ser.rxclear();
+	ser.txclear();
+	ser.notifysent(1);
+	
+	ser.mode = PL_SER_MODE_UART;
+	ser.bits = PL_SER_BB_8;
+	ser.parity =  PL_SER_PR_NONE;
+	
+	if(p->type == IO_RS485) {
+		ser.flowcontrol = PL_SER_FC_DISABLED;
+		ser.interface = PL_SER_SI_HALFDUPLEX;
+		serial_set_rate(p, R_19200);
+	} else {
+		//rts = p->d.ser.rts;
+		//cts = p->d.ser.cts;
+		ser.flowcontrol = PL_SER_FC_RTSCTS;
+		ser.interface = PL_SER_SI_FULLDUPLEX;
+		//ser.rtsmap = rts;
+		//ser.ctsmap = cts;
+
+	/* Make RTS IO line to serve as output and CTS IO line as input
+	 */
+		io.num = ser.rtsmap;
+		io.enabled = YES; // enable output
+
+		io.num = ser.ctsmap;
+		io.enabled = NO; // disable output
+		
+		serial_set_rate(p, R_115200);
+	}
+	
+	ser.enabled = YES;
+	
+}
+
+
+void
+serial_send(ioport *p, string data)
+{
+	if(!is_serial_port(p) || 0 == len(data))
+		return;
+		
+#if 0
+	sys.debugprint("SER_SEND (#"+str(ser.num)+"): " + dump(data) + "\r\n");
+#endif
+
+	ser.num = p->d.ser.spn;
+
+	ser.setdata(data);
+	ser.send();
+	
+	//while(ser.txlen > 0) ;
+}
+
+
+low_high
+gp4_state(ioport *p, byte n)
+{
+	pl_io_num *pins, pn;
+	
+	if(n > 3 && NULL != p->d.ser.ctl) {
+		pins = p->d.ser.ctl->d.pin;
+		n -= 4;
+	} else {
+		pins = p->d.pin;
+	}
+		
+	pn = pins[n & 3];
+	return io.lineget(pn);
+}
+
+
+void
+gp4_setstate(ioport *p, byte n, low_high ns)
+{
+	pl_io_num *pins, pn;
+	
+	if(n > 3 && NULL != p->d.ser.ctl) {
+		pins = p->d.ser.ctl->d.pin;
+		n -= 4;
+	} else {
+		pins = p->d.pin;
+	}
+		
+	pn = pins[n & 3];
+	io.lineset(pn, ns);
+}
+
+
+void
+gp4_enable(ioport *p, byte n, no_yes ns)
+{
+	pl_io_num *pins, pn;
+	
+	if(n > 3 && NULL != p->d.ser.ctl) {
+		pins = p->d.ser.ctl->d.pin;
+		n -= 4;
+	} else {
+		pins = p->d.pin;
+	}
+		
+	pn = pins[n & 3];
+	io.num = pn;
+	io.enabled = ns;
+}
+
+
+string
+serial_recv(ioport *p, byte maxlen)
+{
+	ser.num = p->d.ser.spn;
+	return ser.getdata(maxlen);
+}

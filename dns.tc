@@ -1,0 +1,241 @@
+#include "global.th"
+#include "dns.th"
+#include "utils.th"
+
+/* DNS client implementation
+ * as specified in RFC 1035 "DOMAIN NAMES - IMPLEMENTATION AND SPECIFICATION"
+ * https://www.ietf.org/rfc/rfc1035.txt
+ *
+ * (c) 2016 Tibbo Technology, Inc.
+ * All Rights Reserved.
+ */
+ 
+static dns_state _state;
+static word _rqid;
+static word _timeout;
+static string<4> dns_addr = chr(8)+chr(8)+chr(8)+chr(8);
+//static string<4> dns_addr = chr(192)+chr(168)+chr(75)+chr(1); 
+
+
+bool
+dns_init()
+{
+	string<16> dns_server = ddstr(dns_addr); //stg_get("DNSA", 0);
+	word dns_port = 53;				//stg_get("DNSP", 53);
+
+	_state = DNS_IDLE;
+	_rqid = 0;
+	
+	sock.num = SOCK_NUM_DNS;
+	sock.txbuffrq(2);
+	sock.rxbuffrq(2);
+	sys.buffalloc(); 
+	
+	return true;
+}
+
+
+static string
+_dns_url_encode(string& s) 
+{
+	string res = chr(0) + s;
+	int i, l;
+	
+	for(l=0, i=1; i < len(res); ++i) {
+		if(res[i] == '.') {
+			l = i;
+			res[l] = chr(0);
+		} else {
+			res[l]++;
+		}
+	}
+	
+	return res + chr(0);
+}
+
+
+bool
+dns_resolve(string& addr, dns_record_type type)
+{
+	word dns_port;
+	string<sizeof(dns_hdr)> header;
+	string<sizeof(dns_record)> record;
+	string<16> dns_server;
+	string s;
+	dns_hdr *hdr = (dns_hdr *)&header[0];
+	dns_record *rec = (dns_record *)&record[0];
+	
+	if(_state != DNS_IDLE)
+		return false; // We are busy, previous request in progress
+		
+	dns_server = ddstr(dns_addr); //stg_get("DNSA", 0);
+	dns_port = 53;				//stg_get("DNSP", 53);
+
+	sys.debugprint("DNS: Resolving \""+addr+"\" using server \""+dns_server+"\"\r\n");
+	
+	header = strgen(sizeof(dns_hdr), chr(0));
+	record = strgen(sizeof(dns_record), chr(0));
+	s = _dns_url_encode(addr);
+	
+	hdr->id = htons(++_rqid);
+#if 0
+	hdr->qr = 1; 				// query
+	hdr->opcode = 0;			// standard query
+	hdr->aa = 0;				// (in answers) set to 1 for authoritative answers
+	hdr->tc = 0;				// (in answers) Truncated packet: 0=no, 1=yes
+	hdr->rd = 1;				// Recursion desired: 0=no, 1=yes
+	hdr->ra = 0;				// (in answers) Recursion available 
+	hdr->z = 0;					// Reserved, must be 0
+	hdr->rcode = 0;				// (in answers) Response code
+#else
+	hdr->flags = htons(0x0100); 
+#endif	
+	hdr->qdcount = htons(1);	// Query count
+	hdr->ancount = 0;			// Answer count
+	hdr->nscount = 0;			// Authority record count
+	hdr->arcount = 0;			// Additional record count
+
+	rec->type = htons(type);	// Requested record type
+	rec->cls = htons(1);		// CLASS_INET
+	rec->ttl = htonl(255);		// Time-To-Live
+	rec->rdlen = 0;				// 
+	
+	sock.num = SOCK_NUM_DNS;
+	
+	sock.targetip = dns_server;
+	sock.targetport = dns_port;
+	sock.targetinterface = PL_SOCK_INTERFACE_NET;
+	
+	sock.connect();
+	
+	sys.debugprint("DNS: Connecting\r\n");
+	
+	_state = DNS_AWAITING_RESPONSE;
+	_timeout = DEFAULT_DNS_TIMEOUT;
+	
+	sock.setdata(header + s + record);
+	sock.notifysent(1);
+	sock.send();
+	
+	return true;
+}
+
+
+#define DNS_FLAG_REPLY 0x8000
+
+
+static string
+_decode_name(byte *pkt, word cb, byte *ptrstart)
+{
+	byte l;
+	string res = "";
+	
+	while((l = *ptrstart++) != 0) {
+		
+		if(0xC0 == (l & 0xC0)) {
+			ptrstart = &pkt[((l & 0x3F) << 8) | *ptrstart++];
+			continue;
+		}
+		
+		for(; l > 0; --l)
+			res += chr(*ptrstart++);
+
+		if(*ptrstart != 0)
+			res += chr('.');
+	}
+	
+	return res;
+}
+
+
+void
+dns_process_packet()
+{
+	string s = sock.getdata(255);
+	string res;
+	dns_hdr *hdr = (dns_hdr *)&s[0];
+	dns_record *rec;
+	word flags, nq, nr, i;
+	byte *ptr, l, t;
+	
+	if(ntohs(hdr->id) != _rqid)
+		return;
+
+	flags = ntohs(hdr->flags);
+	if(0 == (flags & DNS_FLAG_REPLY))
+		return;
+
+	nq = htons(hdr->qdcount);
+	nr = htons(hdr->ancount);
+	if(0 == nr)
+		return;
+		
+	ptr = (byte *)&s[sizeof(*hdr)];
+
+	/* Skip query sections 
+	 */
+	for(; nq > 0; --nq) {
+		while((l = *ptr++) != 0)
+			ptr += l;
+			
+		ptr += sizeof(word) + sizeof(word); // Type and Class fields
+	}
+	
+	/* Fetch answer
+	 */
+	while((l = *ptr++) != 0) { // skip name section
+		if(0xC0 == (l & 0xC0)) {
+			ptr++; // skip pointer-to-string
+			break;
+		}
+		ptr += l;
+	}
+
+	_state = DNS_IDLE;
+	rec = (dns_record *)ptr;
+	switch(htons(rec->type)) {
+		/* A - address. 4 bytes of IPv4 address
+		 */
+		case RR_A:
+			l = htons(rec->rdlen);
+			ptr += sizeof(*rec);
+			for(res="", i=0; i<l; ++i) 
+				res += chr(*ptr++);
+
+			on_dns_resolved(DNS_ERR_SUCCESS, RR_A, res);
+			break;
+			
+		/* MX - mail exchanger. First word is preference, fqdn of mail exchanger follows
+		 */
+		case RR_MX:
+			ptr += sizeof(*rec) + sizeof(word);
+			res = _decode_name((byte *)&s[0], 0, ptr);
+			
+			on_dns_resolved(DNS_ERR_SUCCESS, RR_MX, res);
+			break;
+	}
+	
+}
+
+
+void
+dns_timer()
+{
+	if(_state != DNS_AWAITING_RESPONSE)
+		return;
+
+	if(--_timeout > 0)
+		return;
+
+	_state = DNS_IDLE;
+
+	//on_dns_timeout();
+}
+ 
+ 
+void
+dns_wait()
+{
+	while(_state != DNS_IDLE) ;
+}
+

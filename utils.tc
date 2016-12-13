@@ -1,0 +1,681 @@
+#include "global.th"
+
+
+static string<16> _hex = "0123456789ABCDEF";
+static string<64> _b64e = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+
+
+string<2>
+tohex(unsigned char c)
+{
+    char *hx = _hex;
+	return chr(hx[(c >> 4) & 0x0F]) + chr(hx[c & 0x0F]);
+}
+
+
+string<8>
+tobin(unsigned char c)
+{
+	unsigned char mask;
+	string<8> res;
+	
+	for(mask=0x80; mask; mask >>= 1)
+		res += (c & mask) == 0? "0": "1";
+	
+	return res;
+}
+
+
+/*! \brief Converts binary string into the readable representation
+ * \param[in] s Input string
+ * \returns Readable representation of the passed string
+ */
+string
+dump(string& s)
+{
+	string res = "";
+	unsigned char i;
+	char c;
+	bool hx = false;
+	char *ps = s;
+	
+	if(len(s)==0)
+		return "\"\"";
+		
+	for(i=0; i<len(s); ++i) {
+		c = ps[i]; 
+		if(c >= 32 && c <= 0x7F) {
+		    if(i == 0)
+			    res += chr('\"');
+		    if(hx) {
+				res += " \"";
+				hx = false;
+			}
+			res += chr(c);
+		} else {
+		    if(!hx && i>0)
+				res += "\"";
+			if(i > 0)
+			    res += " ";
+				
+			//res += "0x" + tohex(c);
+			res += tohex(c);
+			
+			hx = true;
+		}
+	}
+	
+	if(!hx)
+		res += chr('\"');
+		
+	return res;
+}
+
+
+string
+sdump(string& s)
+{
+	string res = "\"";
+	unsigned char i;
+	char c;
+	
+	if(len(s)==0)
+		return "\"\"";
+		
+	for(i=0; i<len(s); ++i) {
+		c = s[i];
+		switch(c) {
+			case '\'':
+				res += "\\'";
+				break;
+			case '\"':
+				res += "\\\"";
+				break;
+			case '\n':
+				res += "\\n";
+				break;
+			case '\r':
+				res += "\\r";
+				break;
+			case '\t':
+				res += "\\t";
+				break;
+			default:
+				if(c >= 32 && c <= 0x7F)
+					res += chr(c);
+				else
+					res += "\\x" + tohex(c);
+				break;
+		}
+	}
+	
+	return res + "\"";
+}
+
+
+string
+hexdump(unsigned char *buf, unsigned char cb)
+{
+	string res = "";
+	unsigned char i;
+	
+	for(i=0; i<cb; ++i) {
+		res += tohex(buf[i]);
+		if(i != (cb-1))
+			res += chr(' ');
+	}
+	
+	return res;
+}
+
+
+void
+delay(unsigned int ms)
+{
+	char j;
+	
+	for(; ms>0; --ms)
+		for(j=5; j>0; --j) ;
+}
+
+
+void
+delay_ms(unsigned int ms)
+{
+	//unsigned long tgt = sys.timercountms + ms;
+	//while(sys.timercountms != tgt) ;
+	delay(ms);
+}
+
+unsigned char
+hexdigit(char c)
+{
+	if(c >= '0' && c <= '9')
+		return c-'0';
+		
+	if(c >= 'a' && c <= 'f')
+		return c-'a'+10;
+		
+	if(c >= 'A' && c <= 'F')
+		return c-'A'+10;
+		
+	return 0;
+}
+
+
+unsigned char
+unhex(char& *str)
+{
+	return (hexdigit(*str++) << 4) | hexdigit(*str++);
+}
+
+
+void 
+halt(unsigned char reason)
+{
+	pat.play("-R~", PL_PAT_NOINT);
+	beep.play("*b-b-b-", PL_BEEP_NOINT);
+//	led_bar_set_pattern(reason);
+}
+
+
+int
+bit_alloc(unsigned char *buf, unsigned char cb)
+{
+	unsigned char i, mask, j;
+	
+	if(NULL == buf || 0 == cb)
+		return -1;
+		
+	for(i=0; i<cb; ++i) {
+		if(0xFF != buf[i]) {
+			for(j=0, mask=0x80; mask!=0; mask>>=1, ++j) {
+				if(0 == (buf[i] & mask)) {
+					buf[i] |= mask;
+					return i*8 + j;
+				}
+			}
+		}
+	}
+	
+	return -1;
+}
+
+
+void
+bit_free(unsigned char *buf, unsigned char cb, unsigned int bit)
+{
+	unsigned int bi = bit >> 3;
+	unsigned char msk = 0x80 >> (bit & 0x07);
+	
+	if(bi < cb && buf != NULL)
+		buf[bi] &= ~msk;
+}
+
+
+bool
+bit_used(unsigned char *buf, unsigned char cb, unsigned int bit)
+{
+	unsigned int bi = bit >> 3;
+	unsigned char msk = 0x80 >> (bit & 0x07);
+	
+	if(bi < cb && buf != NULL)
+		return 0 != (buf[bi] & msk);
+		
+	return false;
+}
+
+
+/*! \brief Return json-encoded name:value pair
+ */
+string 
+j_encode(string& pname, string& pval)
+{
+	return "\"" + pname + "\":\"" + pval + "\"";
+}
+
+
+string 
+j_encoderaw(string& pname, string& pval)
+{
+	return "\"" + pname + "\":" + pval;
+}
+
+string 
+json_add(string& res, string pname, string pval)
+{
+	if(len(res)>0)
+		res += ",";
+	res += "\"" + pname + "\":\"" + pval + "\"";
+	return res;
+}
+
+
+string 
+j_error(string msg)
+{
+	return j_encode("status", "error") + "," + j_encode("errmsg", msg);
+}
+
+
+string
+query_string()
+{
+	return "&" + sock.httprqstring;
+}
+
+
+/*! \brief Extract argument from http query string
+ */
+string
+query_arg(string& get, string key, string dflt)
+{
+	int p, i, l;
+	string res = dflt;
+	
+	key = "&"+key+"=";
+	
+	p = instr(1, get, key, 1);
+	if(0 == p) 
+		return dflt; // not found
+			
+	p += len(key);
+	l = len(get);
+		
+	i = instr(p, get, "&", 1);
+	if(i == 0) {
+		i = instr(p, get, " ", 1);
+		if(i == 0)
+			i = l+1;
+	}
+		
+	return mid(get, p, i-p);
+}
+
+
+void
+echo(string out)
+{
+	sock.setdata(out);
+	sock.send();
+}
+
+
+string
+htmlspecialchars(string s)
+{
+	word i, l;
+	string res;
+	char c;
+	res = "";
+	
+	for(i=0, l=len(s); i<l; ++i) {
+		c = s[i];
+		switch(c) {
+			case '<':
+				res += "&lt;";
+				break;
+			case '>':
+				res += "&gt;";
+				break;
+			case '&':
+				res += "&amp;";
+				break;
+			case '\"':
+				res += "&quot;";
+				break;
+			case '\'':
+				res += "&#039;";
+				break;
+			default:
+				res += chr(c);
+				break;
+		}
+	}
+	
+	return res;
+}
+
+
+void
+echo_setting(string& name)
+{
+	string v = stg_get(name, 0);
+	echo(htmlspecialchars(v));
+}
+
+
+bool
+is_space(char c)
+{
+	return (c==' ') || (c=='\t') || (c=='\r') || (c=='\n');
+}
+
+
+string 
+trim(string s)
+{
+	word i, j, l;
+	
+	l = 0;
+	l = len(s);
+	
+	for(i=0; i<l; ++i)
+		if(!is_space(s[i]))
+			break;
+			
+	for(j=l-1; j>i; --j)
+		if(!is_space(s[j]))
+			break;
+			
+	return mid(s, i+1, j-i+1);
+}
+
+
+/*! \brief Encodes string as URL
+ */
+string 
+urlencode(string& s)
+{
+	string res;
+	word i, l;
+	
+	l = len(s);
+	for(res="", i=0; i<l; ++i) {
+		if(s[i]>='0' && s[i]<0x7F)
+			res += chr(s[i]);
+		else
+			res += "%" + tohex(s[i]);
+	}
+	
+	return res;
+}
+
+
+/*! \brief Decodes URL-encoded string
+ */
+string
+urldecode(string& s) 
+{ 
+	string res;
+	string<4> h;
+	byte esc;
+	word i, j, l;
+	
+	l = len(s);
+	for(esc=0, i=0; i<l; ++i) {
+		switch(s[i]) {
+			case '%':
+				h = "";
+				esc = 2;
+				break;
+			case '+':
+				res += " ";
+				break;
+			default:
+				if(esc != 0) {
+					if(s[i] == 'U' || s[i] == 'u') {
+						esc += 2;
+						break;
+					}
+					/* if s[i] is not a hex digit, just flush '%' and following characters */
+					h += chr(s[i]);
+					if(0 == --esc) {
+						for(j=0; j<len(h); j+=2)
+							res += chr((hexdigit(h[j]) << 4) | hexdigit(h[j+1]));
+					}
+				} else {
+					res += chr(s[i]);
+				}
+				break;
+		}
+	}
+	
+	return res;
+}
+
+
+string
+urlencode_n(string s)
+{
+	string res;
+	char c;
+	int i, l;
+	
+	l = len(s);
+	for(res = "", i=0; i<l; ++i) {
+		c = s[i];
+		if(c >= 33 && s[i] <= c)
+			res += chr(c);
+		else if(c == 32)
+			res += "+";
+		else if(c == '+')
+			res += "#" + tohex('+');
+		else
+			res += "#" + tohex(c);
+	}
+	return res;
+}
+
+
+string 
+format_serial(string& s) 
+{
+	return (tohex(s[0]) + tohex(s[1]) + tohex(s[2]) + tohex(s[3])) + "-" +
+		(tohex(s[4]) + tohex(s[5]) + tohex(s[6]) + tohex(s[7])) + "-" +	
+		(tohex(s[8]) + tohex(s[9]) + tohex(s[10]) + tohex(s[11]));
+}
+
+
+void
+sock_send(string& data)
+{
+	word sl = len(data); //sock.txlen;
+
+	if(sock.txfree < sl) {
+		sock.send();
+		while(sock.txlen > 0)
+			/* doevents */;
+	}
+	
+	sock.setdata(data);
+}
+
+
+void
+ser_send(string& data)
+{
+	word sl = len(data); //sock.txlen;
+
+	if(ser.txfree < sl) {
+		ser.send();
+		while(ser.txlen > 0)
+			/* doevents */;
+	}
+	
+	ser.setdata(data);
+}
+
+
+void
+_memset(void *ptr, unsigned char c, unsigned short cb)
+{
+	for(unsigned short i=0; i<cb; ++i)
+		((unsigned char *)ptr)[i] = 0;
+}
+
+
+void
+_memcpy(void *dst, void *src, unsigned short cb)
+{
+	for(unsigned short i=0; i<cb; ++i)
+		((unsigned char *)dst)[i] = ((unsigned char *)src)[i];
+}
+
+
+unsigned short 
+htons(unsigned short v) 
+{
+	return ((v >> 8) & 0xFF) | (v << 8);
+}
+
+
+unsigned long 
+htonl(unsigned long v)
+{
+	return ((v & 0x000000FF) << 24) | ((v & 0x0000FF00) << 8) | ((v & 0x00FF0000) >> 8) | ((v & 0xFF000000) >> 24);
+}
+
+
+unsigned short
+ntohs(unsigned short v)
+{
+	return ((v >> 8) & 0xFF) | (v << 8);
+}
+
+
+unsigned long 
+ntohl(unsigned long v)
+{
+	return ((v & 0x000000FF) << 24) | ((v & 0x0000FF00) << 8) | ((v & 0x00FF0000) >> 8) | ((v & 0xFF000000) >> 24);
+}
+
+
+/**
+ * Calculate string hash using DJB2 algorithm
+ *
+ * This algorithm (k=33) was first reported by Dan Bernstein many years ago in
+ * comp.lang.c. Another version of this algorithm (now favored by Bernstein)
+ * uses xor: 
+ * hash(i) = hash(i - 1) * 33 ^ str[i]; 
+ *
+ * The magic of number 33 (why it works better than many other constants, prime
+ * or not) has never been adequately explained.
+ */
+dword
+hash_djb2(byte *str)
+{
+    dword hash = 5381;
+    int c;
+
+    while(c = *str++)
+        hash = ((hash << 5) + hash) + c; /* hash * 33 + c */
+
+    return hash;
+}
+
+
+string
+base64_encode(string& s)
+{
+	dword tmp;
+	byte *ps = (byte *)&s[0];
+	int ntri, nrem, l, i;
+	string res = "";
+	
+	l = len(s);
+	
+	ntri = l / 3;
+	nrem = l % 3;
+	
+	for(i=0, l=0; l < ntri; ++l, i += 3) {
+		tmp = ((dword)ps[i] << 16) | ((dword)ps[i+1] << 8) | (dword)ps[i+2];
+
+		res += chr(_b64e[(tmp >> 18) & 0x3F]);
+		res += chr(_b64e[(tmp >> 12) & 0x3F]);
+		res += chr(_b64e[(tmp >> 6) & 0x3F]);
+		res += chr(_b64e[tmp & 0x3F]);
+	}
+	
+	if(nrem == 2) {
+		tmp = ((dword)ps[i] << 16) | ((dword)ps[i+1] << 8);
+		res += chr(_b64e[(tmp >> 18) & 0x3F]);
+		res += chr(_b64e[(tmp >> 12) & 0x3F]);
+		res += chr(_b64e[(tmp >> 6) & 0x3F]);
+		res += "=";
+	} else if(nrem == 1) {
+		tmp = (dword)ps[i] << 16;
+		res += chr(_b64e[(tmp >> 18) & 0x3F]);
+		res += chr(_b64e[(tmp >> 12) & 0x3F]);
+		res += "==";
+	}
+	
+	return res;
+}
+
+
+string
+base64_decode(string& s)
+{
+	// To be implemented soon
+	return s;
+}
+
+
+string 
+html_option(string& value, string& text, bool sel)
+{
+	return "<option value=\""+value+"\""+(sel? " selected": "")+">"+text+"</option>\r\n";
+}
+
+
+string
+html_checked(bool f)
+{
+	return f? "checked=\"checked\"": "";
+}
+
+
+bool
+open_always(unsigned char fnum, string& fname)
+{
+	pl_fd_status_codes res;
+	
+	fd.filenum = fnum;
+	if(fd.fileopened)
+		return true;
+		
+	if((res = fd.open(fname)) == PL_FD_STATUS_OK)
+		return true;
+		
+	if(res == PL_FD_STATUS_NOT_FOUND) {
+		res = fd.create(fname);
+		if(PL_FD_STATUS_OK == res) {
+			DBG("Created file \""+fname+"\"...");
+			res = fd.open(fname);
+			if(PL_FD_STATUS_OK == res)
+				return true;
+		}
+	}
+	
+	ERR("Failed to open file \""+fname+"\". Reason="+str(res));
+	return false;
+}
+
+
+bool
+contains_only(string& pattern, string& chars)
+{
+	byte i, j, li, lj;
+	char c;
+	
+	li = len(pattern);
+	lj = len(chars); 
+	
+	if(0 == lj || 0 == li)
+		return true;
+		
+	for(i=0; i<li; ++li) {
+		c = pattern[i];
+	
+		for(j=0; j<lj; ++j)
+			if(c == chars[j])
+				break;
+		
+		if(j == lj)
+			return false;
+	}
+	
+	return true;
+}
+

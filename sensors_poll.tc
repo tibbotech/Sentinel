@@ -1,0 +1,333 @@
+#include "global.th"
+#include "1wire.th"
+#include "ssi.th"
+#include "sensors_db.th"
+#include "device_funcs.th"
+#include "utils.th"
+#include "tgs.th"
+
+
+/* I/O program commands
+ */
+enum pcmd {
+	CMD_WRITE = 'W',
+	CMD_READ = 'R',
+	CMD_DELAY = 'D',
+	CMD_END = '.',
+};
+
+
+struct pchunk {
+	pcmd cmd;
+	byte cb;
+	byte data[1];
+};
+
+
+static string
+_read(sensor *sens, byte cb, bool do_stop)
+{
+	string res = "";
+	string out = "";
+	byte r, rl;
+	byte i2ca;
+	
+	switch(sens->bus) {
+		case IO_I2C:
+			i2ca = (sens->i2c_addr << 1) | 0x01;
+			
+			i2c_start(sens->port);
+			i2c_write(sens->port, i2ca);
+			
+			out = "I2C_START R " + tohex(i2ca) + " LEN=" + str(cb) + " [";
+			
+			for(; cb != 0; --cb) {
+				r = i2c_read(sens->port, cb != 1);
+				res += chr(r);
+				out += tohex(r);
+				if(cb != 1)
+					out += " ";
+			}
+			
+			i2c_stop(sens->port);
+			out += "] I2C_STOP";
+			break;
+			
+		case IO_OW:
+			out = "";
+			if(do_stop) {
+				if(!ow_start(sens->port, sens->chnl, OW_MATCH_ROM, &sens->ow_addr))
+					break;
+				else out += "1W_START R "+address_format(IO_OW, &sens->ow_addr);
+			} else {
+				out += "R ";
+			}
+			
+			out += "LEN="+str(cb)+" [";
+				
+			res = ow_recvstr(sens->port, cb);
+			rl = len(res);
+			
+			for(byte i=0; i<rl; ++i) {
+				out += tohex(res[i]);
+				if(i < rl-1)
+					out += " ";
+			}
+				
+			ow_stop(sens->port);
+			out += "] 1W_STOP";
+			break;
+			
+		case IO_RS485:
+			break;
+	}
+	
+#if 0			
+	if(len(out) > 0)
+		sys.debugprint(out+"\r\n");
+#endif			
+
+	return res;
+}
+
+
+static void
+_write(sensor *sens, byte *cmd, byte cmdlen, bool do_stop)
+{
+	byte i2ca;
+	string out = "";
+	
+	switch(sens->bus) {
+		case IO_I2C:
+			i2ca = (sens->i2c_addr << 1) | 0x00;
+			
+			i2c_start(sens->port);
+			i2c_write(sens->port, i2ca);
+
+			out = "I2C_START W " + tohex(i2ca) + " LEN="+str(cmdlen) + " [";
+
+			for(byte i=0; i<cmdlen; ++i) {
+				out += tohex(cmd[i]);
+				if(i != cmdlen-1)
+					out += " ";
+				i2c_write(sens->port, cmd[i]);
+			}
+			
+			out += "] ";
+			
+			if(do_stop) {
+				out +=  "I2C_STOP";
+				i2c_stop(sens->port);
+			}
+			break;
+			
+		case IO_OW:
+			if(ow_start(sens->port, sens->chnl, OW_MATCH_ROM, &sens->ow_addr)) {
+				out = "1W_START W " + address_format(IO_OW, &sens->ow_addr) + " [";
+
+				for(byte i=0; i<cmdlen; ++i) {
+					out += tohex(cmd[i]);
+					if(i < cmdlen-1)
+						out += " ";
+				}
+				out += "] ";
+				
+				ow_send(sens->port, cmd, cmdlen);
+				if(do_stop) {
+					out += "1W_STOP";
+					ow_stop(sens->port);
+				}
+			}
+			break;
+
+		case IO_RS485:
+			/* todo */
+			break;
+	}
+
+#if 0			
+	if(len(out) > 0)
+		sys.debugprint(out+"\r\n");
+#endif			
+}
+
+
+static string
+_exec_io_program(sensor *sens, byte *prog, byte plen)
+{
+	pchunk *ck = (pchunk *)prog;
+	pchunk *next;
+	byte i, l;
+	string res;
+	bool do_stop;
+	
+	res = "";
+	do_stop = true;
+	
+	while(plen != 0) {
+		if(ck->cb > plen) // Something went wrong: chunk longer than remaining part of program!
+			break; 
+			
+		next = (plen == ck->cb)? NULL: (pchunk *)&ck->data[ck->cb]; 
+		switch(ck->cmd) {
+			case CMD_READ:
+				res += _read(sens, ck->data[0], do_stop);
+				do_stop = true;
+				break;
+				
+			case CMD_WRITE:
+				do_stop = (NULL != next)? next->cmd != CMD_READ: true; // special handling for R->W pairs
+				_write(sens, ck->data, ck->cb, do_stop);
+				break;
+				
+			case CMD_DELAY:
+				delay(ck->data[0]);
+				break;
+			
+			case CMD_END:
+				return res;
+				
+			default: // Something went wrong: unknown command opcode!
+				return res;
+		}
+		
+		plen -= ck->cb;
+		ck = next;
+	}
+	
+	return res;
+}
+
+
+static void 
+_run(sensor *addr, string& cmd, string& tmp)
+{
+	byte *ptr, np, nbf, pl;
+
+	ptr = (byte *)&cmd[0]; 
+	for(np = *ptr++; np != 0; --np) {
+		for(nbf = *ptr++; nbf != 0; --nbf) {
+			pl = *ptr++;
+			addr->prev = addr->res;
+			addr->res = exec_program(addr, tmp, ptr, pl);
+			ptr += pl;
+		}
+	}
+}
+
+
+static void
+_sensor_read_tibbo(sensor *s)
+{
+	tgs_addr a = chr(s->mac[0]) + chr(s->mac[1]) + chr(s->mac[2]) + chr(s->mac[3]);
+	word rqid;
+	dword tmo;
+	
+	tibbo_sensors_poll();
+
+	while(0 == (rqid = tibbo_query_sensor(s->port, a, 0, s))) {
+		/* wait until queue has some available space */
+		doevents;
+		tibbo_sensors_poll();
+	}
+
+	tibbo_sensors_poll();
+
+	while(!tibbo_task_finished(rqid)) {
+		doevents;
+		tibbo_sensors_poll();
+	}
+	
+	tibbo_task_done(rqid);
+}
+
+
+static void
+_sensor_read(sensor *addr)
+{
+	string cmd;
+	string<16> tmp;
+
+	if(!sensor_db_open())
+		return;
+
+	cmd = sensor_db_get_read_command(addr->drvid);
+	if(len(cmd) != 0) {
+#if 0		
+		sys.debugprint("\r\n-- READ_SENSOR TYPE="+tohex(addr->drvid)+" --\r\n");
+#endif
+
+		tmp = _exec_io_program(addr, (byte *)&cmd[0], len(cmd));
+		cmd = sensor_db_get_read_program(addr->drvid);
+		if(len(cmd) > 0)
+			_run(addr, cmd, tmp);
+	}
+}
+
+
+/*! \brief Read sensor value
+ */
+void
+sensor_read(sensor *addr)
+{
+	switch(ioport_type(addr->port)) {
+		case IO_RS485:
+			/* Tibbo original sensors is intellectual hardware, so
+			 * bypass IO program execution
+			 */
+			_sensor_read_tibbo(addr);
+			break;
+		
+		case IO_DC:
+		case IO_WC:
+		case IO_GPIO4:
+			/* The dry contact lines are polled elsewhere
+			 */
+			 break;
+			 
+		case IO_I2C:
+		case IO_OW:
+			/* Call I2C or 1-Wire sensors read routine
+			 */
+			_sensor_read(addr);
+			break;
+			
+		default:
+			break;
+	}
+
+    sensor_alarm_check(addr);
+}
+
+
+/*! \brief Issue sensor initialization commands
+ */
+void
+sensor_init(sensor *addr)
+{
+	string cmd;
+	string<16> tmp;
+	
+	/* Dry contacts doesn't have any initialization or configuration
+	 * commands
+	 */
+	if(IO_DC == ioport_type(addr->port))
+		return;
+		
+	if(!sensor_db_open())
+		return;
+	
+	cmd = sensor_db_get_init_command(addr->drvid);
+	if(len(cmd) == 0)
+		return;
+
+#if 0
+	sys.debugprint("\r\n-- INIT_SENSOR TYPE="+tohex(addr->drvid)+" --\r\n");
+#endif
+
+	tmp = _exec_io_program(addr, (byte *)&cmd[0], len(cmd));
+	cmd = sensor_db_get_init_program(addr->drvid);
+	if(len(cmd) > 0) 
+		_run(addr, cmd, tmp);
+}
+

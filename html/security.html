@@ -1,0 +1,83 @@
+<?
+
+	extern void print_acl();
+	
+?><!DOCTYPE html>
+<html>
+<head>
+<title>Security</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link rel="stylesheet" type="text/css" href="style.css" />
+<link rel="stylesheet" type="text/css" href="swal2.css" /> 
+<script type="text/javascript" src="jq.js"></script>
+<script type="text/javascript" src="jqbm.js"></script>
+<script type="text/javascript" src="swal2.js"></script>
+<script type="text/javascript" src="ma.js"></script>
+<script type="text/javascript" src="acl.js"></script>
+</head>
+<body>
+<div class="body_outer">
+    <div class="heading">
+        <div class="main_heading">Security</div>
+        <div class="main_heading_descr">Set or reset device password, configure access lists for external hosts</div>
+        <div class="back"><a href="index.html">&laquo;&nbsp;Return to main page</a></div>
+    </div>
+    <div class="body">
+		<form method="POST">
+			<input class="cff" type="hidden" name="src" value="pwd">
+			<fieldset>
+				<legend>Device password</legend>
+				<div class="form-wrapper">
+					<div class="formrow">
+						<label class="f_lbl" for="pw1"><div class="l_win">Password</div></label>
+						<input class="cff" type="password" maxlength="32" id="pw1" name="pwd" />
+					</div>
+					<div class="formrow">
+						<label class="f_lbl" for="pw2"><div class="l_win">Repeat password</div></label>
+						<input class="cff" type="password" maxlength="32" id="pw2" name="vfy" />
+					</div>
+					<div class="formrow">
+						<div class="l_win"></div>
+						<input type="submit" value="Save password">
+						<img src="loading.gif" id="l">
+					</div>
+				</div>
+			</fieldset>
+		</form>
+		<form method="POST">
+			<input class="cff" type="hidden" name="src" value="acl">
+			<fieldset>
+				<legend>Access List</legend>
+				<div class="form-wrapper">
+					<div class="formrow">
+						<div class="l_win">ACL type</div>
+						<div style="padding-bottom:5px">
+							<input class="cff" type="radio" id="a_al" name="acl" value="allow" checked /><label for="a_al">Allow access only for this hosts</label>
+							<input class="cff" type="radio" id="a_dn" name="acl" value="deny" /><label for="a_dn">Deny access for this hosts</label>							
+						</div>
+					</div>
+					<div class="formrow">
+						<label class="f_lbl" for="addr"><div class="l_win">Address</div></label>
+						<input id="ip" name="a" value=""><input type="button" id="add" value="Add">
+					</div>
+					<div class="formrow">
+						<label class="f_lbl top" for="net_hn"><div class="l_win top">Hosts</div></label>
+						<select class="cff wide sendall" id="list" name="list" multiple size="10">
+						<? print_acl(); ?>
+						</select>
+						<input class="top" type="button" id="del" value="Remove"/>
+					</div>
+					<div class="formrow">
+						<div class="l_win"></div>
+						<input type="submit" value="Save Access List">
+						<img src="loading.gif" id="l">
+					</div>
+				</div>	
+			</fieldset>
+	
+		</form>
+	</div>
+</div>
+</body>
+</html>
+<? sock.send(); ?>

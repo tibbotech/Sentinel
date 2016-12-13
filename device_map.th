@@ -1,0 +1,29 @@
+#ifndef __DEVICE_HARDWARE_MAP_INCLUDED__
+#define __DEVICE_HARDWARE_MAP_INCLUDED__
+
+
+#include "global.th"
+#include "hal.th"
+
+
+//#define	NUM_I2C_PORTS		3
+//#define	NUM_1W_PORTS		3
+//#define	NUM_DC_PORTS		6
+
+
+struct bus_info {
+	iotype type;
+	byte port;
+};
+
+
+extern bus_info _all_buses[];
+
+
+extern bool device_map_init();
+extern ioport *map_device(iotype, byte);
+extern iotype get_bus_type(byte);
+extern byte get_total_port_count();
+extern byte get_port_count(iotype);
+
+#endif

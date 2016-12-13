@@ -1,0 +1,31 @@
+#include "global.th"
+#include "hal.th"
+#include "utils.th"
+#include "modem.th"
+
+
+static string
+gprs_status_update()
+{
+	string res;
+	
+	res = "," + j_encode("s", "Not connected");
+	
+	return right(res, len(res)-1);
+}
+
+
+void
+status_update()
+{
+	string res, q;
+	string<8> tgt;
+	
+	q = query_string();
+	tgt = query_arg(q, "f", "");
+	if("gprs" == tgt) {
+		res = gprs_status_update();
+	}
+	
+	echo("{" + res + "}");
+}

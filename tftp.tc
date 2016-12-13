@@ -1,0 +1,26 @@
+#include "global.th"
+
+
+/* TFTP - Trivial File Transfer Protocol implementation
+ * as described in RFC 1350 (https://www.ietf.org/rfc/rfc1350.txt)
+ *
+ * (c) Copyright 2016 Tibbo Technology, Inc.
+ * All Righs Reserved
+ */
+ 
+ 
+ bool
+ tftp_init()
+ {
+	return true;
+ }
+ 
+ 
+ void
+ on_tftp_sock_data_arrival(string data)
+ {
+ }
+ 
+ 
+ 
+ 

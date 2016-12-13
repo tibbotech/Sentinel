@@ -1,0 +1,265 @@
+#include "global.th"
+#include "sensors_db.th"
+#include "sensor_info.th"
+#include "device_funcs.th"
+#include "sensor_info.th"
+#include "utils.th"
+
+extern sensor *connected_sensors; 
+
+
+void
+create_agg_sensors_table()
+{
+	sensor *s;
+	string<16> ss;
+	
+	tbl_select("sensortable", "sensortable");
+	tbl_clear();
+	
+	for(s=connected_sensors; NULL != s; s=s->next) {
+		tbl_field_set("id", str(s->id));
+		tbl_field_set("type", str(s->ptype));
+		tbl_field_set("port", str(s->bus));
+		tbl_field_set("channel", str(s->chnl));
+		tbl_field_set("driver", str(s->drvid));
+		tbl_field_set("serial", address_format(ioport_type(s->port), &s->mac));
+		tbl_field_set("value", var_format(s->res));
+		tbl_field_set("status", s->status);
+		tbl_field_set("info", sensor_info_get(s->id));
+		tbl_record_add(str(s->id));
+	}
+	
+	tbl_close("sensortable");
+	agg_fire_instant_event("root", "updated", "sensortable", 0);
+}
+
+
+void
+update_agg_sensors_table()
+{
+	sensor *s;
+	byte n;
+	
+	tbl_select("sensortable", "sensortable");
+	
+	for(n=0, s=connected_sensors; NULL != s; s=s->next, ++n) {
+		tbl_field_set("value", var_format(s->res));
+		tbl_field_set("status", s->status);
+		tbl_record_edit(n);
+	}
+	
+	tbl_close("sensortable");
+	agg_fire_instant_event("root", "updated", "sensortable", 0);
+}
+
+
+void
+callback_stg_error(string& stg_name, unsigned char index, en_stg_status_codes status)
+{
+	DBG("callback_stg_error: " + stg_name);
+}
+
+
+void
+callback_stg_pre_get(string& stg_name, unsigned char index, string& stg_value)
+{
+}
+
+
+void
+callback_stg_post_set(string& stg_name, unsigned char index, string& stg_value)
+{
+}
+
+
+void
+callback_dhcp_pre_clear_ip(pl_sock_interfaces interface)
+{
+}
+
+
+void
+callback_dhcp_pre_buffrq(byte required_buff_pages)
+{
+}
+
+
+void
+callback_dhcp_buff_released()
+{
+}
+
+
+byte 
+sock_get(string& sign)
+{
+	if(sign == "DHCP")
+		return SOCK_NUM_DHCP;
+
+	if(sign == "AGG")
+		return SOCK_NUM_AGG;
+		
+	if(sign == "GPRS")
+		return SOCK_NUM_GPRS;
+		
+	ERR("Socket requested by unknown module \""+sign+"\"");
+	return 255;
+}
+
+
+void
+sock_release(byte sck)
+{
+	/* Dummy function */
+}
+
+
+string
+callback_agg_get_firmware_version() 
+{
+	return __VERSION__;
+}
+
+
+ok_ng 
+callback_agg_device_function(string& function_name, string& context_name, string& function_input, string& function_output)
+{
+	DBG("callback_agg_device_function: "+function_name+"('"+context_name+"', '"+function_input+"', '"+function_output+"')");
+	
+	if("hash" == function_name) {
+		update_agg_sensors_table();
+	}
+	
+	return OK;
+}
+
+
+void
+callback_agg_synchronized()
+{
+	DBG("synchronized");
+}
+
+
+void
+callback_agg_pre_buffrq(byte required_buff_pages)
+{
+	DBG("callback_agg_pre_buffrq");
+}
+
+
+void
+callback_agg_buff_released()
+{
+	DBG("callback_agg_buff_released");
+}
+
+
+void
+callback_agg_error(en_agg_status_codes failure_code, string& error_item)
+{
+	DBG("callback_agg_error code="+str(failure_code)+", error_item="+error_item);
+}
+
+
+en_stg_status_codes
+callback_agg_setting_saved(string& setting_name, byte index, string& setting_val)
+{
+	DBG("callback_agg_setting_saved");
+	return EN_STG_STATUS_OK;
+}
+
+
+void
+callback_agg_setting_error(string& setting_name, en_stg_status_codes error_code)
+{
+	DBG("callback_agg_setting_error");
+}
+
+
+ok_ng
+callback_agg_convert_setting(string& setting_name, byte index, string& setting_valu, en_agg_rdwr op)
+{
+	DBG("callback_agg_convert_setting");
+	return OK;
+}
+
+
+void 
+callback_agg_table_error(string& table_name, en_tbl_status_codes error_code)
+{
+	DBG("callback_agg_table_error");
+}
+
+
+void 
+callback_agg_convert_table_field(string& table_name, string& field_name, string& field_value, en_agg_rdwr op)
+{
+#if 0
+	string<4> sop = (op == EN_AGG_GET)? "GET": "SET";
+	DBG("callback_agg_convert_table_field: "+sop+" "+table_name+"."+field_name+"="+field_value);
+#endif	
+}
+
+
+ok_ng
+callback_agg_external_data_source(string& source_type, string& parameter1, string& parameter2, string& parameter3, en_agg_rdwr rw)
+{
+	DBG("callback_agg_external_data_source");
+	return OK;
+}
+
+
+ok_ng
+callback_agg_external_data_modtime_sg(string& source_type, string& item_name, string& date_time, en_agg_rdwr op)
+{
+	DBG("callback_agg_external_data_modtime_sg");
+	return OK;
+}
+
+
+void
+callback_agg_firmware_upload_progress(dword total_size, dword remain_size)
+{
+	DBG("callback_agg_firmware_upload_progress");
+}
+
+
+void 
+callback_tbl_error(en_tbl_status_codes status)
+{
+	DBG("callback_tbl_error");
+}
+
+
+no_yes
+callback_tbl_fail_to_open(string& filename, pl_fd_status_codes status, byte filenum)
+{
+	DBG("callback_tbl_fail_to_open");
+	return YES;
+}
+
+
+void
+callback_tbl_field_error(string& file_name, string& field_name, en_tbl_status_codes tbl_result)
+{
+	DBG("callback_tbl_field_error");
+}
+
+
+void 
+callback_tbl_modified(string& file_name, en_tbl_modified_operation modified_operation)
+{
+#if 0
+	DBG("callback_tbl_modified");
+#endif	
+}
+
+
+void
+callback_gprs_pre_buffrq(byte required_buff_pages)
+{
+}
+
+

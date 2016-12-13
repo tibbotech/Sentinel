@@ -1,0 +1,399 @@
+#include "global.th"
+#include "hal.th"
+#include "ssi.th"
+#include "utils.th"
+
+
+/* (c) 2016 Tibbo Technology Inc.
+ */
+ 
+
+/*! \brief Restores SSI channel to default state
+ * \param chnl SSI channel number 0...3
+ */
+void
+ssi_restore(byte chnl)
+{
+	byte temp;
+	
+	temp = ssi.channel;
+	
+	ssi.channel = chnl;
+	ssi.enabled = NO;
+	ssi.baudrate = 255;
+	ssi.direction = PL_SSI_DIRECTION_RIGHT;
+	ssi.mode = PL_SSI_MODE_0;
+	ssi.zmode = PL_SSI_ZMODE_ALWAYS_ENABLED;
+
+	ssi.channel = temp;
+}
+
+
+/*! \brief Determines whether I/O port in HW acceleration mode or not
+ */
+bool
+ssi_is_hw(ioport *p)
+{
+	return p->d.ssi.channel != -1;
+}
+
+
+/*! \brief This routine used internally to set up SSI channel for I/O port
+ * \param p I/O port descriptor
+ *
+ * \c p->type must be one of SSI-enabled I/O port types and \c p->d.ssi.channel must 
+ * be set to range 0...3 to set up HW SSI acceleration
+ */
+void
+ssi_setup_channel(ioport *p)
+{
+	if(p->d.ssi.channel != -1) {
+		io.num = p->d.ssi.scl;
+		io.state = HIGH;
+		io.enabled = YES;
+		
+		io.num = p->d.ssi.sda;
+		io.state = HIGH;
+		io.enabled = NO;
+		
+		ssi.channel = p->d.ssi.channel;
+		ssi.enabled = NO;
+		ssi.baudrate = 200; // FIXME Hardcoded constant
+		ssi.clkmap = p->d.ssi.scl;
+		ssi.dimap = p->d.ssi.sda;
+		ssi.domap = p->d.ssi.sda;
+		ssi.direction = PL_SSI_DIRECTION_LEFT;
+		ssi.zmode = PL_SSI_ZMODE_ENABLED_ON_ZERO;
+		ssi.mode = PL_SSI_MODE_0;
+		ssi.enabled = YES;
+	} else {
+		io.num = p->d.ssi.scl;
+		io.state = HIGH;
+		io.enabled = YES;
+
+		io.num = p->d.ssi.sda;
+		io.state = HIGH;
+		io.enabled = NO;
+	}
+}
+
+
+/*! \brief Start I2C transaction
+ * \param p I/O port to start transaction on
+ */
+void
+i2c_start(ioport *p)
+{
+	pl_io_num sda = p->d.ssi.sda;
+	pl_io_num scl = p->d.ssi.scl;
+	
+	io.num = sda;
+	io.enabled = YES;
+	
+	io.lineset(scl, HIGH);
+	io.lineset(sda, HIGH);
+	io.lineset(sda, LOW);
+	io.lineset(scl, LOW);
+#if _I2C_DEBUG
+	sys.debugprint("I2C START\r\n");
+#endif
+}
+
+
+/*! \brief Ends I2C transaction
+ * \param p I/O port to stop transaction on
+ */
+void
+i2c_stop(ioport *p)
+{
+	pl_io_num sda = p->d.ssi.sda;
+	pl_io_num scl = p->d.ssi.scl;
+
+	io.num = sda;
+	io.enabled = YES;
+
+	io.lineset(sda, LOW);
+	io.lineset(scl, HIGH);
+	io.lineset(sda, HIGH);
+#if _I2C_DEBUG
+	sys.debugprint("I2C STOP\r\n");
+#endif
+}
+
+
+void i2c_restart(ioport *p)
+{
+	pl_io_num sda = p->d.ssi.sda;
+	pl_io_num scl = p->d.ssi.scl;
+
+	io.num = sda;
+	io.enabled = YES;
+
+	io.lineset(sda, LOW);
+	io.lineset(scl, HIGH);
+	io.lineset(sda, HIGH);
+
+	io.lineset(scl, HIGH);
+	io.lineset(sda, HIGH);
+	io.lineset(sda, LOW);
+	io.lineset(scl, LOW);
+#if _I2C_DEBUG
+	sys.debugprint("I2C RESTART\r\n");
+#endif
+}
+
+
+/*! \brief Write byte of data to I2C channel
+ * \param p I/O port with I2C transaction started
+ * \param data 8 bits of data to write
+ */
+void
+i2c_write(ioport *p, byte data) 
+{
+	pl_io_num sda, scl;
+	byte compval;
+	word ctr;
+	low_high lh;
+	string<8> s = "\0";
+	
+	if(ssi_is_hw(p)) {
+		ssi.channel = p->d.ssi.channel;
+		ssi.str(chr(data), PL_SSI_ACK_RX);
+	} else {
+		sda = p->d.ssi.sda;
+		scl = p->d.ssi.scl;
+
+		io.num = scl; 						// Select SCL line
+		io.enabled = YES;					// Take ownership over SCL
+		io.state = LOW;						// Initialize the transmission
+
+		io.num = sda; 						// Select SSI_SDA line
+		io.enabled = YES;					// Set as output
+
+		for(compval=0x80; compval; compval>>=1) {
+			io.state = (0 == (data & compval))? LOW: HIGH;
+
+			/* Write the bit to I2C device
+			 */
+			io.num = scl;
+			io.state = HIGH;
+			io.invert(scl);
+
+			/* Select SSI_SDA line, NOTE: this must be the last
+			 * statement in the loop so we can release the SSI_SDA
+			 * line as soon as possible to alow for the ack
+			 */
+			io.num = sda; 
+		}
+
+		io.num = sda;
+		io.enabled = NO; // Set SSI_SDA as input to allow ack receive
+
+		io.num = scl; // Emulate the ACK frame
+		io.state = HIGH;
+		io.invert(scl); // Finish the ACK frame
+	}
+#if _I2C_DEBUG
+	sys.debugprint("I2C W " + tohex(data) + "\r\n");
+#endif
+}
+
+
+static bool 
+_detect(ioport *p, byte addr)
+{
+	pl_io_num sda, scl;
+	byte compval, i;
+	word ctr;
+	low_high lh;
+	string<2> s;
+	bool res;
+	
+	res = false;
+	if(ssi_is_hw(p)) {
+		ssi.channel = p->d.ssi.channel;
+		s = ssi.str(chr(addr) + chr(0), PL_SSI_ACK_RX);
+		res = (len(s) == 2);
+	} else {
+		sda = p->d.ssi.sda;
+		scl = p->d.ssi.scl;
+
+		io.num = scl; 						// Select SCL line
+		io.enabled = YES;					// Take ownership over SCL
+		io.state = LOW;						// Initialize the transmission
+
+		io.num = sda; 						// Select SSI_SDA line
+		io.enabled = YES;					// Set as output
+
+		for(compval=0x80; compval; compval>>=1) {
+			io.state = (0 == (addr & compval))? LOW: HIGH;
+
+			/* Write the bit to I2C device
+			 */
+			io.num = scl;
+			io.state = HIGH;
+			io.invert(scl);
+
+			/* Select SSI_SDA line, NOTE: this must be the last
+			 * statement in the loop so we can release the SSI_SDA
+			 * line as soon as possible to alow for the ack
+			 */
+ 			io.num = sda; 
+		}
+
+		io.num = sda;
+		io.enabled = NO; // Set SSI_SDA as input to allow ack receive
+
+		io.num = scl; // Emulate the ACK frame
+		io.state = HIGH;
+		res = (LOW == io.lineget(sda));
+		io.invert(scl); // Finish the ACK frame
+	}
+	
+	return res;
+}
+
+bool
+i2c_detect(ioport *p, byte addr)
+{
+	bool res;
+
+	i2c_start(p);
+	res = _detect(p, addr);
+	i2c_stop(p);
+	
+	return res;
+}
+
+
+string<127>
+i2c_port_scan(ioport *p)
+{
+	string<127> res = "";
+	
+	for(byte i=1; i<128; ++i)
+		if(i2c_detect(p, i << 1))
+			res += chr(i);
+			
+	return res;
+}
+
+
+#if 0
+/* Code disabled due to inability of TiOS to do the I2C clock stretching 
+ */
+void
+i2c_write_with_cs(ioport *p, byte data) 
+{
+	pl_io_num sda, scl;
+	byte compval;
+	word ctr;
+	low_high lh;
+	
+	if(ssi_is_hw(p)) {
+		ssi.channel = p->d.ssi.channel;
+		ssi.str(chr(data), PL_SSI_ACK_RX);
+	} else {
+		sda = p->d.ssi.sda;
+		scl = p->d.ssi.scl;
+
+/* Now we need to take possible I2C clock stretching in account.
+ * We can take ownership over SCL only when SCL is in HIGH
+ * state, else we need to wait unitl slave releases it.
+ */
+		io.num = scl;
+		io.enabled = NO;
+		for(ctr=0; io.lineget(scl) == LOW; ++ctr)
+			if(ctr == 8192) // Timeout constant is choosed based on current iceberg drift course
+				return; 
+		
+		io.num = scl; 						// Select SCL line
+		io.enabled = YES;					// Take ownership over SCL
+
+		io.num = sda; 						// Select SSI_SDA line
+		io.enabled = YES;					// Set as output
+
+		for(compval=0x80; compval; compval>>=1) {
+			io.lineset(scl, LOW);
+			io.lineset(sda, (0 == (data & compval))? LOW: HIGH);
+			io.invert(scl);
+		}
+
+		io.lineset(scl, LOW);
+		
+		io.num = sda;
+		io.enabled = NO; // Set SSI_SDA as input to allow ack receive
+
+		io.num = scl; // Emulate the ACK frame
+		io.state = HIGH;
+		io.invert(scl); // Finish the ACK frame
+		
+		//io.num = scl;
+		//io.state = LOW;
+		//io.enabled = NO;
+	}
+}
+#endif
+
+
+/*! \brief Read byte of data from I2C port
+ * \returns 8 bits of data readed
+ */
+byte
+i2c_read(ioport *p, bool acknak_request) 
+{
+	pl_io_num sda, scl;
+	byte compval, res;
+	word tmp;
+	
+	res = 0;
+
+	if(ssi_is_hw(p)) {
+		ssi.channel = p->d.ssi.channel;
+		tmp = ssi.value((acknak_request? 0xFFFE: 0xFFFF), 9) >> 1;
+		res = tmp & 0x00FF;
+	} else {
+		sda = p->d.ssi.sda;
+		scl = p->d.ssi.scl;
+
+		io.num = sda; // Select SSI_SDA line
+		io.enabled = NO; // Set as input
+
+		io.num = scl; // Select SSI_CLK line
+		io.state = LOW; // Initialize the transmition
+
+		for(compval=0x80; compval!=0x00; compval>>=1) {
+			/* Read one bit from I2C device
+			 */
+			io.state = HIGH; 
+			io.num = sda;
+
+			if(HIGH == io.state) 
+				res |= compval;
+
+			/* Clear the clock line (the data can change now...)
+			 */
+			io.num = scl;
+			io.state = LOW;						
+		}
+
+		//Select SSI_SDA line	
+		io.num = sda;
+		io.enabled = YES; 
+		io.state = acknak_request? LOW: HIGH; //Does user want to send an ack or not
+
+		// Select SSI_CLK line
+		io.num = scl;
+		
+		// Set SSI_CLK line
+		io.state = HIGH;
+		
+		// Clear SSI_CLK line	
+		io.invert(scl); 
+	}
+	
+#if _I2C_DEBUG
+	sys.debugprint("I2C R " + tohex(res) + "\r\n");
+#endif
+	return res;
+}

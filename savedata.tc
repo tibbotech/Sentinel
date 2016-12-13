@@ -1,0 +1,324 @@
+#include "global.th"
+#include "hal.th"
+#include "utils.th"
+#include "validators.th"
+
+
+static string
+v_ip(string& q, string& n)
+{
+	string<32> tmp = query_arg(q, n, "");
+	if(0 == len(tmp))
+		return "," + j_encode(n, "1");
+	else
+	if(!is_valid_ip(tmp))
+		return "," + j_encode(n, "2");
+	return "";
+}
+
+
+string
+validateNetData(string& q, bool gprs_installed)
+{
+	string errs = "";
+	string tmp;
+	
+	if(gprs_installed) {
+		tmp = query_arg(q, "gen", "false");
+		if(tmp != "true" && tmp != "false")
+			errs += "," + j_encode("gen", "3");
+		
+		if(parse_bool(tmp)) {
+			tmp = urldecode(query_arg(q, "din", ""));
+			if(0 == len(tmp))
+				errs += "," + j_encode("din", "1");
+
+			tmp = urldecode(query_arg(q, "apn", ""));
+			if(0 == len(tmp))
+				errs += "," + j_encode("apn", "1");
+		}
+	}
+
+	tmp = query_arg(q, "eth", "manual");
+	if(tmp != "off" && tmp != "manual" && tmp != "dhcp")
+		errs += "," + j_encode("eth", "3");
+		
+	errs += v_ip(q, "ip");
+	errs += v_ip(q, "msk");
+	errs += v_ip(q, "gw");
+	errs += v_ip(q, "dns");
+	
+	tmp = query_arg(q, "hn", "");
+	if(0 == len(tmp))
+		errs += "," + j_encode("hn", "1");
+	
+	tmp = query_arg(q, "http", "");
+	if(0 == len(tmp))
+		errs += "," + j_encode("http", "1");
+	
+	if(!is_valid_number(tmp))
+		errs += "," + j_encode("http", "4");
+		
+	return right(errs, len(errs)-1);
+}
+
+
+string
+saveNetData(string& q)
+{
+	string s;
+	string errs;
+	byte n;
+	bool grps_installed = is_tibbit_installed(TB_47);
+	bool gprs_enabled;
+	
+	errs = validateNetData(q, grps_installed);
+	if(len(errs) > 0) {
+		s = j_encode("status", "failed");
+		s += "," + "\"errors\":" + "{"+errs+"}";
+	} else {
+		s = query_arg(q, "setup", "manual");
+		
+		n = 0;
+		if(s == "manual")
+			n = 1;
+		else if(s == "dhcp")
+			n = 2;
+			
+		stg_set("ETH", 0, str(n));		
+		stg_set("IP", 0, query_arg(q, "ip", ""));
+		stg_set("NM", 0, query_arg(q, "msk", ""));
+		stg_set("GW", 0, query_arg(q, "gw", ""));
+		stg_set("DNS", 0, query_arg(q, "dns", ""));
+		stg_set("HN", 0, query_arg(q, "hn", ""));
+		stg_set("HPN", 0, val(query_arg(q, "http", "")));
+		
+		if(grps_installed) {
+			gprs_enabled = parse_bool(query_arg(q, "gen", "false"));
+			stg_set("GEN", 0, str(gprs_enabled? 1: 0));
+			stg_set("GNTD", 0, urldecode(query_arg(q, "din", "")));
+			stg_set("GAPN", 0, urldecode(query_arg(q, "apn", "")));
+			stg_set("GUSR", 0, query_arg(q, "gu", ""));
+			stg_set("GPWD", 0, query_arg(q, "gp", ""));
+		} else {
+			stg_set("GEN", 0, "0");
+		}
+		
+		s = j_encode("status", "ok");
+	}
+	
+	return s;
+}
+
+
+string
+validatePassword(string& q)
+{
+	string errs = "";
+	string<33> pwd, vfy;
+	
+	pwd = query_arg(q, "pwd", "");
+	if(len(pwd) > 32)
+		errs += "," + j_encode("pwd", "5");
+	
+	vfy = query_arg(q, "vfy", "");
+	if(len(vfy) > 32) 
+		errs += "," + j_encode("vfy", "5");
+
+	if(pwd != vfy)
+		errs += "," + j_encode("vfy", "6");
+
+	return right(errs, len(errs)-1);
+}
+
+
+static string
+savePassword(string& q)
+{
+	string s, errs;
+	
+	errs = validatePassword(q);
+	if(len(errs) > 0) {
+		s = j_encode("status", "failed");
+		s += "," + "\"errors\":" + "{"+errs+"}";
+	} else {
+		
+		s = j_encode("status", "ok");
+	}
+	
+	return s;
+}
+
+
+static string
+validateAcl(string& q)
+{
+	return "";
+}
+
+
+static string
+saveAcl(string& q)
+{
+	string s, errs;
+	
+	errs = validateAcl(q);
+	if(len(errs) > 0) {
+		s = j_encode("status", "failed");
+		s += "," + "\"errors\":" + "{"+errs+"}";
+	} else {
+		
+		s = j_encode("status", "ok");
+	}
+
+	return s;
+}
+
+
+static string
+validateSms(string& q)
+{
+	string errs = "";
+	string<5> pin;
+	string srl;
+	
+	pin = query_arg(q, "pin", "");
+	if(len(pin) != 0 && len(pin) != 4)
+		errs += "," + j_encode("pin", "10");
+	
+	srl = urldecode(query_arg(q, "srl", ""));
+	if(len(srl) > 40) 
+		errs += "," + j_encode("srl", "11");
+	
+	if(!contains_only(srl, "+-()0123456789;, \t"))
+		errs += "," + j_encode("srl", "12");
+		
+	return right(errs, len(errs)-1);
+}
+
+
+static string
+saveSms(string& q)
+{
+	string s, errs;
+	string<32> srl;
+	string<4> pin;
+	
+	errs = validateSms(q);
+	if(len(errs) > 0) {
+		s = j_encode("status", "failed");
+		s += "," + "\"errors\":" + "{"+errs+"}";
+	} else {
+		pin = query_arg(q, "pin", "");
+		srl = urldecode(query_arg(q, "srl", ""));
+		stg_set("MPIN", 0, pin);
+		stg_set("SMSA", 0, srl);
+		s = j_encode("status", "ok");
+	}
+
+	return s;
+}
+
+
+static string
+validateAgg(string& q)
+{
+	string errs = "";
+	string<5> pin;
+	string<16> tmp;
+	bool agen;
+	
+	agen = parse_bool(query_arg(q, "agen", "0"));
+	
+	if(agen) {
+		tmp = query_arg(q, "agip", "");
+		if(0 == len(tmp))
+			errs += "," + j_encode("agip", "1"); // 1 = field cannot be empty
+		else if(!is_valid_ip(tmp))
+			errs += "," + j_encode("agip", "2"); // 2 = not a valid ip address
+		
+		tmp = query_arg(q, "agp", str(DEFAULT_AGG_PORT)); // DEFAULT_AGG_PORT
+		if(0 == len(tmp))
+			errs += "," + j_encode("agp", "1");
+		else if(!is_valid_number(tmp))
+			errs += "," + j_encode("agp", "4");  // 4 = not a valid port number
+			
+		if(0 != len(query_arg(q, "agpw", ""))) {
+			if(0 == len(query_arg(q, "agun", "")))
+				errs += "," + j_encode("agun", "1");
+		}
+		
+		tmp = query_arg(q, "agif", "eth");
+		if("eth" != tmp && "gprs" != tmp && "wifi" != tmp)
+			errs += "," + j_encode("agif", "1");
+	}
+		
+	return right(errs, len(errs)-1);
+}
+
+
+static string
+saveAgg(string& q)
+{
+	string s, errs;
+	string<32> tmp;
+	word p;
+	
+	errs = validateAgg(q);
+	if(len(errs) > 0) {
+		s = j_encode("status", "failed");
+		s += "," + "\"errors\":" + "{"+errs+"}";
+	} else {
+		tmp = str(parse_bool(query_arg(q, "agen", "0")));
+		stg_set("AGEN", 0, tmp);
+		
+		tmp = query_arg(q, "agip", "");
+		stg_set("AGIP", 0, tmp);
+		
+		p = val(query_arg(q, "agp", str(DEFAULT_AGG_PORT)));
+		if(0 == p)
+			p = DEFAULT_AGG_PORT;
+		stg_set("AGP", 0, str(p));
+		
+		tmp = query_arg(q, "agun", "");
+		stg_set("AGUN", 0, tmp);
+
+		tmp = query_arg(q, "agpw", "");
+		stg_set("AGPW", 0, tmp);
+		
+		tmp = query_arg(q, "agif", "eth");
+		stg_set("AGIF", 0, tmp);
+
+		s = j_encode("status", "ok");
+	}
+
+	return s;
+}
+
+
+string
+saveData()
+{
+	string q, f, res;
+	
+	q = query_string();
+	
+	sys.debugprint(q + "\n");
+	 
+	f = query_arg(q, "src", "-");
+	if(f == "net")
+		res = saveNetData(q);
+	else if(f == "mae")
+		res = saveNetData(q);
+	else if(f == "pwd")
+		res = savePassword(q);
+	else if(f == "sms")
+		res = saveSms(q);
+	else if(f == "agg")
+		res = saveAgg(q);
+	else
+		res = j_error("Unsupported request type (\\\""+htmlspecialchars(f)+"\\\")");
+		
+	sys.debugprint(res + "\r\n");
+	return res;
+} 

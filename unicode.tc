@@ -1,0 +1,91 @@
+#include "global.th"
+
+
+// Unicode constants
+// Leading (high) surrogates: 0xd800 - 0xdbff
+// Trailing (low) surrogates: 0xdc00 - 0xdfff
+enum {
+	LEAD_SURROGATE_MIN  = 0xd800,
+	LEAD_SURROGATE_MAX  = 0xdbff,
+	TRAIL_SURROGATE_MIN = 0xdc00,
+	TRAIL_SURROGATE_MAX = 0xdfff,
+	LEAD_OFFSET         = LEAD_SURROGATE_MIN - (0x10000 >> 10),
+//	SURROGATE_OFFSET    = 0x10000 - (LEAD_SURROGATE_MIN << 10) - TRAIL_SURROGATE_MIN,
+	CODE_POINT_MAX      = 0x0010ffff
+};
+
+
+static INLINE word
+sequence_length(word lead)
+{
+	if(lead < 0x80) 
+		return 1;
+	
+	if((lead >> 5) == 0x6)
+		return 2;
+	
+	if((lead >> 4) == 0xe)
+		return 3;
+	
+	if((lead >> 3) == 0x1E)
+		return 4;
+
+	return 0;
+}
+
+
+static dword
+_next(word *it)
+{
+	unsigned long cp = *it & 0xFF; // *itinternal::mask8(*it);
+	word length = sequence_length(*it);
+	
+	switch(length) {
+		case 1:
+			break;
+		case 2:
+			it++;
+			cp = ((cp << 6) & 0x7ff) + ((*it) & 0x3f);
+			break;
+		case 3:
+			++it; 
+			cp = ((cp << 12) & 0xffff) + (((*it) << 6) & 0xfff);
+			++it;
+			cp += (*it) & 0x3f;
+			break;
+		case 4:
+			++it;
+			cp = ((cp << 18) & 0x1fffff) + (((*it) << 12) & 0x3ffff);                
+			++it;
+			cp += ((*it) << 6) & 0xfff;
+			++it;
+			cp += (*it) & 0x3f; 
+			break;
+	}
+	++it;
+	return cp;        
+}
+
+
+
+word
+utf8to16(string &s, word *result, word cbmax)
+{
+	word i, l;
+	dword cp;
+	
+	l = len(s);
+	for(i=0; i<l; ++i) {
+		//cp = _next(s[i]);
+		if(cp > 0xffff) { //make a surrogate pair
+			*result++ = (word)((cp >> 10)   + LEAD_OFFSET);
+			*result++ = (word)((cp & 0x3ff) + TRAIL_SURROGATE_MIN);
+		}
+		else
+			*result++ = (word)(cp);
+	}
+	
+	return 0; //result;
+}
+
+

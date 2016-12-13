@@ -1,0 +1,131 @@
+#include "sensor_info.th"
+#include "utils.th"
+
+
+/*
+ * [BUS_ID.CHNL.SERIAL]
+ */
+static string
+#if 0
+_sect_name(iotype bus, byte chnl, void *serial)
+{
+	string<32> res;
+	byte *pb = (byte *)serial;
+	byte i, l;
+	
+	res = tohex(bus) + "." + tohex(chnl) + ".";
+	switch(bus) {
+		case IO_DC:
+		case IO_I2C:
+			l = 1;
+			break;
+		
+		case IO_OW:
+			l = 8;
+			break;
+		
+		case IO_RS485:
+			l = 4;
+			break;
+			
+		default:
+			l = 0;
+			break;
+	}
+	
+	for(i=0; i!=l; ++i)
+		res += tohex(pb[i]);
+	
+	return "["+res+"]";
+}
+#else
+_sect_name(sensor_id sid)
+{
+	return "[#" + str(sid) + "#]\r\n";
+}
+#endif
+
+
+static string
+_sensor_info_get(sensor_id sid) //iotype bus, byte chnl, void *serial)
+{
+	string<32> n;
+	dword pos;
+
+	if(!open_always(FILENO_SENSOR_NAMES, SENSOR_INFO_FILENAME))
+		return "";
+	
+	n = _sect_name(sid);
+	//n = _sect_name(bus, chnl, serial) + "\r\n";
+	
+	pos = fd.find(1, n, 1, FORWARD, 1, PL_FD_FIND_EQUAL);
+	if(fd.laststatus != PL_FD_STATUS_OK)
+		return "";
+	
+	if(pos == 0)
+		return "";
+		
+	fd.setpointer(pos + len(n));
+	pos = fd.find(pos, "\0", 1, FORWARD, 1, PL_FD_FIND_EQUAL);
+	if(fd.laststatus != PL_FD_STATUS_OK)
+		return "";
+		
+	if(pos == 0)
+		pos = fd.filesize;
+		
+	return fd.getdata(pos - fd.pointer);
+}
+
+
+string
+sensor_info_get(sensor_id sid) //iotype bus, byte chnl, void *serial)
+{
+	byte fn;
+	string res;
+	
+	fn = fd.filenum;
+	res = _sensor_info_get(sid);
+	fd.filenum = fn;
+	
+	return res;
+}
+
+
+void
+sensor_info_set(sensor_id sid, string& info) //iotype bus, byte chnl, void *serial, string& info)
+{
+	string<32> n;
+	string<65> tmp;
+	dword pos;
+	byte l;
+	
+	if(!open_always(FILENO_SENSOR_NAMES, SENSOR_INFO_FILENAME))
+		return;
+	
+	l = len(info);
+	
+	if(l > 64)
+		tmp = left(info, 64) ;
+	else if(l < 64)
+		tmp = info + strgen(64-l, "\0");
+	
+	tmp += "\0";
+	
+	//n = _sect_name(bus, chnl, serial) + "\r\n";
+	n = _sect_name(sid);
+	
+	pos = fd.find(1, n, 1, FORWARD, 1, PL_FD_FIND_EQUAL);
+	if(fd.laststatus != PL_FD_STATUS_OK)
+		return;
+
+	if(0 == pos) {
+		fd.setpointer(fd.filesize);
+		fd.setdata(n);
+	} else {
+		fd.setpointer(pos + len(n));
+	}
+	
+	fd.setdata(tmp);
+}
+
+

@@ -1,0 +1,576 @@
+#include "global.th"
+#include "tibbits.th"
+#include "hal.th"
+
+
+/* (c) 2016 Tibbo Technology, Inc.
+ *
+ * This file contains Hardware Abstraction Layer (HAL) procedures and functions.
+ *
+ * All this HAL stuff is intended to abstract from underlying hardware configuration 
+ * and pin numbers. 
+ */
+
+
+static tibbit_slot _slots[] = { // This array describes all available GPIO lines
+#if (PLATFORM_ID == TPP3W) || (PLATFORM_ID == TPP3WG2)
+/* First six slots S1...S15 counts GPIO lines A,B,C,D from left to right
+ */
+	{ TB_NONE, { PL_IO_NUM_9_TX0, 	PL_IO_NUM_8_RX0, 	PL_IO_NUM_0, 	PL_IO_NUM_16_INT0 }, 0 }, // slot 0 -> S1 
+	{ TB_NONE, { PL_IO_NUM_32, 		PL_IO_NUM_33, 		PL_IO_NUM_4, 	PL_IO_NUM_20_INT4 }, 0 }, // slot 1 -> S3
+	{ TB_NONE, { PL_IO_NUM_11_TX1, 	PL_IO_NUM_10_RX1, 	PL_IO_NUM_1, 	PL_IO_NUM_17_INT1 }, 0 }, // slot 2 -> S5
+	{ TB_NONE, { PL_IO_NUM_34, 		PL_IO_NUM_35, 		PL_IO_NUM_5, 	PL_IO_NUM_21_INT5 }, 0 }, // slot 3 -> S7
+	{ TB_NONE, { PL_IO_NUM_13_TX2, 	PL_IO_NUM_12_RX2, 	PL_IO_NUM_2, 	PL_IO_NUM_18_INT2 }, 0 }, // slot 4 -> S9
+	{ TB_NONE, { PL_IO_NUM_36, 		PL_IO_NUM_37, 		PL_IO_NUM_6, 	PL_IO_NUM_22_INT6 }, 0 }, // slot 5 -> S11
+	{ TB_NONE, { PL_IO_NUM_15_TX3, 	PL_IO_NUM_14_RX3, 	PL_IO_NUM_3, 	PL_IO_NUM_19_INT3 }, 0 }, // slot 6 -> S13
+	{ TB_NONE, { PL_IO_NUM_38, 		PL_IO_NUM_39, 		PL_IO_NUM_7, 	PL_IO_NUM_23_INT7 }, 0 }, // slot 7 -> S15
+/* Remaining (upper row) slots counts GPIO lines in reverse, from RIGHT to LEFT! 
+ */	
+	{ TB_NONE, { PL_IO_NUM_24, 		PL_IO_NUM_25, 		PL_IO_NUM_26,	PL_IO_NUM_27 },	0 }, // slot 8 -> S17
+	{ TB_NONE, { PL_IO_NUM_28, 		PL_IO_NUM_29, 		PL_IO_NUM_30,	PL_IO_NUM_31 },	0 }, // slot 9 -> S19
+	{ TB_NONE, { PL_IO_NUM_40, 		PL_IO_NUM_41, 		PL_IO_NUM_42, 	PL_IO_NUM_43 },	0 }, // slot 10 -> S21
+	{ TB_NONE, { PL_IO_NUM_54, 		PL_IO_NUM_55, 		0, 				0 }, TBSLOT_PIN_C_ALLOC|TBSLOT_PIN_D_ALLOC }, // slot 11 -> S23, lines A and B only
+	{ TB_NONE, { PL_IO_NUM_44, 		0, 					0, 				0 }, TBSLOT_PIN_B_ALLOC|TBSLOT_PIN_C_ALLOC|TBSLOT_PIN_D_ALLOC }, // slot 13 -> S23, line A only
+#elif (PLATFORM_ID == TPP2W) || (PLATFORM_ID == TPP2WG2)
+/* First four slots S1...S7 counts GPIO lines A,B,C,D from left to right
+ */
+	{ TB_NONE, { PL_IO_NUM_9_TX0, 	PL_IO_NUM_8_RX0, 	PL_IO_NUM_0, 	PL_IO_NUM_16_INT0 }, 0 }, // slot 0 -> S1
+	{ TB_NONE, { PL_IO_NUM_11_TX1, 	PL_IO_NUM_10_RX1, 	PL_IO_NUM_1, 	PL_IO_NUM_17_INT1 }, 0 }, // slot 1 -> S3
+	{ TB_NONE, { PL_IO_NUM_13_TX2, 	PL_IO_NUM_12_RX2, 	PL_IO_NUM_2, 	PL_IO_NUM_18_INT2 }, 0 }, // slot 2 -> S5
+	{ TB_NONE, { PL_IO_NUM_15_TX3, 	PL_IO_NUM_14_RX3, 	PL_IO_NUM_3, 	PL_IO_NUM_19_INT3 }, 0 }, // slot 3 -> S7
+/* Remaining (upper row) slots counts GPIO lines in reverse, from RIGHT to LEFT! 
+ */	
+	{ TB_NONE, { PL_IO_NUM_32,		PL_IO_NUM_33, 		PL_IO_NUM_4, 	PL_IO_NUM_20_INT4 }, 0 }, // slot 4 -> S9
+	{ TB_NONE, { PL_IO_NUM_34,		PL_IO_NUM_35, 		PL_IO_NUM_5, 	PL_IO_NUM_21_INT5 }, 0 }, // slot 5 -> S11
+#else
+#error Platform does not supported yet. Sorry.
+#endif	
+};
+
+
+// FIXME: JIRA bug TIDE-327. 
+//static ioport _ports[COUNTOF(_slots)*4]; // 4 is number of GPIO pins per tibbit slot
+static ioport _ports[13*4]; // 4 is number of GPIO pins per tibbit slot
+static unsigned char _ssi_and_ser = 0; // bit flags for 4 SSI channels and 4 serial ports
+
+
+/*! \brief Install tibbit in selected slot
+ * \returns Error code or HAL_SUCCESS
+ */
+hal_error 
+tibbit_install(tbslot slot, tibbit tb)
+{
+	tibbit_info *ti;
+	
+	if(slot >= COUNTOF(_slots))
+		return HAL_WRONG_SLOT; // Prevent buffer overruns
+
+	if(TB_NONE == tb)
+		return HAL_SUCCESS;
+
+	if(_slots[slot].tb != TB_NONE)
+		return HAL_SLOT_OCCUPIED;
+
+	ti = tibbit_getinfo(tb);
+	if(NULL == ti) 
+		return HAL_NULL_POINTER;
+
+	/* Skip connector tibbits, pushbuttons and LEDs because they
+	 * must be installed in even-numbered slots
+	 */
+	if(0 != (ti->pins & TBSLOT_C1_OR_C2))
+		return HAL_WRONG_TIBBIT_TYPE; 
+
+	/* Skip reserved/missing tibbits
+	 */
+	if(0 == ti->slots)
+		return HAL_WRONG_TIBBIT_TYPE; 
+		
+	/* Wide tibbits requires special care: they can be placed
+	 * only in even-numbered slots
+	 */
+	if(ti->slots == 2 && (0 != (slot % 2)))
+		return HAL_WRONG_SLOT;
+	
+	_slots[slot].tb = tb;
+	_slots[slot].flags = ti->pins & TBSLOT_PIN_USAGE_MASK;
+	
+	return HAL_SUCCESS;
+}
+
+
+/*! \brief Remove tibbit from slot, freeing associated resources
+ * NOT IMPLEMENTED YET
+ */ 
+void
+tibbit_remove(byte slot)
+{
+}
+
+
+static ioport *
+_ioport_get()
+{
+	byte i;
+	
+	for(i=0; i<COUNTOF(_ports); ++i)
+		if(_ports[i].type == IO_NONE)
+			return &_ports[i];
+			
+	return NULL;
+}
+
+
+/*! \brief Free I/O port
+ * Releases I/O port and all it associated resources
+ */
+void
+ioport_free(ioport *p)
+{
+	p->type = IO_NONE;
+}
+
+
+static ioport *
+_ioport_alloc_gpio(tbslot slot)
+{
+	ioport *res;
+	
+	if(0 != (_slots[slot].flags & (TBSLOT_PIN_A_ALLOC|TBSLOT_PIN_B_ALLOC|TBSLOT_PIN_C_ALLOC|TBSLOT_PIN_D_ALLOC)))
+		return NULL; // Slot is somehow occupied
+
+	res = _ioport_get();
+	if(NULL == res)
+		return NULL;
+
+	_slots[slot].flags |= (TBSLOT_PIN_A_ALLOC|TBSLOT_PIN_B_ALLOC|TBSLOT_PIN_C_ALLOC|TBSLOT_PIN_D_ALLOC);
+	
+	res->type = IO_GPIO4;
+	
+	res->d.pin[0] = _slots[slot].pin[0];
+	res->d.pin[1] = _slots[slot].pin[1];			
+	res->d.pin[2] = _slots[slot].pin[2];
+	res->d.pin[3] = _slots[slot].pin[3];			
+	
+	return res;
+}
+
+
+static ioport *
+_ioport_alloc_rs485(tbslot slot)
+{
+	ioport *res;
+	byte i;
+	
+	if((_slots[slot].tb != TB_02) && (_slots[slot].tb != TB_05))
+		return NULL;
+	
+	/* Serial tibbits may be installed only in slots with full SER functionality
+	 */
+#if (PLATFORM_ID==TPP3W) || (PLATFORM_ID==TPP3WG2)
+	if(slot != 0 && slot != 2 && slot != 4 && slot != 6)
+		return NULL;
+	i = slot / 2;
+#elif (PLATFORM_ID==TPP2W) || (PLATFORM_ID==TPP2WG2)
+	if(slot != 0 && slot != 1 && slot != 2 && slot != 3)
+		return NULL; 
+	i = slot;
+#endif
+
+	/* Slot must have pins 0,1,2 to be free
+	 */
+	if(0 != (_slots[slot].flags & (TBSLOT_PIN_A_ALLOC|TBSLOT_PIN_B_ALLOC|TBSLOT_PIN_C_ALLOC)))
+		return NULL; // Slot is somehow occupied
+
+	res = _ioport_get();
+	if(NULL == res)
+		return NULL;
+		
+	_slots[slot].flags |= TBSLOT_PIN_A_ALLOC | TBSLOT_PIN_B_ALLOC | TBSLOT_PIN_C_ALLOC;
+	
+	res->type = IO_RS485;
+	res->d.ser.spn = i;
+	res->d.ser.tx = _slots[slot].pin[0];
+	res->d.ser.rx = _slots[slot].pin[1];
+	res->d.ser.dir = 0;
+
+	if(_slots[slot].tb == TB_05) {
+		res->d.ser.dir = _slots[slot].pin[2];
+		io.num = res->d.ser.dir;
+		io.enabled = YES;
+		io.state = HIGH;
+	}
+	
+	serial_setup(res);
+			
+	return res;
+}
+
+
+static ioport *
+_ioport_alloc_rs232(tbslot slot)
+{
+	ioport *res;
+	tibbit tb;
+	byte i;
+	
+#if (PLATFORM_ID==TPP3W) || (PLATFORM_ID==TPP3WG2)
+	if(slot != 0 && slot != 2 && slot != 4 && slot != 6)
+		return NULL;
+	i = slot / 2;
+#elif (PLATFORM_ID==TPP2W) || (PLATFORM_ID==TPP2WG2)
+	if(slot != 0 && slot != 1 && slot != 2 && slot != 3)
+		return NULL; 
+	i = slot;
+#endif
+
+	tb = _slots[slot].tb;
+	
+	if((tb != TB_01) && (tb != TB_02) && (tb != TB_47))
+		return NULL;
+		
+	if((tb == TB_02 || tb == TB_47) && _slots[slot+1].tb != TB_NONE)
+		return NULL;
+	
+	res = _ioport_get();
+	if(NULL == res)
+		return NULL;
+
+	res->type = IO_RS232;
+	
+	res->d.ser.spn = i;
+	res->d.ser.tx = _slots[slot].pin[0];
+	res->d.ser.rx = _slots[slot].pin[1];
+	res->d.ser.rts = _slots[slot].pin[2];
+	res->d.ser.cts = _slots[slot].pin[3];
+	res->d.ser.ctl = _ioport_alloc_gpio(slot+1);
+	
+	return res;
+}
+
+
+/* I2C, SPI and 1-Wire requires two adjacent IO lines: SCL and SDA 
+ * SCL must be even and SDA is odd.
+ *
+ * Note: When using 1-Wire firmware loaded into tibbit 31 (PIC copro) one
+ * additional pin required for PIC-CPU synchronization (due to absence
+ * of I2C "clock stretching" feature in TPB I2C implementation)
+ */
+static ioport *
+_ioport_alloc_ssi(tbslot slot, iotype type, char n)
+{
+	ioport *res = NULL;
+	byte f, A, B;
+		
+	f = _slots[slot].flags & (TBSLOT_PIN_A_ALLOC|TBSLOT_PIN_B_ALLOC);
+	if((n == -1 || n == 0) && (0 == f)) {
+		_slots[slot].flags |= TBSLOT_PIN_A_ALLOC|TBSLOT_PIN_B_ALLOC;
+		res = _ioport_get();
+		A = 0;
+		B = 1;
+	} 
+	
+	if(NULL == res) {
+		f = _slots[slot].flags & (TBSLOT_PIN_C_ALLOC|TBSLOT_PIN_D_ALLOC);
+		if((n == -1 || n == 2) && (0 == f)) {
+			_slots[slot].flags |= TBSLOT_PIN_C_ALLOC|TBSLOT_PIN_D_ALLOC;
+			res = _ioport_get();
+			A = 2;
+			B = 3;
+		}
+	}
+	
+	if(NULL == res)
+		return NULL;
+		
+	res->type = type;
+	res->d.ssi.channel = -1;
+	res->d.ssi.scl = _slots[slot].pin[A];
+	res->d.ssi.sda = _slots[slot].pin[B];
+	res->d.ssi.stat = _slots[slot].pin[3]; 	// Used *only* for comm. with PIC (Tibbit 31) with 1-Wire firmware
+	res->d.ssi.devid = 0x00; 				// ANYDEV I2C address
+	res->d.ssi.flags = 0;
+	
+	ssi_setup_channel(res);
+
+	return res;
+}
+
+
+/*! \brief Allocate I/O port
+ * \returns I/O port descriptor (pointer) or NULL if error occurs
+ * \param slot Number of slot when tibbit must be installed
+ * \param type I/O port type
+ * \n Number of slot pin (0...3), or -1 to auto-allocate first free pin
+ * \note Different I/O port types require different number of pins. For example
+ * SSI/I2C/1W ports requires 2 adjacent pins; moreover, first pin must be 0 or 2 (if
+ * explicitly requested) or port allocation will fail.
+ */
+ioport *
+ioport_alloc(tbslot slot, iotype type, char n)
+{
+	ioport *res;
+	byte i, f;
+	
+	if(n < -1 || n > 3)
+		return NULL;
+		
+	switch(type) {
+		case IO_I2C:
+		case IO_SPI:
+		case IO_OW:
+			return _ioport_alloc_ssi(slot, type, n);
+			
+		/* Dry contacts, Wet contacts and OUT requires one IO line
+		 */
+		case IO_WC:
+		case IO_OUT:
+			for(f=TBSLOT_PIN_A_ALLOC, i=0; f; ++i, f >>=1) {
+				if(n == -1 || n == i) {
+					if(0 == (_slots[slot].flags & f)) {
+						_slots[slot].flags |= f;
+						res = _ioport_get();
+						if(NULL == res)
+							return NULL;
+						res->type = type;
+						res->d.gpio = _slots[slot].pin[i];
+						return res;
+					}
+				}
+			}
+			
+			return NULL;
+
+		case IO_RS485:
+			return _ioport_alloc_rs485(slot);
+		
+		case IO_RS232:
+			return _ioport_alloc_rs232(slot);
+			
+		case IO_DC:
+		case IO_GPIO4:
+			return _ioport_alloc_gpio(slot);
+			
+		default:
+			break;
+		
+	}
+
+	return NULL;
+}
+
+
+/*! \brief Returns I/O port characteristics flags
+ */
+unsigned char
+ioport_flags(ioport *p)
+{
+	unsigned char f;
+	
+	f = IO_FLAG_INPUT | IO_FLAG_OUTPUT;
+	
+	if((p->type == IO_I2C) || (p->type == IO_SPI) || (p->type == IO_OW))
+		f |= IO_FLAG_CAN_USE_SSI;
+		
+	return f;
+}
+
+
+/*! \brief Set ioport option
+ * \param p I/O port descriptor
+ * \param o Option name
+ * \param val New option value
+ * \returns -1 on error or previous option value on success
+ */
+int
+ioport_setopt(ioport *p, ioport_option o, int val)
+{
+	if((ioport *)0 == p)
+		return -1; // Guard against NULL pointers
+		
+	switch(o) {
+		/* Set or clear hardware acceleration flag on SSI-enabled ioports
+		 */
+		case IO_SSI_HW_ACCEL:
+			if(0 == (ioport_flags(p) & IO_FLAG_CAN_USE_SSI))
+				return -1; // Wrong ioport type: doesn't supports SSI
+				
+			if(val != 0 && p->d.ssi.channel == -1) {
+				/* Request to switch from bit-banging to HW mode
+				 */
+				if(0 == (_ssi_and_ser & HAL_SSI_C0)) {
+					p->d.ssi.channel = 0;
+					_ssi_and_ser |= HAL_SSI_C0;
+				} else if(0 == (_ssi_and_ser & HAL_SSI_C1)) {
+					p->d.ssi.channel = 1;
+					_ssi_and_ser |= HAL_SSI_C1;
+				} else if(0 == (_ssi_and_ser & HAL_SSI_C2)) {
+					p->d.ssi.channel = 2;
+					_ssi_and_ser |= HAL_SSI_C2;
+				} else if(0 == (_ssi_and_ser & HAL_SSI_C3)) {
+					p->d.ssi.channel = 3;
+					_ssi_and_ser |= HAL_SSI_C3;
+				} else {
+					return -1;
+				}
+				
+				if(p->d.ssi.channel != -1)
+					ssi_setup_channel(p);
+			} else if(val == 0 && p->d.ssi.channel >= 0) {
+				/* Request to switch from HW mode to bit-banging
+				 */
+				if(p->d.ssi.channel == 0)
+					_ssi_and_ser &= 0x7F; // FIXME ~HAL_SSI_C0 Jira ticket TIDE-333
+				else if(p->d.ssi.channel == 1)
+					_ssi_and_ser &= ~HAL_SSI_C1;
+				else if(p->d.ssi.channel == 2)
+					_ssi_and_ser &= ~HAL_SSI_C2;
+				else
+					_ssi_and_ser &= ~HAL_SSI_C3;
+					
+				p->d.ssi.channel = -1;
+				ssi_setup_channel(p);
+			}
+			
+			return p->d.ssi.channel; // Channel number
+			
+		/* Set SSI-port speed
+		 */
+		case IO_SSI_HW_SPEED:
+		    if((IO_I2C != p->type) && (IO_SPI == p->type))
+				return -1;
+
+			return 0;
+			
+		/* Option is unknown */
+		default:
+			return -1;
+	}
+	
+	return -1;
+}
+
+
+/*! \brief Query I/O port option
+ * \param p I/O port descriptor
+ * \param o Option name to query
+ * \returns Option value or -1 on error
+ * Not implemented yet
+ */
+int ioport_getopt(ioport *p, ioport_option o)
+{
+	return -1;
+}
+
+
+/*! \brief Checks whether tibbit of given type installed or not
+ */
+bool
+is_tibbit_installed(tibbit tb)
+{
+	unsigned char i;
+	
+	for(i=0; i<COUNTOF(_slots); ++i)
+		if(tb == _slots[i].tb)
+			return true;
+			
+	return false;
+}
+
+
+/*! \brief Return descriptor of num'th tibbit of given type.
+ * \note Tibbits are counted from lower slot number to higher
+ * \note For example, if you install three tibbits of type #00_1 in slots
+ * 		S1, S5, S7 and call this function as tibbit_get(TB_00_1, 2) you
+ *		will get address of tibbit in slot S7
+ * \return Address of tibbit descriptor
+ * \retval NULL if tibbit is not installed or index is out of range
+ */
+tibbit_slot *
+tibbit_get(tibbit tb, byte num)
+{
+	byte i;
+	
+	for(i=0; i<COUNTOF(_slots); ++i) {
+		if(tb == _slots[i].tb) {
+			if(0 == num)
+				return &_slots[i];
+			--num;
+		}
+	}
+	
+	return NULL;
+}
+
+
+/*! \brief Get slot number for tibbit of given type and index
+ * \return Number of tibbit slot
+ * \retval -1  if tibbit is not installed or index is out of range
+ */
+char
+tibbit_get_slot(tibbit tb, byte num)
+{
+	char i;
+	
+	for(i=0; i<COUNTOF(_slots); ++i) {
+		if(tb == _slots[i].tb) {
+			if(0 == num)
+				return i;
+			--num;
+		}
+	}
+	
+	return -1;
+}
+
+
+iotype 
+ioport_type(ioport *port)
+{
+	return (NULL == port)? IO_NONE: port->type;
+}
+
+
+string
+ioport_typestring(ioport *p)
+{
+	switch(p->type) {
+		case IO_I2C:
+			return "I2C";
+		case IO_SPI:
+			return "SPI";
+		case IO_OW:
+			return "1-WIRE";
+		case IO_DC:
+		case IO_GPIO4:
+			return "DC";
+		case IO_RS232:
+			return "RS-232";
+		case IO_RS422:
+			return "RS-422";
+		case IO_RS485:
+			return "RS-485";
+		default:
+			return "(#"+str(p->type)+")";
+	}
+}
+
+
+char ioport_spn(ioport *p)
+{
+	switch(p->type) {
+		case IO_RS232:
+		case IO_RS422:
+		case IO_RS485:
+			return p->d.ser.spn;
+	}
+	
+	return -1;
+}
+
+
+bool wifi_card_installed()
+{
+	/* This is placeholder for real routine */
+	return false;
+}
