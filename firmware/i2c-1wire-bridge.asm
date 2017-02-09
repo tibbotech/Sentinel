@@ -27,7 +27,7 @@
 ; __config 0x3FFF
  __CONFIG _CONFIG2, _WRT_OFF & _PLLEN_ON & _STVREN_ON & _BORV_LO & _LVP_ON
 
-
+ 
 #define	    I2C_ADDR	    .6	    ; Our I2C slave address. Hardcoded by now
 
 
@@ -97,11 +97,12 @@ prev	    res 1
 next	    res 1
 newfork	    res 1
 	    
-	    IDATA		    
-;
-; Initialized data section
-;
-fw_name	    db "1W03.009"	    ; Frimware ID (1Wmm.Vvv) m=month, V=major version, v=minor version
+
+USER_ID	    CODE 0x8000
+	    dw	0x0031		    ; 1
+	    dw	0x0057		    ; W
+	    dw	0x0001		    ; Major verison: 1
+	    dw	0x0002		    ; Minor version: 2
 
 ;
 ; Code section begins here
@@ -113,7 +114,7 @@ RES_VECT    CODE 0x0000		    ; processor reset vector
 INTR_VECT   CODE 0x0004		    ; Processor Interrupt vector
 	    goto INTR		    ; go to ISR
 
-
+	    
 MAIN_PROG   CODE
 
 
@@ -292,14 +293,12 @@ ONEW_RECVB  call    ONEW_XMIT	    ; Take control over line
 	    udelay  .8		    ; 8 us delay
 ;	    goto    ONEW_SAMPLE
 	    
+	    
 ;	    pulse_low
 ;	    nop
 ;	    nop
-;	    nop
-;	    nop
-;	    nop
-;	    nop
 ;	    pulse_high
+	    
 	    
 ; Samples specified line
 ; Returns C=0 when bus is low and C=1 when bus is high
@@ -349,7 +348,6 @@ ONEW_SENDB  call    ONEW_LOW
 	    call    ONEW_HIGH
 	    udelay .3
 	    return
-	    
 _sendb_one  udelay  .2
 	    call    ONEW_HIGH
 	    udelay  .61
@@ -383,7 +381,7 @@ ONEW_RECVBYTE
 	    clrf    tmp_sr	    ; Clear bit accumulation register
 recv_bits   call    ONEW_RECVB	    ; Get one bit from bus
 	    rrf	    tmp_sr, F	    ; Bits in order: low to high
-	    udelay  .60		    ; Delay until next time slot starts
+	    udelay  .50		    ; Delay until next time slot starts
 	    decfsz  bit, F	    ; Decrement bit count...
 	    goto    recv_bits	    ; ... and repeat, if needed
 	    movfw   tmp_sr	    ; Load result into WREG
@@ -440,16 +438,34 @@ READ_CFV    clrf    tmp_sr	    ; Clear accum
 	    banksel FSR0H
 	    movwf   FSR0H	
 	    
+	    clrw
+	    movwi   0[FSR0]
+	    movwi   1[FSR0]
+	    movwi   2[FSR0]
+	    movwi   3[FSR0]
+	    movwi   4[FSR0]
+	    movwi   5[FSR0]
+	    movwi   6[FSR0]
+	    movwi   7[FSR0]
+	    
 	    movfw   chnl_int	    ; Copy channel ID 
 	    movwf   chnl_sr	    ; 
 	    
 	    call    ONEW_XMIT	    ; Take control over line
 	    call    ONEW_LOW	    ; Set line to LOW
-	    udelay .250		    ; 500 μs delay
-	    udelay .250		    ; (480-960 μs allowed by standard)
+
+	    movlw   .36
+	    movwf   cnt_hi
+msloop	    
+	    udelay  .250	    ; 250 μs delay
+	    decfsz  cnt_hi
+	    goto    msloop
+	    
 	    call    ONEW_RECV	    ; Allow line to float
     	    udelay .130		    ; Device must hold line low for 75-85 μs...
-	    
+
+; DHT-11 sensor is answering after almost 8 ms instead of 20-40 μs as stated in documentation!
+;
 cfv_loop    movlw   .50		    ; 85 us + 1 cycle
 	    movwf   cnt_hi
 	    call    DETECT_LOW
@@ -460,14 +476,14 @@ cfv_loop    movlw   .50		    ; 85 us + 1 cycle
 cfv_bitst   movlw   .8
 	    movwf   bit		    ; Set bit counter
 
-cfv_bitloop movlw   .30		    ; LOW level period always precedes any bit
+cfv_bitloop movlw   .35		    ; LOW level period always precedes any bit
 	    movwf   cnt_hi	    ; transmission an lies in 48-55 μs range
 	    call    DETECT_HI	    ;
 	    movf    cnt_hi, F	    ;
 	    btfsc   STATUS, Z	    ;
 	    goto    read_cfv_end    ; If reach maximum length of 55 μs + 1 cycle, exit
 
-	    movlw   .60		    ; HIGH level period can lasts from 22 to 30 μs
+	    movlw   .50		    ; HIGH level period can lasts from 22 to 30 μs
 	    movwf   cnt_hi	    ; for logical '0' to 75-80 μs for logical '1'
 	    call    DETECT_LOW	    ; Out-of-range values interpreted as end of bit
 	    movf    cnt_hi, F	    ; stream.
@@ -508,7 +524,7 @@ cfv_end	    movlw   LOW FSR0L
 	    subwf   FSR0L, W
 	    movwf   wptr
 	    clrf    rptr
-	    
+
 	    return
 
 
@@ -602,7 +618,7 @@ ENUM_RESET  movlw   LOW recvbuf
 	    movlw   .65
 	    movwf   fork
 	    clrf    rptr
-	    movlw   .8
+	    movlw   .8		    ; ????
 	    movwf   wptr
 	    return
 
@@ -759,7 +775,7 @@ cmd_searchrom
 ;
 START
    
-; 32 MHZ: PLL Enable +  8MHZ + CLOCL SR C= CONFIG1
+; 32 MHZ: PLL Enable +  8MHZ + CLOCL SRC= CONFIG1
 ;
 	    movlw   0xF0
 	    banksel OSCCON
@@ -797,7 +813,9 @@ START
 	    
 	    banksel PORTA
 	    bsf	    PORTA, RA5
-	    
+
+; Init internal stuff
+;	    
 	    clrf    chnl_int
 	    clrf    tmp_int
 	    clrf    chnl_sr
@@ -830,22 +848,23 @@ chk_reset   btfss   flags, ResetRq
 	    call    ONEW_XMIT	    ; Take control over line
 	    call    ONEW_LOW	    ; Set line to LOW
 	    udelay .250		    ; 500 μs delay
-	    udelay .250		    ; (480-960 μs allowed by standard)
+	    udelay .230		    ; (480-960 μs allowed by standard)
+
 	    call    ONEW_RECV	    ; Allow line to float
-    	    udelay .100		    ; Device must pull line low after 15-60 μs 
+    	    udelay .80		    ; Device must pull line low after 15-60 μs 
 				    ; interval and hold it low 60-240 μs
 				    ; This is called 'Presence Pulse'
 	    call    ONEW_SAMPLE	    ; Sample line to determine device presence pulse
 	    btfsc   STATUS, C	    ; ACK or NACK depending on presence pulse
 	    goto    no_reply
 	    
-	    udelay  .250	    ; Perform necessary delays as stated
-	    udelay  .250	    ; in 1-Wire protocol specification
+	    udelay  .120	    ; Perform necessary delays as stated
+
 	    banksel SSP1CON2
 	    bcf	    SSP1CON2, ACKDT ; ACKNOWLEDGE
 	    goto    reset_cont
 	    
-no_reply
+no_reply    
 	    banksel SSP1CON2
 	    bsf	    SSP1CON2, ACKDT ; NOT ACKNOWLEDGE
 	    
@@ -896,7 +915,7 @@ buf_empty
 	    
 	    call    ONEW_XMIT	    ; Take control over line
 	    call    ONEW_LOW	    ; Issue LOW pulse
-	    udelay  .8		    ; 5-10 μs delay
+	    ;udelay  .2		    ; 5-10 μs delay
 	    call    ONEW_RECVBYTE   ; Perform read
 
 	    pulse_low		    ; Clear master wait flag
@@ -909,9 +928,9 @@ i2c_send
 	    banksel SSP1CON
 	    bsf	    SSP1CON, CKP    ; Release SCL line to allow master to continue
 
-	    movlw   .55
-	    movwf   tmp_sr
-	    movwf   tmp_int
+;	    movlw   .55
+;	    movwf   tmp_sr
+;	    movwf   tmp_int
 	    
 	    bcf	    flags, ReadRq
 	    bsf	    flags, ByteSent ; Singal IRQ handler to check ACKSTAT flag
@@ -954,7 +973,7 @@ SETUP_I2C
 
 	    banksel SSP1STAT
 	    movlw   0x00
-	    movwf   SSP1STAT
+	    movwf   SSP1STAT	    
 	    
 	    movlw   I2C_ADDR	    ; NODE_ADDR, must be taken from EEPROM
 	    banksel SSP1ADD
@@ -1005,7 +1024,7 @@ SETUP_I2C
 	    movwf   APFCON1
 	    
 	    return
-	    
+
 	    
 ; Interrupt service routine code
 ;
@@ -1023,6 +1042,8 @@ INTR
 	    retfie
 	    
 eob	    bcf	    flags, ByteSent ; No more data to send
+	    clrf    rptr	    ; BUGFIX #1: Clear read and write buffer pointers upon STOP condition to allow
+	    clrf    wptr	    ; correct reading of 1-Wire after Single-wire read
 	    goto    intr_end
 	    
 not_sent
@@ -1069,7 +1090,7 @@ do_rdwr
 	    movwf   chnl_int	    ;
 	    rlf	    chnl_int, F	    ;
 	    rlf	    chnl_int, F	    ;
-	    rlf	    chnl_int, W	    ;
+	    rlf	    chnl_int, W	    ; 
 	    andlw   b'00000011'	    ; One bit in C flag, other is MSB. Mask out excess bits
 	    movwf   chnl_int	    ; Save in chnl_int
 
@@ -1091,8 +1112,8 @@ read_ord
 	    
 addr_write_req   
 	    bsf	    flags, ResetRq  ; Bus need reset pulse before writes can occur
-;	    goto    intr_end
-	    retfie		    ; We releace Clock line after presence pulse detection
+	    goto    intr_end
+;	    retfie		    ; We release Clock line after presence pulse detection
 	    
     
 is_read_data_req 
