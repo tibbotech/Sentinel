@@ -4,6 +4,9 @@
 #include "validators.th"
 
 
+extern tibbit tibbit_number(string);
+
+
 static string
 v_ip(string& q, string& n)
 {
@@ -296,6 +299,129 @@ saveAgg(string& q)
 }
 
 
+static string
+validateHwConfig(string& q)
+{
+	string errs = "";
+	string<32> name;
+	string tmp;
+	tibbit tbnum;
+	byte i;
+	
+	for(i=0; i<HAL_SLOT_COUNT; ++i) {
+		name = "s"+str(i);
+		tmp = query_arg(q, name, "");
+		if(tmp == "0")
+			continue; // Empty tibbit slot
+		tbnum = tibbit_number(tmp);
+		
+		switch(tbnum) {
+			case TB_NONE:
+				errs += "," + j_encode(name, "9");
+				break;
+			
+			case TB_01:
+			case TB_02:
+			case TB_05:
+				if(tbnum == TB_02) {
+					tmp = query_arg(q, name + "m", "");
+					if("232" != tmp && "422" != tmp && "485" != tmp)
+						errs += "," + j_encode(name + "m", "10");
+				}
+				
+				tmp = query_arg(q, name + "t", "");
+				if("sc" != tmp && "mb" != tmp && "ts" != tmp)
+					errs += "," + j_encode(name + "t", "11");
+				break;
+				
+			case TB_31:
+				tmp = query_arg(q, "t" + str(i), "");
+				if(tmp != "1" && tmp != "a") 
+					errs += "," + j_encode("t" + str(i), "12");
+				break;
+		}
+		
+		if(TB_47 == tbnum || TB_02 == tbnum || TB_06 == tbnum)
+			++i; /* "Wide" tibbits */
+	}
+		
+	return right(errs, len(errs)-1);
+}
+
+
+static string
+saveHwConfig(string& q)
+{
+	string s, errs;
+	string<5> name;
+	string<16> tmp;
+	tibbit tbnum;
+	byte i;
+	
+	errs = validateHwConfig(q);
+	if(len(errs) > 0) {
+		s = j_encode("status", "failed");
+		s += "," + "\"errors\":" + "{"+errs+"}";
+	} else {
+		if(open_always(FILENO_TEMP, "hwconfig")) {
+			fd.filenum = FILENO_TEMP;
+			fd.setpointer(1);
+			
+			for(i=0; i<HAL_SLOT_COUNT; ++i) {
+				name = "s"+str(i);
+				tmp = query_arg(q, name, "");
+				if("0" == tmp)
+					continue;
+
+				tbnum = tibbit_number(tmp);
+				s = "S" + (i<10? "0": "") + str(i) + " " + tmp;
+				switch(tbnum) {
+					case TB_01:
+					case TB_02:
+					case TB_05:
+						if(tbnum == TB_02) {
+							tmp = query_arg(q, name + "m", "");
+							s += " rs" + tmp;
+						}
+
+						tmp = query_arg(q, name + "t", "");
+						s += " ";
+						if("sc" == tmp)
+							s += "console";
+						else if("mb" == tmp)
+							s += "modbus";
+						else if("ts" == tmp)
+							s += "tibbo";
+						break;
+						
+					case TB_31:
+						tmp = query_arg(q, "t" + str(i), "");
+						s += " ";
+						if("1" == tmp)
+							s += "1-wire";
+						else if("a" == tmp)
+							s += "adc";
+						break;
+				}
+				
+				s += "\r\n";
+				
+				fd.setdata(s);
+				
+				if(TB_47 == tbnum || TB_02 == tbnum || TB_06 == tbnum)
+					++i; /* "Wide" tibbits */
+			}
+			
+			fd.setfilesize(fd.pointer);
+			fd.close();
+		}
+		s = j_encode("status", "ok");
+	}
+
+	return s;
+}
+
+
 string
 saveData()
 {
@@ -316,6 +442,8 @@ saveData()
 		res = saveSms(q);
 	else if(f == "agg")
 		res = saveAgg(q);
+	else if(f == "hwc")
+		res = saveHwConfig(q);
 	else
 		res = j_error("Unsupported request type (\\\""+htmlspecialchars(f)+"\\\")");
 		

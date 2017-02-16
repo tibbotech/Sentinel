@@ -64,7 +64,7 @@ extern tgs_addr _tgs_addr_any;
 extern tgs_addr _tgs_addr_undef;
 
 extern void tibbo_sensors_init();
-extern void on_tibbo_data_arrival(string);
+extern void on_tibbo_data_arrival();
 extern void tibbo_sensor_timer();
 extern word tibbo_query_sensor(ioport *, tgs_addr, int, void *);
 extern word tibbo_query_port(ioport *);

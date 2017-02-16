@@ -12,7 +12,7 @@ extern unsigned short unknown_sensor_count;
 extern sensor *connected_sensors;
 
 
-connected_sensors = device_boot_portscan(&sensor_count, &unknown_sensor_count);
+//connected_sensors = probe_sensors(&sensor_count, &unknown_sensor_count);
 
 
 ?>
@@ -41,6 +41,7 @@ connected_sensors = device_boot_portscan(&sensor_count, &unknown_sensor_count);
 		<?
 			}
 		?>
+		<div class="msg" style="float: none; margin-bottom: 1em; display: none;">1 important setting awaits your review. Please visit settings page and make desired changes.</div>
 		<div class="banner_flex_outer">
 			<div class="banner" style="background-image: url(network.svg)">
 				<a class="banner_link" href="network_settings.html">Network Settings</a>
@@ -55,6 +56,7 @@ connected_sensors = device_boot_portscan(&sensor_count, &unknown_sensor_count);
 			<div class="banner" style="background-image: url(ag.svg)">
 				<a class="banner_link" href="aggregate_settings.html">AggreGate&trade; Settings</a>
 				<div class="banner_info">Enable seamless integration with AggreGate&trade; SCADA platform</div>
+				<div class="banner_status">Status: <b>Disconnected</b></div>
 			</div>
 
 			<div class="banner">
@@ -92,16 +94,15 @@ connected_sensors = device_boot_portscan(&sensor_count, &unknown_sensor_count);
 				<div class="banner_info">View and monitor values reported by sensors</div>
 			</div>
 
-			<div class="banner" style="background-image: url(backup_restore.svg)">
-				<a class="banner_link" href="backup_restore.html">Backup & Restore</a>
-				<div class="banner_info">Backup and restore device configuration</div>
+			<div class="banner-attn" style="background-image: url(hw_config.svg)">
+				<a class="banner_link" href="hw_config.html">Hardware Configuration</a>
+				<div class="banner_info">Modify hardware configuration according to your needs</div>
 			</div>
 		</div>
 		
 		<div class="footer">&copy; 2015-2016 <a href="http://tibbo.com" target="_blank">Tibbo Technology</a>
 		<span class="spl">HW version: <?
-			sock.setdata(htmlspecialchars(sys.version));
-			sock.send();
+			echo(htmlspecialchars(sys.version));
 		?></span>
 		<span class="spl">FW version: <? echo(__VERSION__); ?></span>
 		<span class="spl">Sensor DB version: 1.0</span>

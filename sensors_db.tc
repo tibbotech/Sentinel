@@ -109,6 +109,10 @@ iotype_to_flag(iotype t) {
 			return 0x20;
 		case IO_DC:
 			return 0x40;
+#if 0			
+		case IO_MODBUS:
+			return 0x80;
+#endif			
 		default:
 			return 0;
 	}

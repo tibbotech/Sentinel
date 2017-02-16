@@ -7,7 +7,7 @@
 #include "sensors_db.th"
 
 
-extern sensor *device_boot_portscan(word *, word *);
+extern sensor *probe_sensors(word *, word *);
 extern void device_init_sensors(sensor *);
 extern void device_portscan(sensor *);
 extern void sensor_read(sensor *); // from sensors_poll.tc

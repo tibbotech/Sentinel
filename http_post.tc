@@ -42,6 +42,8 @@ http_post_init()
 }
 
 
+/* Constants
+ */
 static string<20> _hdr_cd = "Content-Disposition:";
 static string<17> _hdr_ce = "Content-Encoding:";
 static string<16> _hdr_ct = "Content-Type:";

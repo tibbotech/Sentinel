@@ -1,0 +1,39 @@
+#include "global.th"
+#include "hal.th"
+#include "utils.th"
+
+
+void 
+html_selected(bool f)
+{
+	if(f) 
+		sock_send("selected ");
+}
+
+
+string
+get_hwconfig_record(tbslot slot)
+{
+	string<8> tmp;
+	dword pos, eor;
+	
+	if(slot < 10) {
+		tmp = "S0" + str(slot) + " ";
+	} else {
+		tmp = "S" + str(slot) + " ";
+	}
+	
+	fd.filenum = FILENO_TEMP;
+	
+	pos = fd.find(1, tmp, 1, FORWARD, 1, PL_FD_FIND_EQUAL);
+	if(0 != pos) {
+		eor = fd.find(pos, "\r\n", 1, FORWARD, 1, PL_FD_FIND_EQUAL);
+		if(0 != eor) {
+			fd.setpointer(pos + 4);
+			return fd.getdata(eor - pos - 4);
+		}
+	}
+	
+	return "";
+}
+

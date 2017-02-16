@@ -24,7 +24,7 @@ extern void i2c_stop(ioport *);
 extern void i2c_restart(ioport *);
 extern void i2c_write(ioport *, byte);
 extern bool i2c_detect(ioport *, byte);
-extern string<127> i2c_port_scan(ioport *);
+extern string<127> i2c_port_scan(ioport *, byte);
 extern byte i2c_read(ioport *, bool);
 
 

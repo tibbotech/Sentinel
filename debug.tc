@@ -4,12 +4,12 @@
 void
 p_debug(string& file, unsigned short line, string msg)
 {
-	sys.debugprint(file+"("+str(line)+"): "+msg+"\r\n");
+	sys.debugprint(file+"("+str(line)+"): " + msg + "\r\n");
 }
 
 
 void
 p_error(string& file, unsigned short line, string msg)
 {
-	sys.debugprint(file+"("+str(line)+"): ERROR: "+msg+"\r\n");
+	sys.debugprint(file+"("+str(line)+"): ERROR: " + msg + "\r\n");
 }

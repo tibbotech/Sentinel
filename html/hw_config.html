@@ -1,0 +1,233 @@
+<?
+
+
+#include "global.th"
+#include "hal.th"
+#include "utils.th"
+#include "device_map.th"
+
+
+extern void sensor_db_http_enumsensors(byte);
+extern string get_hwconfig_record(tbslot);
+extern tibbit tibbit_number(string);
+extern void html_selected(bool);
+
+byte i, sid, cnt, pos;
+string<8> id, mode, role;
+tibbit tbnum, tbprev;
+string<24> tbrec, tbopts;
+
+
+fd.filenum = FILENO_TEMP;
+fd.open("hwconfig"); // Ignore result
+
+
+?><!DOCTYPE html>
+<html>
+<head>
+<title>Hardware Configuration</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+<link rel="stylesheet" type="text/css" href="style.css" />
+<link rel="stylesheet" type="text/css" href="swal2.css" />
+<script type="text/javascript" src="jq.js"></script>
+<script type="text/javascript" src="jqbm.js"></script>
+<script type="text/javascript" src="swal2.js"></script>
+<script type="text/javascript" src="ma.js"></script>
+</head>
+<body>
+	<div class="body_outer">
+	<div class="heading">
+		<div class="main_heading">Hardware Configuration</div>
+		<div class="main_heading_descr">This page allows to modify hardware configuration according to your needs</div>
+		<div class="back"><a href="index.html">&laquo;&nbsp;Return to the main page</a></div>
+	</div>
+	<div class="body">
+		<div class="msg" id="msg">Configuration saved. Please reboot your device to make settings to take effect<div class="cb"><a id="close" href="#"><img src="del.png"></a></div></div>
+		<form action="" method="POST">
+			<fieldset>
+				<legend>Tibbit Layout</legend>
+				<input type="hidden" class="cff" name="src" value="hwc"><?
+					tbprev = TB_NONE;
+					for(i=0; i<HAL_SLOT_COUNT; ++i) {
+						sid = i*2+1;
+						id = "s" + str(i);
+						
+						/* File may be absent on flash, so check opened status */
+						tbrec = fd.fileopened? get_hwconfig_record(i): "0";
+						pos = instr(1, tbrec, " ", 1);
+						if(0 != pos) {
+							tbnum = tibbit_number(left(tbrec, pos-1));
+						} else {
+							tbnum = tibbit_number(tbrec);
+						}
+?>
+				<div class="formrow slot<? if(is_uart_slot(sid)) sock_send(" uart"); ?>">
+					<label for="<? sock_send(id); ?>"><div class="l_win">Slot S<?
+						sock_send(sid); 
+						if(is_uart_slot(sid)) { 
+							?><span title="This socket is UART-capable" class="uart">UART</span><?
+						}
+					?></div></label>
+					<select class="tibbit cff" <? if(tbprev == TB_02 || tbprev == TB_47 || tbprev == TB_06) { sock_send("style=\"visibility: hidden\" "); }?>name="<? sock_send(id); ?>" id="<? sock_send(id); ?>" data-slot="<? sock_send(i); ?>">
+						<option <? html_selected(tbnum == TB_NONE); ?>value="0">No Tibbit installed</option>
+						<optgroup label="Direct I/O lines">
+							<option <? html_selected(tbnum == TB_00_1); ?>value="00-1">#00-1: 4 Direct I/O lines</option>
+							<option <? html_selected(tbnum == TB_00_2); ?>value="00-2">#00-2: 3 Direct I/O lines, Ground</option>
+							<option <? html_selected(tbnum == TB_00_3); ?>value="00-3">#00-3: 2 Direct I/O lines, +5VDC, Ground</option>
+						</optgroup>
+						<optgroup label="Serial Ports" class="ser">
+							<option <? html_selected(tbnum == TB_01); ?>value="01">#01: 4-line RS232 serial port</option>
+							<option <? html_selected(tbnum == TB_02); ?>value="02">#02: Universal serial port (RS232/422/485)</option>
+							<option <? html_selected(tbnum == TB_05); ?>value="05">#05: RS485 serial port (half-duplex)</option>
+						</optgroup>
+						<optgroup label="Relays">
+							<option <? html_selected(tbnum == TB_03_1); ?>value="03-1">#03-1: Two low-power relays (config 1)</option>
+							<option <? html_selected(tbnum == TB_03_2); ?>value="03-2">#03-2: Two low-power relays (config 2)</option>
+							<option <? html_selected(tbnum == TB_06); ?>value="06">#06: 2 High-power relays</option>
+							<option <? html_selected(tbnum == TB_07); ?>value="07">#07: 2 Solid state relays</option>
+							<option <? html_selected(tbnum == TB_15); ?>value="15">#15: High-voltage AC solid state relay</option>
+						</optgroup>
+						<optgroup label="Optoisolated Inputs">
+							<option <? html_selected(tbnum == TB_04_1); ?>value="04-1">#04-1: 2 Isolated inputs</option>
+							<option <? html_selected(tbnum == TB_04_2); ?>value="04-2">#04-2: 3 Isolated inputs, common (-)</option>
+							<option <? html_selected(tbnum == TB_04_3); ?>value="04-3">#04-3: 3 Isolated inputs, common (+)</option>
+							<option <? html_selected(tbnum == TB_04_4); ?>value="04-4">#04-4: 4 Isolated inputs, common ground</option>
+						</optgroup>
+						<optgroup label="Miscalleneous"> 
+							<option <? html_selected(tbnum == TB_13); ?>value="13">#13: 4-channel ADC, 12 bits *</option>
+							<option <? html_selected(tbnum == TB_31); ?>value="31">#31: PIC coprocessor</option>
+							<option <? html_selected(tbnum == TB_47); ?>value="47">#47: GPRS modem</option>
+							<? /*<option <? html_selected(tbnum == TB_51); ?>value="51">#51: CAN bus</option>*/ ?>
+						</optgroup>
+                    </select><?
+					
+						if(tbnum == TB_02 || tbnum == TB_01 || tbnum == TB_05) { 
+							tbopts = right(tbrec, len(tbrec)-pos);
+							pos = instr(1, tbopts, " ", 1);
+							if(pos != 0) {
+								mode = left(tbopts, pos-1);
+								role = right(tbopts, len(tbopts)-pos);
+							} else {
+								mode = "";
+								role = tbopts;
+							}
+?>						
+	<span class="opts">
+<?
+							if(tbnum == TB_02) {
+?>							
+	<label class="spm">Mode</label>
+	<select id="spm" name="<? sock_send("s"+str(i)+"m"); ?>" class="spm cff">
+		<option <? html_selected(mode == "rs232"); ?>value="232">RS-232</option>
+		<option <? html_selected(mode == "rs422"); ?>value="422">RS-422</option>
+		<option <? html_selected(mode == "rs485"); ?>value="485">RS-485</option>
+	</select>
+<?
+							}
+?>
+	<label>Role</label>
+	<select id="spt" name="<? sock_send("s"+str(i)+"t"); ?>" class="cff">
+		<option <? html_selected(role == "console"); ?>value="sc">Serial Console</option>
+		<option <? html_selected(role == "modbus"); ?>value="mb">ModBus</option>
+		<option <? html_selected(role == "tibbo"); ?>value="ts">Tibbo Sensors</option>
+	</select>
+	</span>
+<?	
+						} else if(tbnum == TB_31) {
+							tbopts = right(tbrec, len(tbrec)-pos);
+?>
+	<span class="opts">
+	<label>Firmware</label>
+	<select id="pt" name="<? sock_send("t"+str(i)); ?>" class="cff">
+		<option <? html_selected(tbopts == "1-wire"); ?>value="1">1-Wire/Single Wire (3 ports)</option>
+		<option <? html_selected(tbopts == "adc"); ?>value="a">10-bit ADC (4 channels)</option>
+	</select>
+	<!-- <input type="button" value="Upload F/W"> -->
+	</span>
+<?
+						}
+					?>
+				</div>
+				<? 
+					tbprev = tbnum;
+				} ?>
+			</fieldset>
+			<div><br/><input type="submit" value="Save"><div class="lrpad"><img id="l" src="loading.gif"></div></div>
+		</form>
+	</div>
+<!-- placeholder for serial port options -->
+	<span style="display: none" class="invis1">
+	<label class="spm">Mode</label>
+	<select id="spm" name="spm" class="spm cff">
+		<option value="232">RS-232</option>
+		<option value="422">RS-422</option>
+		<option value="485">RS-485</option>
+	</select>
+	<label>Role</label>
+	<select id="spt" name="spt" class="cff">
+		<option value="sc">Serial Console</option>
+		<option value="mb">ModBus</option>
+		<option value="ts">Tibbo Sensors</option>
+	</select>
+	</span>
+<!-- placeholder for PIC roles -->
+	<span style="display: none" class="invis2">
+	<label>Firmware</label>
+	<select id="pt" name="pt" class="cff">
+		<option value="1">1-Wire/Single Wire (3 ports)</option>
+		<option value="a">10-bit ADC (4 channels)</option>
+	</select>
+	<!-- <input type="button" value="Upload F/W"> -->
+	</span>
+</div>
+</body>
+<script type="text/javascript">
+
+$(document).ready(function(){
+	var opts, cls, v;
+	
+	$(".formrow.slot")
+		.not(".uart")
+		.children("select")
+		.children(".ser")
+		.remove(); 
+	
+	$(".tibbit").each(function() {
+		$(this).change(function() {
+			v = $(this).val();
+			cls = "";
+			
+			$(this).next(".opts").remove();
+			if(v == "31") {
+				cls = "invis2";
+			} else if(v == "01" || v == "02" || v == "05") {
+				cls = "invis1";
+			}
+			
+			var ts = parseInt($(this).data("slot"));
+			var ns = ts + 1;
+
+			if(cls.length > 0) {
+				opts = $("."+cls)
+						.clone(true)
+						.removeClass(cls)
+						.addClass("opts")
+						.css("display", "inline")
+						.insertAfter($(this));
+						
+				if(v != "02")
+					opts.children(".spm").remove();
+
+				opts.children("#spm").attr("name", "s"+ts+"m");
+				opts.children("#spt").attr("name", "s"+ts+"t");
+				opts.children("#pt").attr("name", "t"+ts);
+			}
+			
+			$("#s"+ns).css("visibility", (v == "02" || v == "06" || v == "47")? "hidden": "visible");
+		});
+	});
+});
+
+</script>
+</html>
+<? sock.send(); ?>

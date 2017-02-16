@@ -325,4 +325,93 @@
         </buslist>
     </sensor>
 
+    <sensor id="16" valuetype="voltage">
+        <name>4-channel ADC, raw data</name>
+        <chipset>LTC2309</chipset>
+        <buslist>
+            <bus>i2c</bus>
+        </buslist>
+        <!-- no initialization required -->
+        <read>
+            <!-- Initiate conversion on all of the 4 channels. T{conv} is 1.3 to 1.8 µs -->
+            <command>88</command>
+            <command>98</command>
+            <command>A8</command>
+            <command>B8</command>
+
+            <!-- Discard previous results, and re-initiate conversion reading back actual data -->
+            <command>88</command>
+            <reply length="2">
+                <param type="word">
+                    <bitfield start="0" size="16" />
+                </param>
+            </reply>
+
+            <command>98</command>
+            <reply length="2">
+                <param type="word">
+                    <bitfield start="0" size="16" />
+                </param>
+            </reply>
+
+            <command>A8</command>
+            <reply length="2">
+                <param type="word">
+                    <bitfield start="0" size="16" />
+                </param>
+            </reply>
+
+            <command>B8</command>
+            <reply length="2">
+                <param type="word">
+                    <bitfield start="0" size="16" />
+                </param>
+            </reply>
+        </read>
+    </sensor>
+
+    <sensor id="17" valuetype="voltage">
+        <name>4-channel ADC, millivolts</name>
+        <chipset>LTC2309</chipset>
+        <buslist>
+            <bus>i2c</bus>
+        </buslist>
+        <!-- no initialization required -->
+        <read>
+            <!-- Initiate conversion on all of the 4 channels. T{conv} is 1.3 to 1.8 µs -->
+            <command>88</command>
+            <command>98</command>
+            <command>A8</command>
+            <command>B8</command>
+
+            <!-- Discard previous results, and re-initiate conversion reading back actual data -->
+            <command>88</command>
+            <reply length="2">
+                <param type="word">
+                    <bitfield start="0" size="16" />
+                </param>
+            </reply>
+
+            <command>98</command>
+            <reply length="2">
+                <param type="word">
+                    <bitfield start="0" size="16" />
+                </param>
+            </reply>
+
+            <command>A8</command>
+            <reply length="2">
+                <param type="word">
+                    <bitfield start="0" size="16" />
+                </param>
+            </reply>
+
+            <command>B8</command>
+            <reply length="2">
+                <param type="word">
+                    <bitfield start="0" size="16" />
+                </param>
+            </reply>
+        </read>
+    </sensor>
 </sensors>

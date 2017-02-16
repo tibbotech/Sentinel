@@ -70,32 +70,22 @@ address_format(iotype bus, void *addr)
 byte
 dry_contacts_init()
 {
-	byte i, j, chnl;
-	word wflags, wmask;
-	tibbit_slot *slot;
+	byte i, chnl, cc;
+	word flags, mask;
+	ioport *port;
 	
-	wflags = val(stg_get("DCPE", 0)); // 15 bit flags 'dc port enable'
-	wmask =  1;
-	chnl = 0;
-	
-	/* We allow of installing up to 5 Tibbits #04-2, each has three optoisolated 
-	 * inputs with common '-' this sums up to 15 dry contact lines in total
-	 */
-	for(i=0; i<5; ++i) {
-		slot = tibbit_get(TB_04_2, i);
-		if(NULL == slot) {
-			slot = tibbit_get(TB_04_4, i);
-			if(NULL == slot)
-				break;
-		}
-		
-		for(j=0; j<3; ++j, wmask <<= 1, chnl++)
-			if(0 != (wflags & wmask))
+	flags = val(stg_get("DCPE", 0)); // 16 bit flags 'dc port enable'
+	for(cc=0, enum_init(); port = enum_type_next(IO_DC); ) {
+		for(i=0; i<port->ci.count; ++i, ++cc) {
+			chnl = port->ci.start + i;
+			mask = 1 << chnl;
+			if(0 != (flags & mask))
 				if(!sensor_assoc_add(IO_DC, chnl, 0, NULL))
 					break;
+		}
 	}
 	
-	return chnl;
+	return cc; 
 }
 
 
@@ -129,56 +119,71 @@ find_sensor(iotype bus, byte chnl, void *addr)
 
 
 static void
-port_i2c_scan(bus_scan *bs, byte pn) 
+probe_i2c_ports(bus_scan *bs) 
 {
 	string<127> is;
 	int i, l;
 	sensor *addr; 
-	byte cnt = 0;
+	byte pn, cnt, s, e;
 	
-	is = i2c_port_scan(bs->port);
+	s = bs->port->ci.start;
+	e = s + bs->port->ci.count;
+	cnt = 0;
 	
-	l = len(is);
-	for(i=0; i<l; ++i) {
-		/* Try to find sensor with given ID on given I2C port
-		 */
-		bs->addr[0] = is[i];
-		addr = sensor_assoc_find(IO_I2C, pn, bs->addr);
-		if(NULL == addr) {
-			// No such record in assoc db
-			bs->ucount++;
-		} else {
-			addr->port = bs->port;
-			addr->next = bs->chain;
-			++cnt;
-			bs->count++;
-			bs->chain = addr; 
-		}
-	}
-}
-
-
-static void
-port_1w_scan(bus_scan *bs, byte pn)
-{
-	ow_devid owa;
-	sensor *addr;
-	byte cnt = 0;
+	for(pn=s; pn<e; ++pn) {
+		DBG("Probing I2C channel " + str(pn));
 	
-	ow_enum_start(bs->port, pn);
-	while(ow_enum_next(bs->port, pn, &owa)) {
-		if(ow_addr_valid(&owa)) { // additionaly you can check address validity agianst checksum
-			_memcpy(&bs->addr, &owa, sizeof(owa));
-			
-			addr = sensor_assoc_find(IO_OW, pn, bs->addr);
+		is = i2c_port_scan(bs->port, (pn-s) % 2); // Max. of 2 I2C channels per tibbit
+		
+		l = len(is);
+		for(i=0; i<l; ++i) {
+			/* Try to find sensor with given ID on given I2C port
+			 */
+			bs->addr[0] = is[i];
+			addr = sensor_assoc_find(IO_I2C, pn, bs->addr);
 			if(NULL == addr) {
+				// No such record in assoc db
 				bs->ucount++;
 			} else {
 				addr->port = bs->port;
 				addr->next = bs->chain;
 				++cnt;
 				bs->count++;
-				bs->chain = addr;
+				bs->chain = addr; 
+			}
+		}
+	}
+}
+
+
+static void
+probe_1wire_port(bus_scan *bs)
+{
+	ow_devid owa;
+	sensor *addr;
+	byte pn, cnt, s, e;
+	
+	s = bs->port->ci.start;
+	e = s + bs->port->ci.count;
+	cnt = 0;
+	
+	for(pn=s; pn<e; ++pn) {
+		DBG("Probing 1-Wire channel " + str(pn));
+		ow_enum_start(bs->port, pn);
+		while(ow_enum_next(bs->port, pn, &owa)) {
+			if(ow_addr_valid(&owa)) { // additionaly you can check address validity agianst checksum
+				_memcpy(&bs->addr, &owa, sizeof(owa));
+				
+				addr = sensor_assoc_find(IO_OW, pn, bs->addr);
+				if(NULL == addr) {
+					bs->ucount++;
+				} else {
+					addr->port = bs->port;
+					addr->next = bs->chain;
+					++cnt;
+					bs->count++;
+					bs->chain = addr;
+				}
 			}
 		}
 	}
@@ -188,35 +193,77 @@ port_1w_scan(bus_scan *bs, byte pn)
 
 
 static void
-port_rs485_scan(bus_scan *bs, byte pn)
+probe_adc_ports(bus_scan *bs)
+{
+	int n;
+	sensor *addr;
+	byte pn, cnt, s, e;
+	
+	s = bs->port->ci.start;
+	e = s + bs->port->ci.count;
+	cnt = 0;
+
+	for(pn=s; pn<e; ++pn) {
+		DBG("Probing ADC channel " + str(pn));
+		n = sensor_assoc_findtype(0, IO_PIC_ADC, pn);
+		if(n >= 0) {
+			addr = sensor_assoc_get(n);
+			
+			addr->port = bs->port;
+			addr->pin = pn % 3; // Each ADC tibbit have 3 channels
+			addr->next = bs->chain;
+			addr->ptype = SPT_WORD;
+			
+			bs->count++;
+			bs->chain = addr;
+		}
+	}
+}
+
+
+static void
+probe_serial_port(bus_scan *bs)
 {
 	int n, prev;
 	sensor *addr;
 	word tid;
 	byte cnt = 0;
+	serial_role role;
+	
+	/* Consoles doesn't allow connection of any sensor
+	 */
+	role = serial_get_role(bs->port);
+	if(SR_CONSOLE == role)
+		return; 
+	
+	DBG("Probing " + ioport_typestring(bs->port) + " port ");
 	
 	prev = 0;
 	do { 
-		n = sensor_assoc_findtype(prev, IO_RS485, 0);
+		n = sensor_assoc_findtype(prev, ioport_type(bs->port), 0);
 		if(n >= 0) {
 			addr = sensor_assoc_get(n);
 
-			tid = tibbo_detect_sensor(bs->port, chr(addr->mac[0])+chr(addr->mac[1])+chr(addr->mac[2])+chr(addr->mac[3]));
-			while(!tibbo_task_finished(tid)) {
-				tibbo_sensors_poll();
-				doevents;
+			if(SR_TIBBO == role) {
+				tid = tibbo_detect_sensor(bs->port, chr(addr->mac[0])+chr(addr->mac[1])+chr(addr->mac[2])+chr(addr->mac[3]));
+				while(!tibbo_task_finished(tid)) {
+					tibbo_sensors_poll();
+					doevents;
+				}
+				
+				if(tibbo_task_status(tid) == TGS_STATE_SUCCESS) {
+					addr->port = bs->port;
+					addr->next = bs->chain;
+					bs->count++;
+					bs->chain = addr;
+					++cnt;
+				}
+				
+				tibbo_task_done(tid);
+				prev = n+1;
+			} else if(SR_MODBUS == role) {
+				ERR("ModBus detection is not implemented yet");
 			}
-			
-			if(tibbo_task_status(tid) == TGS_STATE_SUCCESS) {
-				addr->port = bs->port;
-				addr->next = bs->chain;
-				bs->count++;
-				bs->chain = addr;
-				++cnt;
-			}
-			
-			tibbo_task_done(tid);
-			prev = n+1;
 		}
 	} while(n >= 0);
 	
@@ -225,22 +272,31 @@ port_rs485_scan(bus_scan *bs, byte pn)
 
 
 static void
-port_dc_scan(bus_scan *bs, byte pn)
+probe_dc_port(bus_scan *bs)
 {
 	int n;
 	sensor *addr;
+	byte s = bs->port->ci.start;
+	byte e = s + bs->port->ci.count - 1;
+	byte pn, i;
+	
+	DBG("Probing DC channels " + str(s) + " to " + str(e));
 
-	n = sensor_assoc_findtype(0, IO_DC, pn);
-	if(n >= 0) {
-		addr = sensor_assoc_get(n);
-		
-		addr->port = bs->port;
-		addr->pin = pn % 3; // Each DC tibbit have 3 optoisolated lines
-		addr->next = bs->chain;
-		addr->ptype = SPT_SWITCH;
-		
-		bs->count++;
-		bs->chain = addr;
+	for(i=0; i<bs->port->ci.count; ++i) {
+		pn = i + s;
+	
+		n = sensor_assoc_findtype(0, IO_DC, pn);
+		if(n >= 0) {
+			addr = sensor_assoc_get(n);
+			
+			addr->port = bs->port;
+			addr->pin = i; // Each DC tibbit have 3 optoisolated lines
+			addr->next = bs->chain;
+			addr->ptype = SPT_SWITCH;
+			
+			bs->count++;
+			bs->chain = addr;
+		}
 	}
 }
 
@@ -252,7 +308,7 @@ port_dc_scan(bus_scan *bs, byte pn)
  * sensor
  */
 sensor *
-device_boot_portscan(word *cnt, word *ucnt)
+probe_sensors(word *cnt, word *ucnt)
 {
 	word i, l;
 	byte pn;
@@ -262,28 +318,28 @@ device_boot_portscan(word *cnt, word *ucnt)
 	bs.count = 0;
 	bs.ucount = 0;
 
-/* Scan all known buses
- */
-	l = get_total_port_count();
-	for(i=0; i<l; ++i) {
-		pn = _all_buses[i].port;
-		bs.port = map_device(_all_buses[i].type, pn);
-		if(NULL != bs.port) {
-			switch(_all_buses[i].type) {
-				case IO_I2C:
-					port_i2c_scan(&bs, pn); 
-					break;
-				case IO_OW:
-					port_1w_scan(&bs, pn);
-					break;
-				case IO_RS485:
-					port_rs485_scan(&bs, pn);
-					break;
-				case IO_DC:
-					port_dc_scan(&bs, pn);
-					break;
-			}
-//			sys.debugprint("bs.count = "+str(bs.count)+"\r\n");
+	enum_init();
+	
+	while(bs.port = enum_all_next()) {
+		pn = 0;
+		switch(ioport_type(bs.port)) {
+			case IO_I2C:
+				probe_i2c_ports(&bs); 
+				break;
+			case IO_OW:
+				probe_1wire_port(&bs);
+				break;
+			case IO_PIC_ADC:
+				probe_adc_ports(&bs);
+				break;
+			case IO_RS232:
+			case IO_RS422:
+			case IO_RS485:
+				probe_serial_port(&bs);
+				break;
+			case IO_DC:
+				probe_dc_port(&bs);
+				break;
 		}
 	}
 

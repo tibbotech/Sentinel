@@ -287,6 +287,7 @@ sensor_read(sensor *addr)
 			 
 		case IO_I2C:
 		case IO_OW:
+		case IO_PIC_ADC:
 			/* Call I2C or 1-Wire sensors read routine
 			 */
 			_sensor_read(addr);

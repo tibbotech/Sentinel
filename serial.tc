@@ -4,12 +4,14 @@
 
 
 static word _rates[RATE_MAX]; 					// Precalculated baud rate divisors for 'ser' object
+static ioport *_serial[HAL_UART_COUNT];
 
 
 void
 serial_init()
 {
 	int d = ser.div9600;
+	unsigned char i;
 	
 	/* Precalculate divisors for specified baud rates
 	 */
@@ -21,14 +23,32 @@ serial_init()
 	_rates[R_38400] = d / 4; 	// 38400
 	_rates[R_57600] = d / 6; 	// 57600
 	_rates[R_115200] = d / 12; 	// 115200
+
+	for(i=0; i<HAL_UART_COUNT; ++i)
+		_serial[i] = NULL;
+}
+
+
+ioport *
+serial_port(unsigned char spn)
+{
+	if(spn >= HAL_UART_COUNT)
+		return NULL;
+	return _serial[spn];
+}
+
+
+static bool
+_is_serial_type(iotype t)
+{
+	return (IO_RS232 == t) || (IO_RS422 == t) || (IO_RS485 == t);
 }
 
 
 bool
 is_serial_port(ioport *p)
 {
-	byte t = ioport_type(p);
-	return (t==IO_RS232) || (t==IO_RS422) || (t==IO_RS485);
+	return _is_serial_type(ioport_type(p));
 }
 
 
@@ -37,8 +57,19 @@ serial_set_rate(ioport *p, serial_rate rate)
 {
 	if(is_serial_port(p)) {
 		ser.num = p->d.ser.spn;
+		ser.enabled = NO;
 		ser.baudrate = _rates[rate];
+		ser.enabled = YES;
 	}
+}
+
+
+serial_role
+serial_get_role(ioport *sp)
+{
+	if(is_serial_port(sp))
+		return sp->d.ser.role;
+	return SR_UART;
 }
 
 
@@ -93,6 +124,68 @@ serial_setup(ioport *p)
 }
 
 
+bool
+serial_set_role(ioport *sp, serial_role role)
+{
+	if(is_serial_port(sp)) {
+		sp->d.ser.role = role;
+		return true;
+	}
+	
+	return false;
+}
+
+
+bool
+serial_set_type(ioport *sp, iotype new_type)
+{
+	if(NULL == sp)
+		return false; // Null IOPORT
+		
+	if(!_is_serial_type(new_type))
+		return false;
+		
+	if(!_is_serial_type(sp->type))
+		return false; // Not a serial port
+		
+	if(NULL == sp->d.ser.ctl)
+		return false; // Not an universal serial port Tibbit (#02)
+		
+	switch(new_type) {
+		case IO_RS232:
+			gp4_setstate(sp->d.ser.ctl, 0, HIGH);
+			gp4_setstate(sp->d.ser.ctl, 1, LOW);
+			break;
+			
+		case IO_RS422:
+			gp4_setstate(sp->d.ser.ctl, 0, HIGH);
+			gp4_setstate(sp->d.ser.ctl, 1, HIGH);
+			break;
+			
+		case IO_RS485:
+			gp4_setstate(sp->d.ser.ctl, 0, LOW);
+			gp4_setstate(sp->d.ser.ctl, 1, HIGH);
+			break;
+			
+		default: // will never happen
+			return false;
+	}
+	
+	return true;
+}
+
+
+void
+serial_remember_port(ioport *p)
+{
+	if(NULL != p) {
+		if(is_serial_port(p)) {
+			_serial[p->d.ser.spn] = p;
+		}
+	}
+}
+
+
 void
 serial_send(ioport *p, string data)
 {
@@ -109,6 +202,14 @@ serial_send(ioport *p, string data)
 	ser.send();
 	
 	//while(ser.txlen > 0) ;
+}
+
+
+string
+serial_recv(ioport *p, byte maxlen)
+{
+	ser.num = p->d.ser.spn;
+	return ser.getdata(maxlen);
 }
 
 
@@ -164,9 +265,3 @@ gp4_enable(ioport *p, byte n, no_yes ns)
 }
 
 
-string
-serial_recv(ioport *p, byte maxlen)
-{
-	ser.num = p->d.ser.spn;
-	return ser.getdata(maxlen);
-}

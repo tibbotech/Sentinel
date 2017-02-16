@@ -1,11 +1,11 @@
 [project]
 version=1
-platform=TPP2W(G2)
+platform=TPP3W(G2)
 src_lib_ver=2_01_00
 name=tibbo-sentinel-v1.0b
 output=tibbo-sentinel-v1.1.132b.$(Platform).tpc
 debug=on
-defines=/dOBJECT_LCD=LCD_DISABLED /dOBJECT_FD=FD_ENABLED /dOBJECT_KP=KP_DISABLED /dOBJECT_WLN=WLN_DISABLED /dFILENUM_MAX_SIGNATURE_LEN=4 /dFILENUM_MAX_FILENAME_LEN=12 /dGPRS_DEBUG_PRINT /dGPRS_MODULE_EXTERNAL=1 /dSUPPORTS_GPRS
+defines=/dOBJECT_LCD=LCD_DISABLED /dOBJECT_FD=FD_ENABLED /dOBJECT_KP=KP_DISABLED /dOBJECT_WLN=WLN_DISABLED /dLCD_TYPE=SOLOMON_SSD1963 /dFILENUM_MAX_SIGNATURE_LEN=4 /dFILENUM_MAX_FILENAME_LEN=12 /dGPRS_MODULE_EXTERNAL=1 /dGPRS_DEBUG_PRINT /dSUPPORTS_GPRS
 transport=udp_winpcap
 [address1]
 platform=TPP3W(G2)
@@ -15,6 +15,10 @@ address=0.24.77.80.40.136
 platform=TPP2W(G2)
 transport=udp_winpcap
 address=0.2.2.3.4.202
+[address3]
+platform=TPP2W
+transport=udp_winpcap
+address=0.24.77.80.40.136
 [file1]
 path=main.tc
 type=c
@@ -965,5 +969,18 @@ path=status_update.tc
 type=c
 format=
 condition=
+locked=no
+location=project
+[file137]
+path=html\hw_config.html
+type=htmlc
+format=
+condition=
+locked=no
+location=project
+[file138]
+path=hw_config.tc
+type=c
+format=
 locked=no
 location=project

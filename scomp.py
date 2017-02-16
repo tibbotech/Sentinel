@@ -14,6 +14,7 @@ sensors = [None for i in range(256)]
 cur_sensor = None
 in_init = False
 
+
 LOG_FMT = "SC: {message}s"
 
 
@@ -66,7 +67,8 @@ VAL_TYPES = {
     "gas_presence_co": 20,
     "gas_presence_co2": 21,
     "gas_presence_methane": 22,
-    "alcohol": 23
+    "alcohol": 23,
+    "voltage": 24
 }
 
 
@@ -576,7 +578,7 @@ def sensor_handler(elem, attrs):
         types = attrs.get("valuetype", "byte")
         vt = VAL_TYPES.get(types, -1)
         if vt == -1:
-            print("Wrong 'valuetype' specified for sensor %d" % sids)
+            print("Wrong 'valuetype' specified for sensor %s" % sids)
             pass
         
         cur_sensor = sensor()
@@ -616,7 +618,7 @@ def main(argv):
         set_state("@@initial@@", sensors_handler)
     
         try:
-            parser.ParseFile(f);
+            parser.ParseFile(f)
         except xml.parsers.expat.ExpatError as err:
             print("Error:", xml.parser.expat.errors.messages[err.code]);
 

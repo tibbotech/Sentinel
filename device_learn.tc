@@ -54,7 +54,7 @@ device_detect(byte bi, byte bn, byte *addr)
 
 	switch(bi) {
 		case IO_I2C:
-			i2c = i2c_port_scan(port);
+			i2c = i2c_port_scan(port, 0); // Add Channel support!s
 			if(len(i2c)>1)
 				return ERR_TOO_MANY_DEVS;
 

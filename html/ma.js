@@ -52,7 +52,6 @@ function collectFormArgs(btn)
     //$(".cff").each(function(i, e){
 	btn.closest("form").find(".cff").each(function(i, e) {
         n = $(this).attr("name");
-		console.log(n);
         if(n === undefined || n.length == 0) {
             n = $(this).attr("id");
             if(n === undefined || n.length == 0)

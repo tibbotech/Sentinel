@@ -25,5 +25,10 @@ extern ioport *map_device(iotype, byte);
 extern iotype get_bus_type(byte);
 extern byte get_total_port_count();
 extern byte get_port_count(iotype);
+extern void enum_init();
+extern ioport *enum_serial_next(serial_role);
+extern ioport *enum_type_next(iotype);
+extern ioport *enum_all_next();
+
 
 #endif

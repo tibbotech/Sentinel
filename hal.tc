@@ -31,7 +31,7 @@ static tibbit_slot _slots[] = { // This array describes all available GPIO lines
 	{ TB_NONE, { PL_IO_NUM_40, 		PL_IO_NUM_41, 		PL_IO_NUM_42, 	PL_IO_NUM_43 },	0 }, // slot 10 -> S21
 	{ TB_NONE, { PL_IO_NUM_54, 		PL_IO_NUM_55, 		0, 				0 }, TBSLOT_PIN_C_ALLOC|TBSLOT_PIN_D_ALLOC }, // slot 11 -> S23, lines A and B only
 	{ TB_NONE, { PL_IO_NUM_44, 		0, 					0, 				0 }, TBSLOT_PIN_B_ALLOC|TBSLOT_PIN_C_ALLOC|TBSLOT_PIN_D_ALLOC }, // slot 13 -> S23, line A only
-#elif (PLATFORM_ID == TPP2W) || (PLATFORM_ID == TPP2WG2)
+#elif (PLATFORM_ID == TPP2W) || (PLATFORM_ID == TPP2WG2) || (PLATFROM_ID == TPP2N)
 /* First four slots S1...S7 counts GPIO lines A,B,C,D from left to right
  */
 	{ TB_NONE, { PL_IO_NUM_9_TX0, 	PL_IO_NUM_8_RX0, 	PL_IO_NUM_0, 	PL_IO_NUM_16_INT0 }, 0 }, // slot 0 -> S1
@@ -132,7 +132,7 @@ ioport_free(ioport *p)
 
 
 static ioport *
-_ioport_alloc_gpio(tbslot slot)
+_ioport_alloc_gpio(tbslot slot, iotype type)
 {
 	ioport *res;
 	
@@ -145,12 +145,14 @@ _ioport_alloc_gpio(tbslot slot)
 
 	_slots[slot].flags |= (TBSLOT_PIN_A_ALLOC|TBSLOT_PIN_B_ALLOC|TBSLOT_PIN_C_ALLOC|TBSLOT_PIN_D_ALLOC);
 	
-	res->type = IO_GPIO4;
+	res->type = type; //(type == IO_RELAY)? IO_RELAY: IO_GPIO4;
 	
 	res->d.pin[0] = _slots[slot].pin[0];
 	res->d.pin[1] = _slots[slot].pin[1];			
 	res->d.pin[2] = _slots[slot].pin[2];
 	res->d.pin[3] = _slots[slot].pin[3];			
+	res->ci.start = 0;
+	res->ci.count = 1;
 	
 	return res;
 }
@@ -189,10 +191,13 @@ _ioport_alloc_rs485(tbslot slot)
 	_slots[slot].flags |= TBSLOT_PIN_A_ALLOC | TBSLOT_PIN_B_ALLOC | TBSLOT_PIN_C_ALLOC;
 	
 	res->type = IO_RS485;
+	res->d.ser.role = SR_UART;
 	res->d.ser.spn = i;
 	res->d.ser.tx = _slots[slot].pin[0];
 	res->d.ser.rx = _slots[slot].pin[1];
 	res->d.ser.dir = 0;
+	res->ci.start = 0;
+	res->ci.count = 1;
 
 	if(_slots[slot].tb == TB_05) {
 		res->d.ser.dir = _slots[slot].pin[2];
@@ -238,12 +243,15 @@ _ioport_alloc_rs232(tbslot slot)
 
 	res->type = IO_RS232;
 	
+	res->d.ser.role = SR_UART;
 	res->d.ser.spn = i;
 	res->d.ser.tx = _slots[slot].pin[0];
 	res->d.ser.rx = _slots[slot].pin[1];
 	res->d.ser.rts = _slots[slot].pin[2];
 	res->d.ser.cts = _slots[slot].pin[3];
-	res->d.ser.ctl = _ioport_alloc_gpio(slot+1);
+	res->d.ser.ctl = (tb == TB_02)? _ioport_alloc_gpio(slot+1, IO_GPIO4): NULL;
+	res->ci.start = 0;
+	res->ci.count = 1;
 	
 	return res;
 }
@@ -290,6 +298,8 @@ _ioport_alloc_ssi(tbslot slot, iotype type, char n)
 	res->d.ssi.stat = _slots[slot].pin[3]; 	// Used *only* for comm. with PIC (Tibbit 31) with 1-Wire firmware
 	res->d.ssi.devid = 0x00; 				// ANYDEV I2C address
 	res->d.ssi.flags = 0;
+	res->ci.start = 0;
+	res->ci.count = 1;
 	
 	ssi_setup_channel(res);
 
@@ -319,6 +329,7 @@ ioport_alloc(tbslot slot, iotype type, char n)
 		case IO_I2C:
 		case IO_SPI:
 		case IO_OW:
+		case IO_PIC_ADC:
 			return _ioport_alloc_ssi(slot, type, n);
 			
 		/* Dry contacts, Wet contacts and OUT requires one IO line
@@ -338,7 +349,6 @@ ioport_alloc(tbslot slot, iotype type, char n)
 					}
 				}
 			}
-			
 			return NULL;
 
 		case IO_RS485:
@@ -347,9 +357,14 @@ ioport_alloc(tbslot slot, iotype type, char n)
 		case IO_RS232:
 			return _ioport_alloc_rs232(slot);
 			
+		case IO_RS422:
+			ERR("RS-422 not implemented yet");
+			return NULL; // Not implemented yet
+			
 		case IO_DC:
 		case IO_GPIO4:
-			return _ioport_alloc_gpio(slot);
+		case IO_RELAY:
+			return _ioport_alloc_gpio(slot, type);
 			
 		default:
 			break;
@@ -532,9 +547,9 @@ ioport_type(ioport *port)
 
 
 string
-ioport_typestring(ioport *p)
+iotype_string(iotype type)
 {
-	switch(p->type) {
+	switch(type) {
 		case IO_I2C:
 			return "I2C";
 		case IO_SPI:
@@ -550,13 +565,25 @@ ioport_typestring(ioport *p)
 			return "RS-422";
 		case IO_RS485:
 			return "RS-485";
+		case IO_PIC_ADC:
+			return "ADC";
+		case IO_RELAY:
+			return "RELAY";
 		default:
-			return "(#"+str(p->type)+")";
+			return "(#"+str(type)+")";
 	}
 }
 
 
-char ioport_spn(ioport *p)
+string
+ioport_typestring(ioport *p)
+{
+	return iotype_string(p->type);
+}
+
+
+char 
+ioport_spn(ioport *p)
 {
 	switch(p->type) {
 		case IO_RS232:
@@ -569,8 +596,30 @@ char ioport_spn(ioport *p)
 }
 
 
-bool wifi_card_installed()
+bool
+is_uart_slot(byte sn)
+{
+#if (PLATFORM_ID==TPP3W) || (PLATFORM_ID==TPP3WG2)
+	return (sn==1) || (sn==5) || (sn==9) || (sn==13);
+#elif (PLATFORM_ID==TPP2W) || (PLATFORM_ID==TPP2WG2)
+	return (sn==1) || (sn==3) || (sn==5) || (sn==7);
+#else
+	return false;
+#endif
+}
+
+
+bool 
+wifi_card_installed()
 {
 	/* This is placeholder for real routine */
 	return false;
+}
+
+
+void
+ioport_set_channels(ioport *p, unsigned char start, unsigned char count)
+{
+	p->ci.start = start;
+	p->ci.count = count;
 }

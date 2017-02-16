@@ -6,8 +6,8 @@ extern void p_debug(string&, unsigned short, string);
 extern void p_error(string&, unsigned short, string);
 
 
-#define DBG(s) p_debug(__FILENAME__, __LINE__, s)
-#define ERR(s) p_error(__FILENAME__, __LINE__, s)
+#define DBG(s) p_debug(__FUNCTION__, __LINE__, s)
+#define ERR(s) p_error(__FUNCTION__, __LINE__, s)
 	
 	
 #endif

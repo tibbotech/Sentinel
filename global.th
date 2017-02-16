@@ -99,6 +99,7 @@ extern bool update_enabled;
 extern word update_interval;
 extern word sensor_count;
 extern word unknown_sensor_count;
+extern bool onewire_enabled;
 
 
 #define DEFAULT_AGG_PORT			6480

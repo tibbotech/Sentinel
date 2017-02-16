@@ -47,15 +47,14 @@ ssi_is_hw(ioport *p)
 void
 ssi_setup_channel(ioport *p)
 {
+	io.num = p->d.ssi.scl;
+	io.state = HIGH;
+	io.enabled = YES;
+	io.num = p->d.ssi.sda;
+	io.state = HIGH;
+	io.enabled = NO;
+
 	if(p->d.ssi.channel != -1) {
-		io.num = p->d.ssi.scl;
-		io.state = HIGH;
-		io.enabled = YES;
-		
-		io.num = p->d.ssi.sda;
-		io.state = HIGH;
-		io.enabled = NO;
-		
 		ssi.channel = p->d.ssi.channel;
 		ssi.enabled = NO;
 		ssi.baudrate = 200; // FIXME Hardcoded constant
@@ -67,13 +66,12 @@ ssi_setup_channel(ioport *p)
 		ssi.mode = PL_SSI_MODE_0;
 		ssi.enabled = YES;
 	} else {
-		io.num = p->d.ssi.scl;
-		io.state = HIGH;
-		io.enabled = YES;
-
-		io.num = p->d.ssi.sda;
-		io.state = HIGH;
-		io.enabled = NO;
+//		io.num = p->d.ssi.scl;
+//		io.state = HIGH;
+//		io.enabled = YES;
+//		io.num = p->d.ssi.sda;
+//		io.state = HIGH;
+//		io.enabled = NO;
 	}
 }
 
@@ -267,9 +265,11 @@ i2c_detect(ioport *p, byte addr)
 
 
 string<127>
-i2c_port_scan(ioport *p)
+i2c_port_scan(ioport *p, byte chnl)
 {
 	string<127> res = "";
+	
+	// TODO: add odd/even channel support!
 	
 	for(byte i=1; i<128; ++i)
 		if(i2c_detect(p, i << 1))

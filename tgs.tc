@@ -125,17 +125,12 @@ fromhexw(string<2> h)
 #endif
 
 
-void
-tibbo_sensors_poll()
+static void
+_tibbo_sensor_poll(ioport *p)
 {
-	ioport *p;
 	tos_request *rq;
 	string<64> rqtext;
 	
-	p = map_device(IO_RS485, 0);
-	if(NULL == p)
-		return;
-		
 	for(rq=_pending; NULL != rq; rq=rq->next) {
 		_timeout_task(rq);
 		if(TGS_STATE_IDLE == rq->state) {
@@ -164,6 +159,16 @@ tibbo_sensors_poll()
 			rq->state = TGS_STATE_WAIT_REPLY;
 		}
 	}
+}
+
+
+void
+tibbo_sensors_poll()
+{
+	ioport *p;
+	
+	for(enum_init(); p = enum_serial_next(SR_TIBBO);)
+		_tibbo_sensor_poll(p);
 }
 
 // 0x02 0.0.0.0 XX GI 0x0D
@@ -258,7 +263,7 @@ tibbo_task_done(word id)
 
 
 void
-on_tibbo_data_arrival(string data)
+on_tibbo_data_arrival()
 {
 	string<TGS_MAX_PACKET_SIZE> d, tmp, v; // 32 bytes max packet size
 	string<TGS_ADDR_LEN> id;
@@ -268,7 +273,7 @@ on_tibbo_data_arrival(string data)
 	byte s, e, *pp;
 	sensor *sens;
 	
-	_ser_buf += data;
+	_ser_buf += ser.getdata(255);
 	
 	s = instr(1, _ser_buf, TGS_STX, 1);
 	if(s == 0)

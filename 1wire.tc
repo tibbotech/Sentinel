@@ -71,10 +71,18 @@ ow_setdevaddr(ioport *port, byte addr)
 static bool
 ow_wait(ioport *port)
 {
+#if (PLATFORM_ID==TPP2WG2) || (PLATFORM_ID==TPP3WG2)
+	dword tmo = sys.timercountms + 25;
+#else	
 	word tmo = sys.timercount + 2; // 1 secs assuming 0.5 sec timer cycle
-	
+#endif
+
 	while(io.lineget(port->d.ssi.stat) == HIGH) 
-		if(tmo == sys.timercount)
+#if (PLATFORM_ID==TPP2WG2) || (PLATFORM_ID==TPP3WG2)
+		if(sys.timercountms >= tmo)
+#else	
+		if(sys.timercount >= tmo)
+#endif
 			return false;
 			
 	return true;

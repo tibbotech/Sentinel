@@ -8,6 +8,13 @@
     100% { background-color: #FF8080; border: 2px solid red; }
 }
 
+@keyframes attn {
+    0% { background-color: #fff0f0; border: 2px solid silver; }
+    49% { background-color: #fff0e0; border: 2px solid orange; }
+    50% { background-color: #fff0e0; border: 2px solid orange; }
+    100% { background-color: #fff0f0; border: 2px solid silver; }
+}
+
 .heading {
     padding: 2em;
     background-image: url(tibbo.svg);
@@ -78,7 +85,7 @@ body {
     box-sizing: border-box;
 }
 
-select, input, button {
+select, input, button, input[type=file] {
     font-weight: 500;
     padding: 3px 8px 3px 8px;
 }
@@ -90,6 +97,11 @@ input:not([type]), input[type=text], input[type=password] {
 select.wide {
     min-width: 15em;
 }
+
+select.tibbit {
+	min-width: 25em;
+}
+
 
 input[type=checkbox] + label {
     padding-left: 0.5em;
@@ -176,11 +188,34 @@ div.banner {
     border: 2px solid silver;
     display: inline-block;
     width: 21em;
-    height: 6em;
+    height: 7em;
     vertical-align: top;
     background-repeat: no-repeat;
     background-size: 100px 100px;
     background-position: 210px 8px;
+}
+
+div.banner-attn {
+    padding: 1em;
+    margin-right: 1em;
+    margin-bottom: 1em;
+    background-color: #fff0e0;
+    border-radius: 4px;
+    border: 2px solid orange;
+    display: inline-block;
+    width: 21em;
+    height: 7em;
+    vertical-align: top;
+    background-repeat: no-repeat;
+    background-size: 100px 100px;
+    background-position: 210px 8px;
+/*    -webkit-animation: attn 1s ease-in-out infinite;
+    animation: attn 1s ease-in-out infinite; */
+    
+}
+
+div.banner_status {
+    margin-top: 0.3em;
 }
 
 div.banner_row {
@@ -240,13 +275,27 @@ input[type=button], input[type=submit], input[type=reset] {
     min-width: 6em;
 }
 
-input + input, select + input, input + select {
+input + input, select + input, input + select, select+select, select+span, select+label {
     margin-left: 1em;
 }
+
+span.uart {
+    padding: 3px;
+    display: inline-block;
+    width: 20px;
+    border: 1px solid #C0C0C0;
+    margin-left: 1em;
+    border-radius: 4px;
+    font-size: 8px;
+    color: #C0C0C0;
+    text-align: center;
+}
+
 
 .l_win + input, .l_win + select {
     margin-left: 0;
 }
+
 
 td.padded {
     padding-left: 0.5em;

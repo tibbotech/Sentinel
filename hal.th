@@ -21,6 +21,41 @@ struct ioport;
 typedef unsigned char tbslot;
 
 
+enum serial_rate {
+	R_1200 = 0,
+	R_2400,
+	R_4800,
+	R_9600,
+	R_19200,
+	R_38400,
+	R_57600,
+	R_115200,
+	RATE_MAX
+};
+
+
+/*! \brief Serial port mode. Applicible only for Tibbit #05
+ */
+enum serial_mode {
+	SM_NONE = 0,				//<! Serial port disabled/not used
+	SM_RS232,					//<! RS-232
+	SM_RS422,					//<! RS-422
+	SM_RS485					//<! RS-485
+};
+
+
+/*! \brief Serial port role
+ */
+enum serial_role {
+	SR_UART = 0,				//!< No role assigned, serial ports acts like simple UART
+	SR_MODBUS,					//!< ModBus protocol is used to communicate via this port
+	SR_TIBBO,					//!< Tibbo native protocol is used to communicate via this port
+	SR_CONSOLE,					//!< This port acts like serial console, accepting commands and outputting log lines
+	SR_MODEM,					//!< Special role, only to distinguish modem tibbit from ordinary UARTs
+	ANY_ROLE
+};
+
+
 /*! \brief I2C channel descriptor
  */
 struct ssi_info {
@@ -37,6 +72,7 @@ struct ssi_info {
  */
 struct serial_info {
 	char spn;					//!< Serial port number
+	serial_role role;			//!< Serial port role
 	pl_io_num rx;				//!< RX GPIO line
 	pl_io_num tx;				//!< TX GPIO line
 	union {
@@ -54,8 +90,8 @@ enum iotype {
 	IO_NONE = 0,				//!< Special type
 	IO_I2C,						//!< Inter-Integrated Circuit
 	IO_SPI,						//!< Serial Peripheral Interface
-	IO_OW,						//!< 1-Wire
-	IO_SW,						//!< Single-wire 
+	IO_OW,						//!< 1-Wire on PIC
+	IO_SW,						//!< Single-wire on PIC
 	IO_DC,						//!< Dry contact
 	IO_GPIO = IO_DC,			//!< Dry contact (alias)
 	IO_WC,						//!< Wet contact
@@ -65,6 +101,8 @@ enum iotype {
 	IO_OUT,						//!< Output port: misc. relays and opto
 	IO_GPIO4,					//!< 4 lines of GPIO (for controlling right-side part of wide tibbits)
 	IO_MODEM,					//!< GPRS modem via RS-232
+	IO_RELAY,					//!< Misc. relays
+	IO_PIC_ADC,					//!< ADC on PIC
 /* Add new types here */	
 	IO_MAX_TYPE
 };
@@ -97,6 +135,33 @@ enum ioport_option {
 #define HAL_SERIAL_2			0x02	//!< UART #2
 #define HAL_SERIAL_3			0x01	//!< UART #3
 
+#define HAL_UART_COUNT			4		// Number of UARTs on board
+
+
+#if (PLATFORM_ID==TPP2W) || (PLATFORM_ID==TPP2N) ||(PLATFORM_ID==TPP2WG2)
+#define HAL_SLOT_COUNT			6
+#elif (PLATFORM_ID==TPP3W) || (PLATFORM_ID==TPP3WG2)
+#define HAL_SLOT_COUNT			12
+#elif (PLATFORM_ID==SIMULATOR)
+#define HAL_SLOT_COUNT			12
+#elif (PLATFORM_ID==LTTP3)
+#define HAL_SLOT_COUNT			12
+#else
+#error Sorry, this platform type currently not supported
+#endif
+
+
+/* Number of ioports + space for (possible) extra I2C channels
+ */
+#define HAL_IOPORT_COUNT		(HAL_SLOT_COUNT+(HAL_SLOT_COUNT/2))
+
+
+struct channels
+{
+	unsigned start: 5;			//!< Max of 31 channels per same tibbit type
+	unsigned count: 3;
+};
+
 
 /*! \brief I/O port descriptor 
  */
@@ -108,6 +173,7 @@ struct ioport {
 		pl_io_num gpio;			//!< GPIO line for Dry Contacts
 		pl_io_num pin[4];
 	} d;
+	channels ci;				//!< Info about served channels
 };
 
 
@@ -135,31 +201,22 @@ enum hal_error {
 };
 
 
-enum serial_rate {
-	R_1200 = 0,
-	R_2400,
-	R_4800,
-	R_9600,
-	R_19200,
-	R_38400,
-	R_57600,
-	R_115200,
-	RATE_MAX
-};
-
-
 /* TODO: Need to move these externs to separate header files.
  */
 extern void ssi_setup_channel(ioport *);
 extern void serial_setup(ioport *);
 extern void serial_init();
+extern bool is_serial_port(ioport *);
+extern serial_role serial_get_role(ioport *);
+extern bool serial_set_role(ioport *, serial_role);
+extern bool serial_set_type(ioport *, iotype);
 extern void serial_send(ioport *, string);
+extern void serial_remember_port(ioport *);
+extern ioport *serial_port(unsigned char);
 extern string serial_recv(ioport *, byte);
-
 extern low_high gp4_state(ioport *, byte);
 extern void gp4_setstate(ioport *, byte, low_high);
 extern void gp4_enable(ioport *, byte, no_yes);
-
 extern ioport *ioport_alloc(tbslot, iotype, char);
 extern void ioport_free(ioport *);
 extern hal_error tibbit_install(tbslot, tibbit);
@@ -171,9 +228,12 @@ extern bool is_tibbit_installed(tibbit);
 extern tibbit_slot *tibbit_get(tibbit, byte);
 extern char tibbit_get_slot(tibbit, byte);
 extern iotype ioport_type(ioport *);
+extern string iotype_string(iotype);
 extern string ioport_typestring(ioport *);
 extern char ioport_spn(ioport *);
 extern bool wifi_card_installed();
+extern bool is_uart_slot(byte);
+extern void ioport_set_channels(ioport *, unsigned char, unsigned char);
 
 
 #endif

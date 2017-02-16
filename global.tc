@@ -9,6 +9,8 @@ string<32> snmp_write_comm = "public";
  
 
 bool update_enabled = true;							//!< Update enabled/disabled flag
+bool onewire_enabled = false;
+bool modem_enabled = false;
 word update_interval = DEFAULT_UPDATE_INTERVAL;		//!< Sensor value update interval in 0.5 sec units
  
  
