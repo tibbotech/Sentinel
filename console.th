@@ -1,0 +1,9 @@
+#ifndef __CONSOLE_FUNCTIONS_INCLUDED__
+#define __CONSOLE_FUNCTIONS_INCLUDED__
+
+
+extern void on_console_data_arrival();
+
+
+#endif
+

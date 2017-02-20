@@ -5,6 +5,7 @@
 #include "device_funcs.th"
 #include "utils.th"
 #include "tgs.th"
+#include "modbus.th"
 
 
 /* I/O program commands
@@ -243,6 +244,14 @@ _sensor_read_tibbo(sensor *s)
 
 
 static void
+_sensor_read_modbus(sensor *s)
+{
+	modbus_devaddr a = s->mac[0];
+	modbus_request(MODBUS_SERIAL, a, 10, 0x400, 1);
+}
+
+
+static void
 _sensor_read(sensor *addr)
 {
 	string cmd;
@@ -265,6 +274,25 @@ _sensor_read(sensor *addr)
 }
 
 
+static void
+_sensor_read_serial(sensor *addr)
+{
+	switch(serial_get_role(addr->port)) {
+		case SR_TIBBO:
+			/* Tibbo original sensors is intellectual hardware, so
+			 * bypass IO program execution
+			 */
+			_sensor_read_tibbo(addr);
+			break;
+		case SR_MODBUS:
+			_sensor_read_modbus(addr);
+			break;
+		default:
+			break;
+	}
+}
+
+
 /*! \brief Read sensor value
  */
 void
@@ -272,10 +300,7 @@ sensor_read(sensor *addr)
 {
 	switch(ioport_type(addr->port)) {
 		case IO_RS485:
-			/* Tibbo original sensors is intellectual hardware, so
-			 * bypass IO program execution
-			 */
-			_sensor_read_tibbo(addr);
+			_sensor_read_serial(addr);
 			break;
 		
 		case IO_DC:

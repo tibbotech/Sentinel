@@ -24,15 +24,18 @@ extern void sensor_db_http_enumsensors(byte);
 <body>
 <div class="body_outer">
     <div class="heading">
-        <div class="main_heading">Channel Setup</div>
-        <div class="main_heading_descr">This page allows to associate specific driver and ID with specific channel</div>
-        <div class="back"><a href="index.html">&laquo;&nbsp;Return to main page</a></div>
+        <div class="main_heading">Port Setup</div>
+        <div class="main_heading_descr">This page allows to associate specific driver and ID with specific I/O port</div>
+        <div class="back"><a href="index.html">&laquo;&nbsp;Return to the main page</a></div>
     </div>
     <div class="body">
         <form action="" method="POST">
+<?
+				cnt = get_port_count(IO_I2C);
+				if(0 != cnt) {
+?>
             <fieldset>
                 <legend>I<sup>2</sup>C channels</legend><?
-					cnt = get_port_count(IO_I2C);
 					for(i=0; i<cnt; ++i) {
 						id = "i2c" + str(i);
 				?>
@@ -44,9 +47,14 @@ extern void sensor_db_http_enumsensors(byte);
                 </div>
 				<? } ?>
             </fieldset>
+<?
+				}
+				
+				cnt = get_port_count(IO_OW);
+				if(0 != cnt) {
+?>
             <fieldset>
                 <legend>1-Wire channels</legend><?
-					cnt = get_port_count(IO_OW);
 					for(i=0; i<cnt; ++i) {
 						id = "ow" + str(i);
 				?>
@@ -61,24 +69,32 @@ extern void sensor_db_http_enumsensors(byte);
                 </div>
 				<? } ?>
             </fieldset>
+<?
+				}
+
+				cnt = get_port_count(IO_DC);
+				if(0 != cnt) {
+?>
             <fieldset>
                 <legend>Dry Contact ports</legend><?
-					cnt = get_port_count(IO_DC);
 					for(i=0; i<cnt; ++i) {
 						id = "dc" + str(i);
 				?>
                 <div class="formrow">
                     <label class="f_lbl" for="<? sock_send(id); ?>"><div class="l_win">Port #<? sock_send(str(i)); ?></div></label>
 					<select id="<? sock_send(id); ?>" name="<? sock_send(id); ?>">
-						<option value="d">Disabled</option>
 						<option value="o">Normally Open</option>
 						<option value="c">Normally Closed</option>
+						<option value="d">Disabled</option>
 					</select>
 					<input name="<? sock_send(id+"n"); ?>" maxlen="64" size="32"/>
                 </div>
 				<? } ?>
             </fieldset>
-			<input type="submit" value="Save">
+<?
+				} // if(0 != cnt)
+?>
+			<div><br/><input type="submit" value="Save"></div>
         </form>
     </div>
 </div>

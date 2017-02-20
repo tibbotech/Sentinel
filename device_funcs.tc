@@ -239,7 +239,17 @@ probe_serial_port(bus_scan *bs)
 	DBG("Probing " + ioport_typestring(bs->port) + " port ");
 	
 	prev = 0;
-	do { 
+	do {
+		if(role == SR_MODBUS) {
+			addr->mac[0] = 10;
+			addr->port = bs->port;
+			addr->next = bs->chain;
+			bs->count++;
+			bs->chain = addr;
+			++cnt;
+			break;
+		}
+		
 		n = sensor_assoc_findtype(prev, ioport_type(bs->port), 0);
 		if(n >= 0) {
 			addr = sensor_assoc_get(n);

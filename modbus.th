@@ -39,6 +39,9 @@ enum modbus_func_code {
 };
 
 
+typedef unsigned char modbus_devaddr;
+
+
 /* ModBus request header
  */
 struct modbus_reqhdr {
@@ -56,13 +59,14 @@ struct modbus_tcphdr {
 
 
 struct modbus_apu {
-	unsigned char addr;
-	unsigned char fun;
-
+	modbus_devaddr addr;
+	modbus_reqhdr hdr;
+	byte data[];
+	//word crc16;
 };
 
 
-extern void modbus_request(modbus_source, byte, byte, bool);
+extern void modbus_request(modbus_source, byte, byte, word, word);
 extern bool modbus_complete(modbus_source);
 extern void on_modbus_data_arrival(modbus_source);
 extern void modbus_init();

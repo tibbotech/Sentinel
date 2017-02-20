@@ -54,12 +54,44 @@ crc16_update(word crc, byte data)
 }
 
 
+word
+crc16(byte *data, word dlen)
+{
+	word crc;
+	
+	for(crc = 0; dlen; --dlen, ++data)
+		crc = crc16_update(crc, *data);
+	
+	return crc;
+}
+
+
+#define MB_RQ_SIZE (sizeof(modbus_apu) + sizeof(word))
+
+
 /**
  * \brief Issue ModBus request and wait for response
  */
 void
-modbus_request(modbus_source src, byte devaddr, byte request, bool wait)
+modbus_request(modbus_source src, byte devaddr, byte request, word start, word count)
 {
+	string<MB_RQ_SIZE> data;
+	modbus_apu *t = (modbus_apu *)&data[0];
+	word *wcrc;
+	
+	data = strgen(MB_RQ_SIZE, chr(0));
+	
+	t->addr = devaddr;
+	t->hdr.func_code = request;
+	t->hdr.address = start;
+	t->hdr.count = count;
+	
+	ser.setdata(data);
+	ser.send();
+	
+	wcrc = (word *)&t->data[0];
+	*wcrc = crc16((byte *)&t, sizeof(t));
+
 }
 
 
@@ -70,7 +102,6 @@ modbus_parse_adu_rtu(string& packet)
 {
 	if(len(packet) < 5)
 		return; // packet too small
-		
 }
 
 
@@ -128,3 +159,30 @@ modbus_init()
 	_state = MODBUS_IDLE;
 }
 
+
+/*
+ * ModBus register map for Tibbo sensors
+ * 
+ * Temperature
+ * Register 400 - HOLDING_REGISTER - 2 byte unsigned    - ModBus address
+ * Register 500 - INPUT_REGISTER   - 2 byte signed      - temperature 
+ * Register 501 - INPUT_REGISTER   - 4 byte float       - temperature
+ * 
+ * Light
+ * Register 400 - HOLDING_REGISTER - 2 byte unsigned    - ModBus address
+ * Register 801 - INPUT_REGISTER   - 2 byte unsigned    - Light
+ * 
+ * Humidity
+ * Register 400 - HOLDING_REGISTER - 2 byte unsigned    - ModBus address
+ * Register 500 - INPUT_REGISTER   - 2 byte signed      - temperature
+ * Register 501 - INPUT_REGISTER   - 4 byte float       - temperature
+ * Register 701 - INPUT_REGISTER   - 2 byte unsigned    - humidity
+ * Register 702 - INPUT_REGISTER   - 4 byte float       - humidity
+ * 
+ * Acceleration
+ * Register 400 - HOLDING_REGISTER - 2 byte unsigned 
+ * Register 601 - INPUT_REGISTER   - 2 byte signed      - X-Axis 
+ * Register 602 - INPUT_REGISTER   - 2 byte signed      - Y-Axis
+ * Register 603 - INPUT_REGISTER   - 2 byte signed      - Z-Axis
+ * 
+ */
