@@ -161,7 +161,13 @@ modbus_init()
 
 
 /*
- * ModBus register map for Tibbo sensors
+ * ModBus RTU  
+ * Baud Rate                19200
+ * Incoming Flow Control    none
+ * Outgoing Flow Control    none
+ * Data Bits                8-bit
+ * Stop Bits                1-bit
+ * Parity                   none
  * 
  * Temperature
  * Register 400 - HOLDING_REGISTER - 2 byte unsigned    - ModBus address
@@ -185,4 +191,8 @@ modbus_init()
  * Register 602 - INPUT_REGISTER   - 2 byte signed      - Y-Axis
  * Register 603 - INPUT_REGISTER   - 2 byte signed      - Z-Axis
  * 
+ * Leak Sensor
+ * Register 400 - HOLDING_REGISTER - 2 byte unsigned 
+ * Register 901 - INPUT_REGISTER   - 2 byte unsigned    - Leak sensor state
+ *  
  */
