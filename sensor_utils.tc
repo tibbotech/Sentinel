@@ -236,7 +236,7 @@ void
 sensor_alarm_check(sensor *s)
 {
 	zone_color prevs = Z_NONE;
-	zone_color curs = zone_check(s->res, s);
+	zone_color curs = zone_check(s->res[0], s);
 	
 #if 0	
 	if(ioport_type(s->port) == IO_DC || ioport_type(s->port) == IO_GPIO4) {
@@ -249,7 +249,7 @@ sensor_alarm_check(sensor *s)
 #endif
 
 	if(Z_NONE != s->status)
-		prevs = zone_check(s->prev, s);
+		prevs = zone_check(s->prev[0], s);
 
 	if(Z_NONE != prevs) {
 		if(Z_GREEN == prevs) {

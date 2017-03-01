@@ -67,6 +67,7 @@ struct zone {
 	float lo;					//!< Low boundary
 	float hi;					//!< High boundary
 	byte flags;					//!< Action flags
+	word relays;				//!< Relays to turn on and off. Max of 16 channels, 8 tibbits
 	byte sms_tpl;				//!< SMS template ID
 	byte email_tpl;				//!< E-mail template ID
 	byte snmp_trap;				//!< SNMP trap number
@@ -81,12 +82,15 @@ enum zone_color {
 };
 
 
-#define ZF_SEND_SMS		0x01
-#define ZF_SEND_EMAIL	0x02
-#define ZF_SEND_TRAP	0x04
-#define ZF_OUT0_ON		0x08
-#define ZF_OUT1_ON		0x10
-#define ZF_ENABLED		0x20
+#define ZF_SEND_SMS				0x01
+#define ZF_SEND_EMAIL			0x02
+#define ZF_SEND_TRAP			0x04
+#define ZF_OUT0_ON				0x08
+#define ZF_OUT1_ON				0x10
+#define ZF_ENABLED				0x20
+
+
+#define NUM_SENSOR_PARAMS		1
 
 
 /*! \brief Sensor descriptor
@@ -101,15 +105,16 @@ struct sensor {
 	iotype bus;					//!< Bus ID and flags
 	byte chnl;					//!< Channel number, if applicible
 	sensor_param_type ptype;	//!< Type of parameter reported by sensor
-	zone_color status;			//!< 
-	zone y;						//!< Yellow zone
-	zone r;						//!< Red zone
+	zone_color status;			//!< Current zone
+	zone y;						//!< Yellow zone parameters
+	zone r;						//!< Red zone parameters
 	var c[4];					//!< Constants
-	var prev;					//!< Previous parameter value
-	var res;					//!< Current parameter value
+	var prev[NUM_SENSOR_PARAMS];//!< Previous parameter(s) value
+	var res[NUM_SENSOR_PARAMS];	//!< Current parameter(s) value
 	union {
 		ow_devid ow_addr;		//!< Device address for addressable buses.
 		byte i2c_addr;			//!< I2C device ID
+		byte modbus_addr;		//!< ModBus device address
 		byte mac[MAX_HW_ADDR_SIZE]; //!< Tibbo Sensor MAC address
 	};
 	sensor *next;				//!< Next sensor in port chain
@@ -128,6 +133,7 @@ struct sensor_file_rec {
 	union {
 		ow_devid ow_addr;		//!< Device address for addressable buses.
 		byte i2c_addr;			//!< I2C device ID
+		byte modbus_addr;		//!< ModBus address
 		byte mac[MAX_HW_ADDR_SIZE]; //!< Tibbo Sensor MAC address
 	};
 };

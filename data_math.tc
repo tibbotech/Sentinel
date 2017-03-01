@@ -350,8 +350,14 @@ exec_program(sensor *s, string& data, byte *prog, byte cb)
 	
 	_exec_program_long(&alu, prog, cb);
 
+	/* Copy back (possibly) changed constants and
+	 * result(s)
+	 */
 	for(i=0; i<4; ++i)
 		s->c[i] = alu.c[i];
+		
+	for(i=0; i<NUM_SENSOR_PARAMS; ++i)
+		s->res[i] = alu.r[i];
 		
 	return alu.r[0];
 }

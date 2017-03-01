@@ -326,11 +326,11 @@ on_tibbo_data_arrival()
 
 				if(NULL != sens) {
 					if(instr(1, v, ".", 1) != 0) {
-						sens->res.type = TYPE_FLOAT;
-						sens->res.f = strtof(v);
+						sens->res[0].type = TYPE_FLOAT;
+						sens->res[0].f = strtof(v);
 					} else {
-						sens->res.type = TYPE_LONG;
-						sens->res.l = lval(v);
+						sens->res[0].type = TYPE_LONG;
+						sens->res[0].l = lval(v);
 					}
 				}
 

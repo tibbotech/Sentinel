@@ -83,8 +83,8 @@ serial_setup(ioport *p)
 		
 	ser.num = p->d.ser.spn;
 
-	ser.rxbuffrq(1);
-	ser.txbuffrq(1);
+	ser.rxbuffrq(2);
+	ser.txbuffrq(2);
 	//ser.redir(PL_REDIR_SER + ser.num);
 	sys.buffalloc();
 

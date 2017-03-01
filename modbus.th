@@ -3,6 +3,8 @@
 
 
 #include "global.th"
+#include "hal.th"
+#include "sensors_db.th"
 
 
 enum modbus_source {
@@ -13,8 +15,12 @@ enum modbus_source {
 
 enum modbus_state {
 	MODBUS_IDLE,
-	MODBUS_RECEIVING
+	MODBUS_RECEIVING,
+	MODBUS_FINISHED
 };
+
+
+#define MODBUS_TIMEOUT			5000
 
 
 enum modbus_func_code {
@@ -39,7 +45,7 @@ enum modbus_func_code {
 };
 
 
-typedef unsigned char modbus_devaddr;
+//typedef unsigned char modbus_devaddr;
 
 
 /* ModBus request header
@@ -52,24 +58,24 @@ struct modbus_reqhdr {
 
 
 struct modbus_tcphdr {
-	unsigned short transact;
-	unsigned short proto;
-	unsigned short length;
+	word transact;
+	word proto;
+	word length;
 };
 
 
 struct modbus_apu {
-	modbus_devaddr addr;
+	byte addr;
 	modbus_reqhdr hdr;
-	byte data[];
-	//word crc16;
+	word crc;
 };
 
 
-extern void modbus_request(modbus_source, byte, byte, word, word);
+extern void modbus_request(ioport *, byte, byte, word, word);
 extern bool modbus_complete(modbus_source);
 extern void on_modbus_data_arrival(modbus_source);
 extern void modbus_init();
+extern bool modbus_process_result(sensor *);
 
 
 #endif

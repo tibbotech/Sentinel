@@ -389,24 +389,30 @@ class param:
     
 
 class program:
-    __slots__ = ["data", "type", "params", "cmd"]
+    __slots__ = ["data", "type", "params", "cmd", "register"]
 
     def __init__(self, t = TYPE_READ):
         self.params = list()
         self.data = bytearray()
         self.type = t
         self.cmd = bytearray()
+        self.register = 0
         
     def add_write(self, ba):
         self.data.append(CMD_WRITE)
         self.data.append(len(ba))
         self.data += ba
     
-    def add_read(self, ba):
+    def add_read(self, ba, **kwargs):
         self.data.append(CMD_READ)
-        self.data.append(1)
-        self.data.append(ba)
-
+        if "type" in kwargs:
+            self.data.append(2)
+            self.data.append(ba)
+            self.data.append(int(kwargs["type"]))
+        else:
+            self.data.append(1)
+            self.data.append(ba)
+            
     def add_delay(self, ms):
         self.data.append(CMD_DELAY)
         self.data.append(int(ms) & 0xFF)
@@ -423,6 +429,14 @@ class program:
         for p in self.params:
             p.write(fp)
 
+    def attr_type_id(self, type):
+        if "word" == type:
+            return 0
+        elif "float" == type:
+            return 1
+        else:
+            return -1;
+        
     def reply_handler(self, elem, attrs):
         el = elem.lower()
         if el == "param":
@@ -438,6 +452,11 @@ class program:
         if el == "command":
             self.cmd = bytearray()
             parser.CharacterDataHandler = self.cdata_handler
+            parser.EndElementHandler = self.compile_command
+            set_state(el, None)
+        elif el == "register":
+            self.cmd = bytearray()
+            parser.CharacterDataHandler = self.cdata_handler_reg
             parser.EndElementHandler = self.compile_command
             set_state(el, None)
         elif el == "reply":
@@ -460,9 +479,20 @@ class program:
         else:
             self.cmd += d
             
+    def cdata_handler_reg(self, data):
+        data = data.strip()
+        try:
+            d = int(data)
+        except ValueError:
+            print("Error: Not a valid register number: '%s'" % data)
+        else:
+            if (d < 0) or (d > 65535):
+                print("Error: Register number '%s' must be 0...65535" % data)
+            else:
+                self.cmd += struct.pack("<H", d)
 
 class sensor:
-    __slots__ = ["sid", "name", "chipset", "valuetype", "buslist", "read", "init", "fileoffs", "tibno"]
+    __slots__ = ["sid", "name", "chipset", "valuetype", "buslist", "read", "init", "fileoffs", "tid"]
 
     def __init__(self):
         self.sid = 0
@@ -473,7 +503,7 @@ class sensor:
         self.read = program(TYPE_READ)
         self.init = program(TYPE_INIT)
         self.fileoffs = -1
-        self.tibno = 0
+        self.tid = 0
         
     def __str__(self):
         return "<sensor id={0} name=\"{1}\" buslist=\"{2}\" chipset=\"{3}\">".format(
@@ -496,7 +526,7 @@ class sensor:
 #                                                                      chunk                                       chunk                           chunk
 #
         print("[DEVID %d]" % self.sid)
-        fp.write(struct.pack("BBBBH", self.sid, self.busflags(), self.tibno, self.valuetype, rl))
+        fp.write(struct.pack("BBBBH", self.sid, self.busflags(), self.tid, self.valuetype, rl))
         
         tmp = bytes(self.name, STR_ENCODING)
         fmt = "B{}s".format(len(tmp))
@@ -525,8 +555,6 @@ class sensor:
             bf |= BUSF_RS485
         if "modbus" in self.buslist:
             bf |= BUSF_MODBUS
-        if self.tibno > 0:
-            bf |= BUSF_TIBBO_GENUINE
         return bf
     
     def set_name(self, data):
@@ -574,6 +602,12 @@ def sensor_handler(elem, attrs):
             sid = int(sids)
         else:
             sid = 0
+        
+        tids = attrs.get("tibbo_id", "0")
+        if tids.isnumeric():
+            tid = int(tids)
+        else:
+            tid = 0
             
         types = attrs.get("valuetype", "byte")
         vt = VAL_TYPES.get(types, -1)
@@ -583,6 +617,7 @@ def sensor_handler(elem, attrs):
         
         cur_sensor = sensor()
         cur_sensor.sid = sid
+        cur_sensor.tid = tid
         cur_sensor.valuetype = vt
         sensors[sid] = cur_sensor
         

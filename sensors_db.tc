@@ -67,10 +67,10 @@ find_drvrec(byte id, sensor_file_info *finf)
 		
 	romfile_seek(ptr);
 
-	drvid = romfile_getbyte();
-	bt = romfile_getbyte();
-	tibbo_id = romfile_getbyte();
-	valtype = romfile_getbyte();
+	drvid = romfile_getbyte();		// Driver ID
+	bt = romfile_getbyte();			// Bus type
+	tibbo_id = romfile_getbyte();	// Tibbo ID
+	valtype = romfile_getbyte();	// Value type
 	
 	if(NULL != finf) {
 		finf->driver_id = drvid;

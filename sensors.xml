@@ -293,38 +293,6 @@
         </read>
     </sensor>
     
-    <sensor id="12" valuetype="temperature">
-        <name>Temperature</name>
-        <chipset>Tibbo Original</chipset>
-        <buslist>
-            <bus>rs-485</bus>
-        </buslist>
-    </sensor>
-
-    <sensor id="13" valuetype="light">
-        <name>Ambient Light</name>
-        <chipset>Tibbo Original</chipset>
-        <buslist>
-            <bus>rs-485</bus>
-        </buslist>
-    </sensor>
-    
-    <sensor id="14" valuetype="acceleration_three_axis">
-        <name>3-axis accelerometer</name>
-        <chipset>Tibbo Original</chipset>
-        <buslist>
-            <bus>rs-485</bus>
-        </buslist>
-    </sensor>
-
-    <sensor id="15" valuetype="temperature_and_humidity">
-        <name>Temperature and Humidity</name>
-        <chipset>Tibbo Original</chipset>
-        <buslist>
-            <bus>rs-485</bus>
-        </buslist>
-    </sensor>
-
     <sensor id="16" valuetype="voltage">
         <name>4-channel ADC, raw data</name>
         <chipset>LTC2309</chipset>
@@ -414,4 +382,42 @@
             </reply>
         </read>
     </sensor>
+
+<!-- Following is Tibbo sensors on modbus
+-->
+
+    <sensor id="32" valuetype="temperature_and_humidity" tibbo_id="1">
+        <name>Tibbo's Temperature and Humidity sensor</name>
+        <chipset>ModBus</chipset>
+        <buslist>
+            <bus>modbus</bus>
+        </buslist>
+        <!-- no initialization required -->
+        <read>
+            <register>501</register>
+            <reply length="4">
+                <param type="float">
+                    <bitfield start="0" size="32" />
+                </param>                
+            </reply>
+        </read>
+    </sensor>
+
+    <sensor id="33" valuetype="flood" tibbo_id="2">
+        <name>Tibbo's Flood Detection sensor</name>
+        <chipset>ModBus</chipset>
+        <buslist>
+            <bus>modbus</bus>
+        </buslist>
+        <!-- no initialization required -->
+        <read>
+            <register>901</register><!-- ModBus register # in hex -->
+            <reply length="2">
+                <param type="word">
+                    <bitfield start="0" size="16" />
+                </param>                
+            </reply>
+        </read>
+    </sensor>
+
 </sensors>

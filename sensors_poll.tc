@@ -11,10 +11,10 @@
 /* I/O program commands
  */
 enum pcmd {
-	CMD_WRITE = 'W',
-	CMD_READ = 'R',
-	CMD_DELAY = 'D',
-	CMD_END = '.',
+	CMD_WRITE 	= 'W',
+	CMD_READ 	= 'R',
+	CMD_DELAY 	= 'D',
+	CMD_END 	= '.',
 };
 
 
@@ -79,7 +79,16 @@ _read(sensor *sens, byte cb, bool do_stop)
 			out += "] 1W_STOP";
 			break;
 			
+		case IO_RS232:
+		case IO_RS422:
 		case IO_RS485:
+#if 0		
+			if(SR_MODBUS == serial_get_role(sens->port)) {
+				if(!modbus_process_result(sens))
+					ERR("ModBus request timeout");
+			}
+#endif			
+			/* todo */
 			break;
 	}
 	
@@ -97,6 +106,7 @@ _write(sensor *sens, byte *cmd, byte cmdlen, bool do_stop)
 {
 	byte i2ca;
 	string out = "";
+	word *regno;
 	
 	switch(sens->bus) {
 		case IO_I2C:
@@ -141,7 +151,15 @@ _write(sensor *sens, byte *cmd, byte cmdlen, bool do_stop)
 			}
 			break;
 
+		case IO_RS232:
+		case IO_RS422:
 		case IO_RS485:
+			if(SR_MODBUS == serial_get_role(sens->port)) {
+				if(cmdlen == sizeof(word)) {
+					regno = (word *)&cmd[0];
+					modbus_request(sens->port, sens->modbus_addr, READ_INPUT_REGISTERS, *regno, 1);
+				}
+			}
 			/* todo */
 			break;
 	}
@@ -203,14 +221,19 @@ _exec_io_program(sensor *sens, byte *prog, byte plen)
 static void 
 _run(sensor *addr, string& cmd, string& tmp)
 {
-	byte *ptr, np, nbf, pl;
+	byte *ptr, i, np, nbf, pl;
 
+	// First byte is the subprogram counter
 	ptr = (byte *)&cmd[0]; 
 	for(np = *ptr++; np != 0; --np) {
 		for(nbf = *ptr++; nbf != 0; --nbf) {
-			pl = *ptr++;
-			addr->prev = addr->res;
-			addr->res = exec_program(addr, tmp, ptr, pl);
+			pl = *ptr++; // Command length byte
+			
+			for(i=0; i<NUM_SENSOR_PARAMS; ++i)
+				addr->prev[i] = addr->res[i];
+
+			exec_program(addr, tmp, ptr, pl);
+			
 			ptr += pl;
 		}
 	}
@@ -244,10 +267,33 @@ _sensor_read_tibbo(sensor *s)
 
 
 static void
-_sensor_read_modbus(sensor *s)
+_sensor_read_modbus(sensor *addr)
 {
-	modbus_devaddr a = s->mac[0];
-	modbus_request(MODBUS_SERIAL, a, 10, 0x400, 1);
+	string<16> tmp;
+	string cmd;
+	dword tmo;
+	
+	if(!sensor_db_open())
+		return;
+
+	cmd = sensor_db_get_read_command(addr->drvid);
+	if(len(cmd) != 0) {
+#if 0		
+		sys.debugprint("\r\n-- READ_SENSOR TYPE="+tohex(addr->drvid)+" --\r\n");
+#endif
+
+		tmp = _exec_io_program(addr, (byte *)&cmd[0], len(cmd));
+		cmd = sensor_db_get_read_program(addr->drvid);
+		if(len(cmd) > 0) {
+			_run(addr, cmd, tmp);
+			tmo = sys.timercountms + MODBUS_TIMEOUT;
+			while(sys.timercountms < tmo) {
+				if(modbus_process_result(addr))
+					break;
+				doevents;
+			}
+		}
+	}
 }
 
 
@@ -274,35 +320,23 @@ _sensor_read(sensor *addr)
 }
 
 
-static void
-_sensor_read_serial(sensor *addr)
-{
-	switch(serial_get_role(addr->port)) {
-		case SR_TIBBO:
-			/* Tibbo original sensors is intellectual hardware, so
-			 * bypass IO program execution
-			 */
-			_sensor_read_tibbo(addr);
-			break;
-		case SR_MODBUS:
-			_sensor_read_modbus(addr);
-			break;
-		default:
-			break;
-	}
-}
-
-
 /*! \brief Read sensor value
  */
 void
 sensor_read(sensor *addr)
 {
 	switch(ioport_type(addr->port)) {
+		case IO_RS232:
+		case IO_RS422:
 		case IO_RS485:
-			_sensor_read_serial(addr);
+			if(SR_TIBBO == serial_get_role(addr->port))
+				_sensor_read_tibbo(addr);
+			else if(SR_MODBUS == serial_get_role(addr->port))
+				_sensor_read_modbus(addr);
+			else
+				_sensor_read(addr);
 			break;
-		
+			
 		case IO_DC:
 		case IO_WC:
 		case IO_GPIO4:
@@ -310,15 +344,8 @@ sensor_read(sensor *addr)
 			 */
 			 break;
 			 
-		case IO_I2C:
-		case IO_OW:
-		case IO_PIC_ADC:
-			/* Call I2C or 1-Wire sensors read routine
-			 */
-			_sensor_read(addr);
-			break;
-			
 		default:
+			_sensor_read(addr);
 			break;
 	}
 

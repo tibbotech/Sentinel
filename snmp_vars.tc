@@ -216,10 +216,10 @@ put_sensor_record(snmp_pdu *pkt, snmp_oid *oid, sensor *s, int idx)
 			_encode_str(pkt->w, address_format(ioport_type(s->port), &s->mac[0]));
 			break;
 		case 8:
-			if(s->res.type == TYPE_FLOAT)
-				l = (long)(s->res.f * 100.0);
+			if(s->res[0].type == TYPE_FLOAT)
+				l = (long)(s->res[0].f * 100.0);
 			else
-				l = s->res.l;
+				l = s->res[0].l;
 				
 			_encode_long(pkt->w, l);
 			//_encode_str(pkt->w, s->res);

@@ -24,7 +24,7 @@ create_agg_sensors_table()
 		tbl_field_set("channel", str(s->chnl));
 		tbl_field_set("driver", str(s->drvid));
 		tbl_field_set("serial", address_format(ioport_type(s->port), &s->mac));
-		tbl_field_set("value", var_format(s->res));
+		tbl_field_set("value", var_format(s->res[0]));
 		tbl_field_set("status", s->status);
 		tbl_field_set("info", sensor_info_get(s->id));
 		tbl_record_add(str(s->id));
@@ -44,7 +44,7 @@ update_agg_sensors_table()
 	tbl_select("sensortable", "sensortable");
 	
 	for(n=0, s=connected_sensors; NULL != s; s=s->next, ++n) {
-		tbl_field_set("value", var_format(s->res));
+		tbl_field_set("value", var_format(s->res[0]));
 		tbl_field_set("status", s->status);
 		tbl_record_edit(n);
 	}

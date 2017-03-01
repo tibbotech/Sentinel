@@ -4,7 +4,7 @@
 
 #define VERSION_MAJOR	1
 #define VERSION_MINOR	1
-#define BUILD_NUMBER	132
+#define BUILD_NUMBER	141
 #define BUILD_SUFFIX	" (beta)"
 
 #define __DEVNAME__ 	"Tibbo Sentinel"

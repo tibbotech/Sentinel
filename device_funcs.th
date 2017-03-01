@@ -17,7 +17,9 @@ extern var exec_program(sensor *, string&, byte *, byte);
 extern string var_format(var&);
 extern sensor *sensor_by_index(word);
 extern sensor *sensor_by_id(sensor_id);
+#if 0
 extern bool find_sensor(iotype, byte, void *);
+#endif
 extern byte dry_contacts_init();
 extern void sensor_alarm_check(sensor *);
 

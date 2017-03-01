@@ -346,22 +346,22 @@ poll_dc_lines(bool first_run)
 			p = s->port;
 			
 			if(!first_run) {
-				s->prev.type = s->res.type;
-				s->prev.l = s->res.l;
+				s->prev[0].type = s->res[0].type;
+				s->prev[0].l = s->res[0].l;
 				
-				s->res.type = TYPE_LONG;
-				s->res.l = io.lineget(p->d.pin[pn]);
+				s->res[0].type = TYPE_LONG;
+				s->res[0].l = io.lineget(p->d.pin[pn]);
 
 				/* We need to add a 'guard interval' between consecutive line state changes to prevent 
 				 * being spammed by SMS or E-mail messages
 				 */
-				if(s->res.l == LOW && s->prev.l == HIGH) {
+				if(s->res[0].l == LOW && s->prev[0].l == HIGH) {
 					doalarm(s, &s->y);
 					doalarm(s, &s->r);
 				}
 			} else {
-				s->res.type = s->prev.type = TYPE_LONG;
-				s->res.l = s->res.l = io.lineget(p->d.pin[pn]);
+				s->res[0].type = s->prev[0].type = TYPE_LONG;
+				s->res[0].l = s->res[0].l = io.lineget(p->d.pin[pn]);
 			}
 		}
 	}
@@ -523,7 +523,7 @@ on_ser_data_arrival()
 	
 	if(NULL == sp)
 		return; // Odd situation, but possible
-		
+	
 	switch(serial_get_role(sp)) {
 		case SR_MODEM:
 			on_modem_data_arrival();

@@ -8,7 +8,7 @@
 
 
 extern bool sensor_assoc_init();
-extern bool sensor_assoc_add(iotype, byte, byte, byte *);
+extern sensor *sensor_assoc_add(iotype, byte, byte, byte *);
 extern void sensor_assoc_remove(byte, byte, byte *);
 extern bool sensor_assoc_save(string&);
 extern sensor *sensor_assoc_find(byte, byte, byte *);

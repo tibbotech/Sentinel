@@ -139,7 +139,7 @@ sensor_assoc_init()
  * \param addr Pointer to sensor address (if applicible)
  * \returns true if sensor association added sucessfully, false otherwise
  */
-bool
+sensor *
 sensor_assoc_add(iotype bus, byte chnl, byte drv, byte *addr)
 {
 	sensor *a;
@@ -147,10 +147,10 @@ sensor_assoc_add(iotype bus, byte chnl, byte drv, byte *addr)
 	
 	a = alloc_addr();
 	if(NULL == a)
-		return false;
+		return NULL;
 	
-	if((IO_I2C == bus || IO_OW == bus || IO_RS485 == bus) && (NULL == addr))
-		return false;
+	if((IO_I2C == bus || IO_OW == bus || IO_RS485 == bus || IO_RS422 == bus || IO_RS232 == bus) && (NULL == addr))
+		return NULL;
 		
 	a->id = ++_last_id;
 	a->bus = bus;
@@ -177,20 +177,25 @@ sensor_assoc_add(iotype bus, byte chnl, byte drv, byte *addr)
 		case IO_I2C:
 			a->i2c_addr = *addr;
 			break;
+			
 		case IO_OW:
 			a->ow_addr = *((ow_devid *)addr);
 			break;
+			
+		case IO_RS232:
+		case IO_RS422:
 		case IO_RS485:
 			a->mac[0] = addr[0];
 			a->mac[1] = addr[1];
 			a->mac[2] = addr[2];
 			a->mac[3] = addr[3];
 			break;
+			
 		case IO_DC:
 			break;
 	}
 		
-	return true;
+	return a;
 }
 
 

@@ -53,7 +53,7 @@ address_format(iotype bus, void *addr)
 			return res;
 		
 		case IO_RS485:
-			return ddstr(chr(ba[0])+chr(ba[1])+chr(ba[2])+chr(ba[3]));
+			return str(ba[0]); //ddstr(chr(ba[0])+chr(ba[1])+chr(ba[2])+chr(ba[3]));
 
 		case IO_GPIO4:
 		case IO_DC:
@@ -80,7 +80,7 @@ dry_contacts_init()
 			chnl = port->ci.start + i;
 			mask = 1 << chnl;
 			if(0 != (flags & mask))
-				if(!sensor_assoc_add(IO_DC, chnl, 0, NULL))
+				if(NULL == sensor_assoc_add(IO_DC, chnl, 0, NULL))
 					break;
 		}
 	}
@@ -89,6 +89,7 @@ dry_contacts_init()
 }
 
 
+#if 0
 bool
 find_sensor(iotype bus, byte chnl, void *addr)
 {
@@ -116,6 +117,7 @@ find_sensor(iotype bus, byte chnl, void *addr)
 	
 	return false;
 }
+#endif
 
 
 static void
@@ -222,6 +224,29 @@ probe_adc_ports(bus_scan *bs)
 
 
 static void
+add_modbus_sensor(bus_scan *bs, byte saddr, byte drvid, sensor_param_type ptype)
+{
+	sensor *addr;
+	
+	bs->addr[0] = saddr;
+	bs->addr[1] = 0;
+	bs->addr[2] = 0;
+	bs->addr[3] = 0;
+	
+	addr = sensor_assoc_add(ioport_type(bs->port), 0, drvid, bs->addr); 
+	if(NULL != addr) {
+		addr->port = bs->port;
+		addr->next = bs->chain;
+		addr->ptype = ptype;
+		bs->count++;
+		bs->chain = addr;
+
+		serial_setup(addr->port);
+	}
+}
+
+
+static void
 probe_serial_port(bus_scan *bs)
 {
 	int n, prev;
@@ -241,12 +266,8 @@ probe_serial_port(bus_scan *bs)
 	prev = 0;
 	do {
 		if(role == SR_MODBUS) {
-			addr->mac[0] = 10;
-			addr->port = bs->port;
-			addr->next = bs->chain;
-			bs->count++;
-			bs->chain = addr;
-			++cnt;
+			add_modbus_sensor(bs, 10, 33, SPT_BIT);
+			add_modbus_sensor(bs, 11, 32, SPT_TEMP_AND_HUMIDITY);
 			break;
 		}
 		
@@ -366,6 +387,8 @@ device_portscan(sensor *head)
 {
 	for(sensor_db_open(); head; head=head->next)
 		sensor_read(head);
+		
+
 }
 
 

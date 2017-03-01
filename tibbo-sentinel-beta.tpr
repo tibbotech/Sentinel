@@ -3,9 +3,9 @@ version=1
 platform=TPP3W(G2)
 src_lib_ver=2_01_00
 name=tibbo-sentinel-v1.0b
-output=tibbo-sentinel-v1.1.132b.$(Platform).tpc
+output=tibbo-sentinel-v1.1.141b.$(Platform).tpc
 debug=on
-defines=/dOBJECT_LCD=LCD_DISABLED /dOBJECT_FD=FD_ENABLED /dOBJECT_KP=KP_DISABLED /dOBJECT_WLN=WLN_DISABLED /dLCD_TYPE=SOLOMON_SSD1963 /dFILENUM_MAX_SIGNATURE_LEN=4 /dFILENUM_MAX_FILENAME_LEN=12 /dGPRS_MODULE_EXTERNAL=1 /dGPRS_DEBUG_PRINT /dSUPPORTS_GPRS
+defines=/dOBJECT_LCD=LCD_DISABLED /dOBJECT_FD=FD_ENABLED /dOBJECT_KP=KP_DISABLED /dOBJECT_WLN=WLN_DISABLED /dFILENUM_MAX_SIGNATURE_LEN=4 /dLCD_TYPE=SOLOMON_SSD1963 /dFILENUM_MAX_FILENAME_LEN=12 /dGPRS_DEBUG_PRINT /dGPRS_MODULE_EXTERNAL=1 /dSUPPORTS_GPRS
 transport=udp_winpcap
 [address1]
 platform=TPP3W(G2)
@@ -996,5 +996,6 @@ location=project
 path=libs\aggregate\aggregate_custom.tbs
 type=basic
 format=
+condition=
 locked=no
 location=project
