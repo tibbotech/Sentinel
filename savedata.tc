@@ -1,6 +1,7 @@
 #include "global.th"
 #include "hal.th"
 #include "utils.th"
+#include "device_map.th"
 #include "validators.th"
 
 
@@ -72,7 +73,7 @@ saveNetData(string& q)
 	string s;
 	string errs;
 	byte n;
-	bool grps_installed = is_tibbit_installed(TB_47);
+	bool grps_installed = (NULL != map_device(IO_MODEM, 0));
 	bool gprs_enabled;
 	
 	errs = validateNetData(q, grps_installed);

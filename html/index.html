@@ -4,6 +4,7 @@
 #include "global.th"
 #include "utils.th"
 #include "sensors_db.th"
+#include "device_map.th"
 #include "device_funcs.th"
 
 
@@ -12,11 +13,17 @@ extern unsigned short unknown_sensor_count;
 extern sensor *connected_sensors;
 
 
-//connected_sensors = probe_sensors(&sensor_count, &unknown_sensor_count);
+bool gprs = is_modem_installed();
+bool gen = !!val(stg_get("GEN", 0));
 
 
-?>
-<html>
+#if 0
+/* Currently disabled, because this line causes system to crash. Investigating */
+connected_sensors = probe_sensors(&sensor_count, &unknown_sensor_count);
+#endif
+
+
+?><html>
 <head>
 <title>Welcome</title>
 <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
@@ -34,6 +41,8 @@ extern sensor *connected_sensors;
         <div class="main_heading_descr">This is main page of the device configuration menu</div>
     </div>
     <div class="body">
+		<div class="msg" style="float: none; margin-bottom: 1em; display: none;">1 important setting awaits your review. Please visit settings page and make desired changes.</div>
+		<div class="banner_flex_outer">
 		<? 
 			if(unknown_sensor_count > 0) {
 		?>
@@ -41,11 +50,12 @@ extern sensor *connected_sensors;
 		<?
 			}
 		?>
-		<div class="msg" style="float: none; margin-bottom: 1em; display: none;">1 important setting awaits your review. Please visit settings page and make desired changes.</div>
-		<div class="banner_flex_outer">
 			<div class="banner" style="background-image: url(network.svg)">
 				<a class="banner_link" href="network_settings.html">Network Settings</a>
 				<div class="banner_info">Configure network connectivity settings, device name, etc.</div>
+                <? if(gprs && gen) { ?>
+                <div class="banner_status"><span id="gprs">Querying...</span></div>
+                <? } ?>
 			</div>
 			
 			<div class="banner" style="background-image: url(security.svg)">
@@ -56,7 +66,7 @@ extern sensor *connected_sensors;
 			<div class="banner" style="background-image: url(ag.svg)">
 				<a class="banner_link" href="aggregate_settings.html">AggreGate&trade; Settings</a>
 				<div class="banner_info">Enable seamless integration with AggreGate&trade; SCADA platform</div>
-				<div class="banner_status">Status: <b>Disconnected</b></div>
+				<div class="banner_status"><span id="agst">Querying...</span></div>
 			</div>
 
 			<div class="banner">
@@ -113,11 +123,45 @@ extern sensor *connected_sensors;
 </div>
 
 <script type="text/javascript">
+
+var statuses = {
+	0: "IDLE",
+	1: "CONNECTING",
+	2: "SYNCRONIZING",
+	3: "DISCONNECTED",
+	4: "ESTABLISHED",
+    5: "FAILED",
+    6: "DISABLED",
+/* for GPRS and SMS modules */    
+    10: "NO SIM CARD",
+    11: "WRONG PIN CODE"
+};
+
+var attr_norm = {"color": "black", "font-weight": "bold"};
+var attr_err = {"color": "red", "font-weight": "normal"};
+var update_int = 5000;
+
+$.ajaxSetup({timeout: update_int-1});
+
 $(document).ready(function() {
-	var msg = $(".msg");
-	if(undefined !== msg)
-		msg.fadeIn();
+	$(".msg").fadeIn();
+	setInterval(function() {
+		var args = {"f": "main"};
+        var gpst;
+        
+		$.get("status.html", args, function(data){
+			var d = $.parseJSON(data);
+            var gps = parseInt(d["gprs"]);
+			var agk = parseInt(d["agst"]);
+			$("#agst").text(statuses[agk]).css(attr_norm);
+            $("#gprs").text("GPRS " + statuses[gps]).css(attr_norm);
+        }).fail(function(){
+			$("#agst").text("Timeout").css(attr_err);
+            $("#gprs").text("Timeout").css(attr_err);
+		});
+	}, update_int);
 });
+
 </script>
 
 </body>

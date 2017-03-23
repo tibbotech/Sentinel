@@ -28,6 +28,10 @@ enum tibbit
 	TB_04_2,					//!< Three isolated inputs, common (-)
 	TB_04_3,					//!< Three isolated inputs, common (+)
 	TB_04_4,					//!< Four opto-inputs, common ground
+	TB_04_5,					//!< Two isolated inputs, 24V
+	TB_04_6,					//!< Three isolated inputs, common (-), 24V
+	TB_04_7,					//!< Three isolated inputs, common (+), 24V
+	TB_04_8,					//!< Four opto-inputs, common ground, 24V
 	TB_05,						//!< RS485 port
 	TB_06,						//!< Two high-power relays
 	TB_07,						//!< Two solid state relays
@@ -81,6 +85,18 @@ enum tibbit
 	TB_45,						//!< Reserved
 	TB_46,						//!< Reserved
 	TB_47,						//!< GPRS modem
+	TB_48,						//!< Audio In/Out
+	TB_49,						//!< Micro SD card slot
+	TB_50,						//!< Mini type B USB port
+	TB_51,						//!< CAN bus
+//	TB_52,						//!< Don't exists
+//	TB_53,						//!< Don't exists
+	TB_54,						//!< Four dry contact inputs
+//	TB_55,						//!< Don't exists
+	TB_56,						//!< Type A USB port
+	TB_57,						//!< FPGA
+	TB_58,						//!< Two 24V NPN isolated open collector outputs
+	TB_59,						//!< Two 24V PNP isolated open collector outputs
 /* Add new tibbits here */
 	NUM_TIBBITS
 };

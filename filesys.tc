@@ -7,12 +7,32 @@ filesys_init()
 	pl_fd_status_codes res;
 	
 	if(!fd.ready) {
+		DBG("Mounting filesystem");
+	
 		res = fd.mount();
-		if(res != PL_FD_STATUS_OK)
-			return false;
+		switch(res) {
+			case PL_FD_STATUS_OK:
+				return true;
+				
+			case PL_FD_STATUS_FAIL:
+				ERR("Physical flash memory failure");
+				break;
+				
+			case PL_FD_STATUS_CHECKSUM_ERR:
+				ERR("Disk checksum error");
+				break;
+				
+			case PL_FD_STATUS_FORMAT_ERR:
+				ERR("Disk formatting error");
+				break;
+				
+			case PL_FD_STATUS_FLASH_NOT_DETECTED:
+				ERR("Flash IC not detected during system boot");
+				break;
+		}
 	}
 	
-	return true;
+	return false;
 }
 
 

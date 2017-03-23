@@ -62,8 +62,13 @@ declare sub gprs_proc_ser_data()
 declare sub gprs_proc_sock_data()
 declare sub gprs_proc_timer()
 
+
 declare sub callback_gprs_pre_buffrq(required_buff_pages as byte)
 'Callback procedure, informs of the insufficient number of free buffer pages available for use by the library.
+'Procedure body has to be created elsewhere in the project (externally with respect to the library).
+
+declare sub callback_gprs_auth()
+'Callback procedure, informs of the beginning of the authentication phase
 'Procedure body has to be created elsewhere in the project (externally with respect to the library).
 
 declare sub callback_gprs_ok()

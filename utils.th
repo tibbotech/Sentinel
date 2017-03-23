@@ -45,6 +45,7 @@ extern bool open_always(unsigned char, string&);
 extern string html_checked(bool);
 extern string html_option(string&, string&, bool);
 extern bool contains_only(string&, string&);
+string filesys_errcodestr(pl_fd_status_codes);
 
 
 enum halt_reason_code {

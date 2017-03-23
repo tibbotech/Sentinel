@@ -31,11 +31,6 @@ static byte _ch_relay = 0;
 iotype
 get_bus_type(byte n)
 {
-#if 0
-	if(n < sizeof(_all_buses))
-		return _all_buses[n].type;
-#endif
-
 	return IO_NONE;
 }
 
@@ -143,6 +138,8 @@ tibbit_number(string tb)
 		return TB_31;
 	if(tb == "47")
 		return TB_47;
+	
+	/* New tibbits */
 #if 0		
 	// CAN tibbit doesn't work on G1 and G2 boards
 	if(tb == "51")
@@ -252,7 +249,7 @@ parse_tibbit_record(string& trec)
 					
 					if(intf == "rs232") {
 						type = IO_RS232;
-						serial_set_type(port, IO_RS232);
+						//serial_set_type(port, IO_RS232);
 					} else if(intf == "rs422") {
 						type = IO_RS422;
 						serial_set_type(port, IO_RS422);
@@ -354,7 +351,11 @@ dcalloc:
 			chnum = _ch_serial++;
 			type = IO_MODEM;
 			port = ioport_alloc(slot, IO_RS232, -1);
-			_modem = port;
+			if(NULL != port) {
+				serial_remember_port(port);
+				serial_set_role(port, SR_MODEM);
+				_modem = port;
+			}
 			break;
 			
 		default:

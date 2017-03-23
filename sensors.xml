@@ -420,4 +420,38 @@
         </read>
     </sensor>
 
+    <sensor id="34" valuetype="flood" tibbo_id="3">
+        <name>Tibbo's Flood Detection sensor V2</name>
+        <chipset>ModBus</chipset>
+        <buslist>
+            <bus>modbus</bus>
+        </buslist>
+        <!-- no initialization required -->
+        <read>
+            <register>1901</register><!-- ModBus register # in hex -->
+            <reply length="2">
+                <param type="word">
+                    <bitfield start="0" size="16" />
+                </param>                
+            </reply>
+        </read>
+    </sensor>
+
+    <sensor id="35" valuetype="flood" tibbo_id="4">
+        <name>Tibbo's Flood Detection sensor V2</name>
+        <chipset>ModBus</chipset>
+        <buslist>
+            <bus>modbus</bus>
+        </buslist>
+        <!-- no initialization required -->
+        <read>
+            <register>401</register><!-- ModBus register # in hex -->
+            <reply length="2">
+                <param type="word">
+                    <bitfield start="0" size="16" />
+                </param>                
+            </reply>
+        </read>
+    </sensor>
+
 </sensors>

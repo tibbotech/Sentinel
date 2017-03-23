@@ -83,6 +83,8 @@ serial_setup(ioport *p)
 		
 	ser.num = p->d.ser.spn;
 
+	/* 512 bytes per RX and TX buffers
+	 */
 	ser.rxbuffrq(2);
 	ser.txbuffrq(2);
 	//ser.redir(PL_REDIR_SER + ser.num);
@@ -198,6 +200,7 @@ serial_send(ioport *p, string data)
 
 	ser.num = p->d.ser.spn;
 
+	ser.notifysent(1);
 	ser.setdata(data);
 	ser.send();
 	

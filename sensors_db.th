@@ -67,7 +67,7 @@ struct zone {
 	float lo;					//!< Low boundary
 	float hi;					//!< High boundary
 	byte flags;					//!< Action flags
-	word relays;				//!< Relays to turn on and off. Max of 16 channels, 8 tibbits
+	word relays;				//!< Relays to turn on and off. Max of 16 channels, 8 tibbits, 1 bit per relay channel
 	byte sms_tpl;				//!< SMS template ID
 	byte email_tpl;				//!< E-mail template ID
 	byte snmp_trap;				//!< SNMP trap number
@@ -152,7 +152,7 @@ struct sensor_file_info
 };
 
 
-#define 	DRVID_NONE			0x00	
+#define 	DRVID_NONE			0	
 
 
 #define		DEFAULT_SDB_NAME	"sensors.bin"

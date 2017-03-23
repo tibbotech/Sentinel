@@ -354,6 +354,7 @@ public sub gprs_proc_ser_data()
 		end select
 	
 	case GPRS_PPP_PROTO_PAP:
+		callback_gprs_auth() ' Inform application about start of authentication phase
 		select case asc(mid(gprs_reply,3,1))
 		case GPRS_PPP_CONFACK:
 			if gprs_phase=GPRS_PPP_PAP then

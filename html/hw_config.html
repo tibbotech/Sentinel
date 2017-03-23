@@ -167,7 +167,17 @@ fd.open("hwconfig"); // Ignore result
 	<select id="spt" name="spt" class="cff">
 		<option value="sc">Serial Console</option>
 		<option value="mb">ModBus</option>
-		<option value="ts">Tibbo Sensors</option>
+	</select>
+	<label>Baud rate</label>
+		<select id="br" name="br" class="cff">
+		<option value="0">1200</option>
+		<option value="1">2400</option>
+		<option value="2">4800</option>
+		<option value="3">9600</option>
+		<option selected value="4">19200</option>
+		<option value="5">38400</option>
+		<option value="6">57600</option>
+		<option value="7">115200</option>
 	</select>
 	</span>
 <!-- placeholder for PIC roles -->
@@ -221,6 +231,7 @@ $(document).ready(function(){
 				opts.children("#spm").attr("name", "s"+ts+"m");
 				opts.children("#spt").attr("name", "s"+ts+"t");
 				opts.children("#pt").attr("name", "t"+ts);
+				opts.children("#br").attr("name", "br"+ts);
 			}
 			
 			$("#s"+ns).css("visibility", (v == "02" || v == "06" || v == "47")? "hidden": "visible");

@@ -6,18 +6,13 @@
 #include "hal.th"
 
 
-//#define	NUM_I2C_PORTS		3
-//#define	NUM_1W_PORTS		3
-//#define	NUM_DC_PORTS		6
-
-
 struct bus_info {
 	iotype type;
 	byte port;
 };
 
 
-extern bus_info _all_buses[];
+#define is_modem_installed() (NULL != map_device(IO_MODEM, 0))
 
 
 extern bool device_map_init();

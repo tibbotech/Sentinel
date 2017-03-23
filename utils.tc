@@ -1,4 +1,5 @@
 #include "global.th"
+#include "filesys.th"
 
 
 static string<16> _hex = "0123456789ABCDEF";
@@ -497,6 +498,66 @@ ser_send(string& data)
 }
 
 
+string
+filesys_errcodestr(pl_fd_status_codes err)
+{
+	switch(err) {
+		case PL_FD_STATUS_OK:
+			return "PL_FD_STATUS_OK";
+		
+		case PL_FD_STATUS_FAIL:
+			return "PL_FD_STATUS_FAIL";
+		
+		case PL_FD_STATUS_CHECKSUM_ERR:
+			return "PL_FD_STATUS_CHECKSUM_ERR";
+		
+		case PL_FD_STATUS_FORMAT_ERR:
+			return "PL_FD_STATUS_FORMAT_ERR";
+		
+		case PL_FD_STATUS_INV_PARAM:
+			return "PL_FD_STATUS_INV_PARAM";
+		
+		case PL_FD_STATUS_DUPLICATE_NAME:
+			return "PL_FD_STATUS_DUPLICATE_NAME";
+		
+		case PL_FD_STATUS_FILE_TABLE_FULL:
+			return "PL_FD_STATUS_FILE_TABLE_FULL";
+		
+		case PL_FD_STATUS_DATA_FULL:
+			return "PL_FD_STATUS_DATA_FULL";
+		
+		case PL_FD_STATUS_NOT_READY:
+			return "PL_FD_STATUS_NOT_READY";
+		
+		case PL_FD_STATUS_NOT_FOUND:
+			return "PL_FD_STATUS_NOT_FOUND";
+		
+		case PL_FD_STATUS_NOT_OPENED:
+			return "PL_FD_STATUS_NOT_OPENED";
+		
+		case PL_FD_STATUS_ALREADY_OPENED:
+			return "PL_FD_STATUS_ALREADY_OPENED";
+		
+		case PL_FD_STATUS_TRANSACTION_ALREADY_STARTED:
+			return "PL_FD_STATUS_TRANSACTION_ALREADY_STARTED";
+		
+		case PL_FD_STATUS_TRANSACTION_NOT_YET_STARTED:
+			return "PL_FD_STATUS_TRANSACTION_NOT_YET_STARTED";
+		
+		case PL_FD_STATUS_TRANSACTION_CAPACITY_EXCEEDED:
+			return "PL_FD_STATUS_TRANSACTION_CAPACITY_EXCEEDED";
+		
+		case PL_FD_STATUS_TRANSACTIONS_NOT_SUPPORTED:
+			return "PL_FD_STATUS_TRANSACTIONS_NOT_SUPPORTED";
+		
+		case PL_FD_STATUS_FLASH_NOT_DETECTED: 
+			return "PL_FD_STATUS_FLASH_NOT_DETECTED";
+	}
+	
+	return "ERR "+str(err);
+}
+
+
 void
 _memset(void *ptr, unsigned char c, unsigned short cb)
 {
@@ -648,7 +709,7 @@ open_always(unsigned char fnum, string& fname)
 		}
 	}
 	
-	ERR("Failed to open file \""+fname+"\". Reason="+str(res));
+	ERR("Failed to open file \""+fname+"\" ("+filesys_errcodestr(res)+")");
 	return false;
 }
 

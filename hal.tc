@@ -249,9 +249,11 @@ _ioport_alloc_rs232(tbslot slot)
 	res->d.ser.rx = _slots[slot].pin[1];
 	res->d.ser.rts = _slots[slot].pin[2];
 	res->d.ser.cts = _slots[slot].pin[3];
-	res->d.ser.ctl = (tb == TB_02)? _ioport_alloc_gpio(slot+1, IO_GPIO4): NULL;
+	res->d.ser.ctl = (TB_02 == tb) || (TB_47 == tb)? _ioport_alloc_gpio(slot+1, IO_GPIO4): NULL;
 	res->ci.start = 0;
 	res->ci.count = 1;
+	
+	serial_setup(res);
 	
 	return res;
 }

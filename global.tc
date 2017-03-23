@@ -12,10 +12,12 @@ bool update_enabled = true;							//!< Update enabled/disabled flag
 bool onewire_enabled = false;
 bool modem_enabled = false;
 word update_interval = DEFAULT_UPDATE_INTERVAL;		//!< Sensor value update interval in 0.5 sec units
- 
+connection_state gprs_status = CONS_DISABLED;
+
  
 //sensor *connected_sensors = NULL;
 word sensor_count = 0;
 word unknown_sensor_count = 0;
+
 
 

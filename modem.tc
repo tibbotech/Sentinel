@@ -54,14 +54,13 @@ at_command(ioport *p, string& command)
 	string gprs_cmd = "AT" + command; 
 	
 	serial_send(p, gprs_cmd + chr(13));
-
-	ser.send();
-	
-	while(ser.txlen != 0)
-		;
-
 	if(modem_debug_flags & MODEM_DEBUG_OUT)
 		DBG("> " + gprs_cmd);
+
+#if 1
+	while(ser.txlen != 0)
+		;
+#endif		
 }
 
 

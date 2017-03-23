@@ -64,7 +64,7 @@ struct modbus_tcphdr {
 };
 
 
-struct modbus_apu {
+struct modbus_req {
 	byte addr;
 	modbus_reqhdr hdr;
 	word crc;

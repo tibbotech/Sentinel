@@ -53,14 +53,11 @@ address_format(iotype bus, void *addr)
 			return res;
 		
 		case IO_RS485:
-			return str(ba[0]); //ddstr(chr(ba[0])+chr(ba[1])+chr(ba[2])+chr(ba[3]));
+			return str(ba[0]); 
 
 		case IO_GPIO4:
 		case IO_DC:
 			return "n/a";
-		
-		default:
-			break;
 	}
 	
 	return "?";
@@ -87,37 +84,6 @@ dry_contacts_init()
 	
 	return cc; 
 }
-
-
-#if 0
-bool
-find_sensor(iotype bus, byte chnl, void *addr)
-{
-	byte *ba = (byte *)addr;
-	ioport *p = map_device(bus, chnl);
-	
-	if(NULL == p)
-		return false;
-		
-	DBG("Detecting " + address_format(bus, addr) + " on " + ioport_typestring(p) + ", channel " + str(chnl) + "...");
-	
-	switch(bus) {
-		case IO_I2C:
-			return i2c_detect(p, ba[0]);
-		case IO_OW:
-			ow_start(p, chnl, OW_MATCH_ROM, (ow_devid *)addr);
-			ow_stop(p);
-			return true;
-		case IO_RS485:
-			return false;
-		case IO_DC:
-		case IO_SW:
-			return true;
-	}
-	
-	return false;
-}
-#endif
 
 
 static void
@@ -189,8 +155,6 @@ probe_1wire_port(bus_scan *bs)
 			}
 		}
 	}
-	
-//	sys.debugprint("1W: "+str(cnt)+"\r\n");
 }
 
 
@@ -255,10 +219,10 @@ probe_serial_port(bus_scan *bs)
 	byte cnt = 0;
 	serial_role role;
 	
-	/* Consoles doesn't allow connection of any sensor
+	/* Consoles and modems doesn't allow connection of any sensor
 	 */
 	role = serial_get_role(bs->port);
-	if(SR_CONSOLE == role)
+	if(SR_CONSOLE == role || SR_MODEM == role)
 		return; 
 	
 	DBG("Probing " + ioport_typestring(bs->port) + " port ");
@@ -266,8 +230,9 @@ probe_serial_port(bus_scan *bs)
 	prev = 0;
 	do {
 		if(role == SR_MODBUS) {
+			/* Address, TypeID, parameters */
 			add_modbus_sensor(bs, 10, 33, SPT_BIT);
-			add_modbus_sensor(bs, 11, 32, SPT_TEMP_AND_HUMIDITY);
+			add_modbus_sensor(bs, 11, 35 /* 32 */, SPT_TEMP_AND_HUMIDITY);
 			break;
 		}
 		
@@ -297,8 +262,6 @@ probe_serial_port(bus_scan *bs)
 			}
 		}
 	} while(n >= 0);
-	
-//	sys.debugprint("RS485: "+str(cnt)+"\r\n");
 }
 
 
@@ -357,27 +320,30 @@ probe_sensors(word *cnt, word *ucnt)
 			case IO_I2C:
 				probe_i2c_ports(&bs); 
 				break;
+				
 			case IO_OW:
 				probe_1wire_port(&bs);
 				break;
+				
 			case IO_PIC_ADC:
 				probe_adc_ports(&bs);
 				break;
+				
 			case IO_RS232:
 			case IO_RS422:
 			case IO_RS485:
 				probe_serial_port(&bs);
 				break;
+				
 			case IO_DC:
 				probe_dc_port(&bs);
 				break;
 		}
 	}
 
-//	sys.debugprint("Total: " + str(bs.count) + "\r\n");
-	
 	*cnt = bs.count;
 	*ucnt = bs.ucount;
+
 	return bs.chain;
 }
  
@@ -387,8 +353,6 @@ device_portscan(sensor *head)
 {
 	for(sensor_db_open(); head; head=head->next)
 		sensor_read(head);
-		
-
 }
 
 
@@ -423,5 +387,3 @@ sensor_by_id(sensor_id sid)
 		
 	return NULL;
 }
-
-

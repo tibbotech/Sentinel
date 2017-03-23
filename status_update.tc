@@ -2,30 +2,26 @@
 #include "hal.th"
 #include "utils.th"
 #include "modem.th"
+#include "device_map.th"
+
+
+extern byte agg_link_state;
 
 
 static string
-gprs_status_update()
+get_mainpage_info()
 {
 	string res;
+		
+	res = j_encode("agst", str(agg_link_state));
+	res += "," + j_encode("gprs", str(gprs_status));
 	
-	res = "," + j_encode("s", "Not connected");
-	
-	return right(res, len(res)-1);
+	return res;
 }
 
 
 void
 status_update()
 {
-	string res, q;
-	string<8> tgt;
-	
-	q = query_string();
-	tgt = query_arg(q, "f", "");
-	if("gprs" == tgt) {
-		res = gprs_status_update();
-	}
-	
-	echo("{" + res + "}");
+	echo("{" + get_mainpage_info() + "}");
 }

@@ -3,25 +3,18 @@
 #include "global.th"
 #include "hal.th"
 #include "utils.th"
+#include "device_map.th"
 #include "modem.th"
 
 
-extern byte gprs_running;
-extern byte gprs_linkup_in_prog;
-
 string temp;
-bool gprs_connected = 0;
-bool gprs = is_tibbit_installed(TB_47);
+bool gprs = is_modem_installed();
 bool gen = !!val(stg_get("GEN", 0));
 bool wifi = wifi_card_installed();
 byte en = val(stg_get("ETH", 0));
 
 if(en > 2)
 	en = 0;
-
-if(gprs && gen)
-	gprs_connected = modem_session_established();
-
 
 ?>
 <!DOCTYPE html>
@@ -64,18 +57,6 @@ if(gprs && gen)
 			</div>
 			<div class="formrow">
 				<label class="f_lbl" for="gp"><div class="l_win">Password</div></label><input class="cff" name="gp" id="gp" value="<? echo_setting("GPWD"); ?>">
-			</div>
-			<div class="formrow">
-				<label class="f_lbl" for="gp"><div class="l_win">Status</div></label><div style="display:inline-block; font-weight:bold;"><?
-					if(!gprs_running) {
-						echo("Session not started");
-					} else {
-						if(gprs_linkup_in_prog)
-							echo("Connecting...");
-						else if(gprs_connected)
-							echo("CONNECTED");
-					}
-				?></div>
 			</div>
 		</fieldset>
 		<?

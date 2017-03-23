@@ -94,11 +94,23 @@ typedef unsigned short			sensor_id;
 #define DEFAULT_UPDATE_INTERVAL		20
 
 
+enum connection_state {
+	CONS_IDLE,
+	CONS_CONNECTING,
+	CONS_AUTHENTICATING,
+	CONS_DISCONNECTED,
+	CONS_ESTABLISHED,
+	CONS_FAILED,
+	CONS_DISABLED
+};
+
+
 extern string<4> sim_pin;
 extern bool update_enabled;
 extern word update_interval;
 extern word sensor_count;
 extern word unknown_sensor_count;
+extern connection_state gprs_status;
 extern bool onewire_enabled;
 
 

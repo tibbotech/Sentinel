@@ -2,9 +2,23 @@
 
 
 void
+p_log(string msg)
+{
+	sys.debugprint(msg + "\r\n");
+}
+
+
+void
 p_debug(string& file, unsigned short line, string msg)
 {
 	sys.debugprint(file+"("+str(line)+"): " + msg + "\r\n");
+}
+
+
+void
+p_warning(string& file, unsigned short line, string msg)
+{
+	sys.debugprint(file+"("+str(line)+"): WARNING: " + msg + "\r\n");
 }
 
 

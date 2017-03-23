@@ -4,9 +4,10 @@
 #include "hal.th"
 #include "utils.th"
 #include "validators.th"
+#include "device_map.th"
 
 
-bool gprs = is_tibbit_installed(TB_47);
+bool gprs = is_modem_installed();
 bool gen = !!val(stg_get("GEN", 0));
 bool wifi = wifi_card_installed();
 byte en = val(stg_get("ETH", 0));

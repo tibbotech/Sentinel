@@ -206,6 +206,7 @@ gprs_modem_init()
 	
 	mp = map_device(IO_MODEM, 0);
 	if(NULL != mp) {
+		gprs_status = CONS_CONNECTING;
 		gprs_ser_port = ioport_spn(mp);
 		modem_debug_flags = 0xFF; //MODEM_DEBUG_LOG;
 		modem_init(mp, stg_get("MPIN", 0)); /* pin code */
@@ -268,7 +269,7 @@ on_sys_init()
  */
 	scan_connected_sensors();
 
-	update_interval = 4; // 2 sec
+	update_interval = 4; // 2 sec, need to implement setting this via web-interface
 	update_enabled = true;
     update_timer = 1; // Update immediately
 
@@ -313,18 +314,22 @@ void
 callback_gprs_ok()
 {
 	/* Start agent, if required */
-#if 0	
-	test_echo();
-#endif
+	gprs_status = CONS_ESTABLISHED;
 	agg_agent_init();
+}
+
+
+void
+callback_gprs_auth()
+{
+	gprs_status = CONS_AUTHENTICATING;
 }
 
 
 void
 callback_gprs_failure()
 {
-#if 0
-#endif
+	gprs_status = CONS_FAILED;
 }
 
 
@@ -435,32 +440,46 @@ on_sock_data_arrival()
 #endif
 
 	switch(sock.num) {
+		/* Simple mail transfer protocol
+		 */
 		case SOCK_NUM_SMTP:
 			string s = sock.getdata(255);
 			_mail_send_continue(s, true);
 			break;
 			
+		/* Simple network management protocol
+		 */
 		case SOCK_NUM_SNMP:
 			snmp_process_packet();
 			break;
 			
+		/* Domain name system protocol
+		 */
 		case SOCK_NUM_DNS:
 			dns_process_packet();
 			break;
 
+		/* Aggregate agent protocol
+		 */
 		case SOCK_NUM_AGG:
 			agg_proc_data();
 			break;
 			
+		/* Dynamic host configuration protocol
+		 */
 		case SOCK_NUM_DHCP:
 			dhcp_proc_data();
 			break;
 
+		/* SMS gateway
+		 */
 		case SOCK_NUM_SMS:
 			string s = sock.getdata(255);
 			DBG("ECHO REPLY: " + dump(s));
 			break;
 			
+		/* General packet radio serivce
+		 */
 		case SOCK_NUM_GPRS:
 			string s = sock.peekdata(255);
 			DBG("RECV: " + dump(s));
@@ -512,7 +531,9 @@ on_sock_event(enum pl_sock_state newstate, enum pl_sock_state_simple newstatesim
 void
 on_ser_data_sent()
 {
-/* Empty, but do not remove! */
+#if 0
+	LOG("Sent on ser.num="+str(ser.num));
+#endif	
 }
 
 
