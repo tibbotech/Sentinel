@@ -26,10 +26,9 @@ encode_zone(zone *z)
 }
 
 
-void
-process_alarms()
+string
+saveAlarms(string q)
 {
-	string q = query_string();
 	string res;
 	string<8> act;
 	sensor_id sid;
@@ -77,6 +76,13 @@ process_alarms()
 		}
 	}
 	
-	sock_send("{"+res+"}");
+	return res;
 }
 
+
+void
+process_alarms()
+{
+	string q = query_string();
+	sock_send("{" + saveAlarms(q) + "}");
+}

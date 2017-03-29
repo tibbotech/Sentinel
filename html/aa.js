@@ -1,6 +1,3 @@
-/**
- *
- */
 var ajax_url = "/ajax_aa.html";
 
 
@@ -68,8 +65,20 @@ function save()
 	args["a"] = "save";
 	console.log(args);
 	
-	$.get(ajax_url, args, function(reply) {
-		console.log(reply);
+	$("#save").prop("disabled", false);
+	$("#l").show();
+
+	$.getJSON(ajax_url, args, function(data) {
+		if(data["status"] == "ok")
+			showMsg("Configuration saved");
+		console.log(data);
+	})
+	.fail(function(){
+		showError("Timeout");
+	})
+	.always(function(){
+		$("#l").hide();
+		$("#save").prop("disabled", false);
 	});
 }
 
@@ -118,13 +127,7 @@ function sensorChanged()
 	var id = $("#sensor option:selected").val();
 	var args = { "a": "get", "sid": id };
 
-	$.get(ajax_url, args, function(reply) {
-		try {
-			data = $.parseJSON(reply);
-		} catch(e) {
-			console.log("Invalid reply:"+reply);
-			return;
-		}
+	$.getJSON(ajax_url, args, function(data) {
 		console.log(data);
 		setupControls(data);
 	});
@@ -136,4 +139,7 @@ $(document).ready(function() {
 	$("#sensor").change(sensorChanged);
 	sensorChanged();
 });
+
+
+$.ajaxSetup({timeout: 5000});
 

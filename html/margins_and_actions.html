@@ -27,14 +27,14 @@ extern void sensor_location();
         <div class="back"><a href="index.html">&laquo;&nbsp;Return to main page</a></div>
     </div>
     <div class="body">
-		<div class="msg" id="msg">Configuration saved<div class="cb"><a id="close" href="#"><img src="del.png"></a></div></div>	
+		<div class="msg" id="msg"><div class="cb"><a id="close" href="#"><img src="del.png"></a></div></div>
 
 		<form method="POST"> 
 			<input type="hidden" class="cff" name="src" value="maa">
 			<fieldset>
 				<!-- legend>Margins, Alarms & Actions</legend -->
 	
-				<div class="formrow help">
+				<div class="formrow help" style="margin-top:0.66em">
 				Full range of parameter value which is reported by a sensor is divided into 3 zones:
 				Green, Yellow and Red.<br/>
 				When measured value falls into specific zone limits, specified action(s) is taken.
@@ -52,10 +52,6 @@ extern void sensor_location();
 					<input class="cff" name="loc" id="loc" maxlen="100" value="" style="min-width: 30em">
 				</div>
 
-				<!-- div class="formrow"> 
-					<hr/>
-				</div -->
-				
 				<table class="ht">
 					<tbody>
 						<tr>
@@ -173,6 +169,7 @@ extern void sensor_location();
 						<tr>
 							<td colspan="2">
 								<input type="button" id="save" value="Save">
+								<img src="loading.gif" style="display:none; margin-left: 1em" id="l" />
 							</td>
 						</tr>
 					</tbody>

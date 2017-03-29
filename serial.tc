@@ -122,7 +122,6 @@ serial_setup(ioport *p)
 	}
 	
 	ser.enabled = YES;
-	
 }
 
 

@@ -6,6 +6,7 @@
 
 
 extern tibbit tibbit_number(string);
+extern string saveAlarms(string);
 
 
 static string

@@ -28,7 +28,7 @@ template_html_list()
 	while(fd.pointer < (fd.filesize+1)) {
 		sz = file_getword();
 		if(0xFFFF != sz) {
-			sys.debugprint("Wrong signature "+hex(sz)+" at position "+lstr(fd.pointer)+"\r\n");
+			ERR("Wrong signature "+hex(sz)+" at position "+lstr(fd.pointer));
 			break;
 		}
 		

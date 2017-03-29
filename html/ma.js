@@ -91,8 +91,8 @@ function showm(msg, cls)
     d.removeClass().addClass(cls);
     if(m.length > 0)
        d.text(msg);
+
     d.fadeIn();
-    
     setTimeout(function(){ d.fadeOut(); }, 10000);
 }
 

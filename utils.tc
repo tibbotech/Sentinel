@@ -694,7 +694,7 @@ open_always(unsigned char fnum, string& fname)
 	
 	fd.filenum = fnum;
 	if(fd.fileopened)
-		return true;
+		fd.close();
 		
 	if((res = fd.open(fname)) == PL_FD_STATUS_OK)
 		return true;

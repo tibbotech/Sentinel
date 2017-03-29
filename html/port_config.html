@@ -24,8 +24,8 @@ extern void sensor_db_http_enumsensors(byte);
 <body>
 <div class="body_outer">
     <div class="heading">
-        <div class="main_heading">Port Setup</div>
-        <div class="main_heading_descr">This page allows to associate specific driver and ID with specific I/O port</div>
+        <div class="main_heading">Port Configuration</div>
+        <div class="main_heading_descr">This page allows to set up the way that specific I/O port behaves</div>
         <div class="back"><a href="index.html">&laquo;&nbsp;Return to the main page</a></div>
     </div>
     <div class="body">
@@ -87,7 +87,6 @@ extern void sensor_db_http_enumsensors(byte);
 						<option value="c">Normally Closed</option>
 						<option value="d">Disabled</option>
 					</select>
-					<input name="<? sock_send(id+"n"); ?>" maxlen="64" size="32"/>
                 </div>
 				<? } ?>
             </fieldset>

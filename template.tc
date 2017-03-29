@@ -235,7 +235,7 @@ template_open(bool bcreate)
 	for(int i=0; fd.pointer <= fd.filesize; ++i) {
 		tmp = file_getword();
 		if(tmp != 0xFFFF) {
-			sys.debugprint("Wrong template record #" + str(i) + " signature\r\n");
+			ERR("Wrong template record #" + str(i) + " signature");
 			fd.close();
 			return false;
 		}
@@ -251,7 +251,7 @@ template_open(bool bcreate)
 		fd.setpointer(fd.pointer + tmp);
 	}
 	
-	//sys.debugprint("Template file opened OK\r\n");
+	DBG("Template file opened");
 	return true;
 }
 
@@ -328,11 +328,14 @@ template_replace(word id, string tname, string ttl, template_action action)
 					file_putstring(temp);
 					
 					if(len(ttl)>0)
-						sys.debugprint("SET title=\""+ttl+"\"\r\n");
+						LOG("SET title=\""+ttl+"\"");
 						
 					file_putstring(len(ttl) > 0? ttl: title);
 					
 					fd.filenum = FILENO_TEMP;
+					if(fd.fileopened)
+						fd.close();
+						
 					if(fd.open("post_temp") == PL_FD_STATUS_OK) {
 						cb = fd.filesize;
 						
@@ -406,14 +409,14 @@ template_replace(word id, string tname, string ttl, template_action action)
 
 	res = fd.delete(TEMPLATE_FILE);
 	if(res != PL_FD_STATUS_OK)
-		sys.debugprint("Failed to delete file \""+TEMPLATE_FILE+"\". Reason="+str(res)+"\r\n");
+		ERR("Failed to delete file \""+TEMPLATE_FILE+"\". Reason="+str(res));
 	
 	res = fd.rename(TEMPLATE_FILE_NEW, TEMPLATE_FILE);
 	if(res != PL_FD_STATUS_OK)
-		sys.debugprint("Failed to rename file \""+TEMPLATE_FILE+"\". Reason="+str(res)+"\r\n");
+		ERR("Failed to rename file \""+TEMPLATE_FILE+"\". Reason="+str(res));
 	
 	if(!template_open(false))
-		sys.debugprint("Template file re-open failed!\r\n");
+		ERR("Template file re-open failed");
 	
 	return true;
 }
@@ -503,7 +506,7 @@ template_find(word id)
 			
 		tid = file_getword();
 		if(id == tid) {
-			sys.debugprint("Found template ID="+str(id)+" at pos="+lstr(fd.pointer)+"\r\n");
+			DBG("Found template ID="+str(id)+" at pos="+lstr(fd.pointer));
 			return fd.pointer;
 		}
 			
