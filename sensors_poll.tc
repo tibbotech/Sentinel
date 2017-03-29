@@ -29,54 +29,64 @@ static string
 _read(sensor *sens, byte cb, bool do_stop)
 {
 	string res = "";
+#ifdef _TRACE_IO	
 	string out = "";
+#endif	
 	byte r, rl;
 	byte i2ca;
 	
 	switch(sens->bus) {
 		case IO_I2C:
 			i2ca = (sens->i2c_addr << 1) | 0x01;
-			
 			i2c_start(sens->port);
 			i2c_write(sens->port, i2ca);
-			
+#ifdef _TRACE_IO			
 			out = "I2C_START R " + tohex(i2ca) + " LEN=" + str(cb) + " [";
-			
+#endif			
 			for(; cb != 0; --cb) {
 				r = i2c_read(sens->port, cb != 1);
 				res += chr(r);
+#ifdef _TRACE_IO				
 				out += tohex(r);
 				if(cb != 1)
 					out += " ";
+#endif					
 			}
 			
 			i2c_stop(sens->port);
+#ifdef _TRACE_IO			
 			out += "] I2C_STOP";
+#endif			
 			break;
 			
 		case IO_OW:
+#ifdef _TRACE_IO		
 			out = "";
+#endif			
 			if(do_stop) {
 				if(!ow_start(sens->port, sens->chnl, OW_MATCH_ROM, &sens->ow_addr))
 					break;
+#ifdef _TRACE_IO					
 				else out += "1W_START R "+address_format(IO_OW, &sens->ow_addr);
 			} else {
 				out += "R ";
+#endif
 			}
 			
+#ifdef _TRACE_IO			
 			out += "LEN="+str(cb)+" [";
-				
+#endif				
 			res = ow_recvstr(sens->port, cb);
+#ifdef _TRACE_IO
 			rl = len(res);
-			
 			for(byte i=0; i<rl; ++i) {
 				out += tohex(res[i]);
 				if(i < rl-1)
 					out += " ";
 			}
-				
-			ow_stop(sens->port);
 			out += "] 1W_STOP";
+#endif				
+			ow_stop(sens->port);
 			break;
 			
 		case IO_RS232:
@@ -90,13 +100,12 @@ _read(sensor *sens, byte cb, bool do_stop)
 					ERR("ModBus request timeout");
 			}
 #endif			
-			/* todo */
 			break;
 	}
 	
-#if 0			
+#ifdef _TRACE_IO
 	if(len(out) > 0)
-		sys.debugprint(out+"\r\n");
+		DBG(out);
 #endif			
 
 	return res;
@@ -107,47 +116,56 @@ static void
 _write(sensor *sens, byte *cmd, byte cmdlen, bool do_stop)
 {
 	byte i2ca;
+#ifdef _TRACE_IO	
 	string out = "";
+#endif	
 	word *regno;
 	
 	switch(sens->bus) {
 		case IO_I2C:
 			i2ca = (sens->i2c_addr << 1) | 0x00;
-			
 			i2c_start(sens->port);
 			i2c_write(sens->port, i2ca);
-
+#ifdef _TRACE_IO
 			out = "I2C_START W " + tohex(i2ca) + " LEN="+str(cmdlen) + " [";
-
+#endif
 			for(byte i=0; i<cmdlen; ++i) {
+#ifdef _TRACE_IO			
 				out += tohex(cmd[i]);
 				if(i != cmdlen-1)
 					out += " ";
+#endif					
 				i2c_write(sens->port, cmd[i]);
 			}
 			
+#ifdef _TRACE_IO
 			out += "] ";
-			
+#endif
+
 			if(do_stop) {
+#ifdef _TRACE_IO			
 				out +=  "I2C_STOP";
+#endif					
 				i2c_stop(sens->port);
 			}
 			break;
 			
 		case IO_OW:
 			if(ow_start(sens->port, sens->chnl, OW_MATCH_ROM, &sens->ow_addr)) {
+#ifdef _TRACE_IO
 				out = "1W_START W " + address_format(IO_OW, &sens->ow_addr) + " [";
-
 				for(byte i=0; i<cmdlen; ++i) {
 					out += tohex(cmd[i]);
 					if(i < cmdlen-1)
 						out += " ";
 				}
 				out += "] ";
-				
+#endif				
 				ow_send(sens->port, cmd, cmdlen);
 				if(do_stop) {
+#ifdef _TRACE_IO				
 					out += "1W_STOP";
+#endif
 					ow_stop(sens->port);
 				}
 			}
@@ -162,13 +180,12 @@ _write(sensor *sens, byte *cmd, byte cmdlen, bool do_stop)
 					modbus_request(sens->port, sens->modbus_addr, READ_INPUT_REGISTERS, *regno, 1);
 				}
 			}
-			/* todo */
 			break;
-	}
+	} // switch
 
-#if 0			
+#ifdef _TRACE_IO
 	if(len(out) > 0)
-		sys.debugprint(out+"\r\n");
+		DBG(out);
 #endif			
 }
 
@@ -280,10 +297,9 @@ _sensor_read_modbus(sensor *addr)
 
 	cmd = sensor_db_get_read_command(addr->drvid);
 	if(len(cmd) != 0) {
-#if 0		
+#ifdef _TRACE_IO
 		DBG("TYPE="+tohex(addr->drvid));
 #endif
-
 		tmp = _exec_io_program(addr, (byte *)&cmd[0], len(cmd));
 		cmd = sensor_db_get_read_program(addr->drvid);
 		if(len(cmd) > 0) {
@@ -311,10 +327,9 @@ _sensor_read(sensor *addr)
 
 	cmd = sensor_db_get_read_command(addr->drvid);
 	if(len(cmd) != 0) {
-#if 0		
-		sys.debugprint("\r\n-- READ_SENSOR TYPE="+tohex(addr->drvid)+" --\r\n");
+#ifdef _TRACE_IO
+		DBG("-- READ_SENSOR TYPE="+tohex(addr->drvid)+" --");
 #endif
-
 		tmp = _exec_io_program(addr, (byte *)&cmd[0], len(cmd));
 		cmd = sensor_db_get_read_program(addr->drvid);
 		if(len(cmd) > 0)
@@ -380,8 +395,8 @@ sensor_init(sensor *addr)
 	if(len(cmd) == 0)
 		return;
 
-#if 0
-	sys.debugprint("\r\n-- INIT_SENSOR TYPE="+tohex(addr->drvid)+" --\r\n");
+#ifdef _TRACE_IO
+	DBG("-- INIT_SENSOR TYPE="+tohex(addr->drvid)+" --");
 #endif
 
 	tmp = _exec_io_program(addr, (byte *)&cmd[0], len(cmd));
