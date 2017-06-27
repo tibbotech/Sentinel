@@ -5,7 +5,8 @@
 
 /* (c) 2016 Tibbo Technology, Inc.
  *
- * This file contains Hardware Abstraction Layer (HAL) procedures and functions.
+ * This file contains Hardware Abstraction Layer (HAL) procedures and functions for 
+ * TPP2 and TPP3 boards, including their G2 variants
  *
  * All this HAL stuff is intended to abstract from underlying hardware configuration 
  * and pin numbers. 
@@ -456,7 +457,7 @@ ioport_setopt(ioport *p, ioport_option o, int val)
 		case IO_SSI_HW_SPEED:
 		    if((IO_I2C != p->type) && (IO_SPI == p->type))
 				return -1;
-
+			
 			return 0;
 			
 		/* Option is unknown */

@@ -1,16 +1,16 @@
 [project]
 version=1
-platform=TPP3W(G2)
+platform=TPP2W(G2)
 src_lib_ver=2_01_00
 name=tibbo-sentinel-v1.0b
-output=tibbo-sentinel-v1.1.141b.$(Platform).tpc
-debug=off
-defines=/dOBJECT_LCD=LCD_DISABLED /dOBJECT_FD=FD_ENABLED /dOBJECT_KP=KP_DISABLED /dOBJECT_WLN=WLN_DISABLED /dLCD_TYPE=SOLOMON_SSD1963 /dFILENUM_MAX_SIGNATURE_LEN=4 /dFILENUM_MAX_FILENAME_LEN=12 /dGPRS_MODULE_EXTERNAL=1 /dGPRS_DEBUG_PRINT /dSUPPORTS_GPRS
+output=tibbo-sentinel-v1.1.141b.$(Platform)-$(Configuration).tpc
+debug=on
+defines= /dLCD_TYPE=SOLOMON_SSD1963 /dFILENUM_MAX_SIGNATURE_LEN=4 /dFILENUM_MAX_FILENAME_LEN=12 /dOBJECT_LCD=LCD_DISABLED /dOBJECT_FD=FD_ENABLED /dGPRS_MODULE_EXTERNAL=1 /dGPRS_DEBUG_PRINT /dOBJECT_KP=KP_DISABLED /dSUPPORTS_GPRS /dOBJECT_WLN=WLN_DISABLED
 transport=udp_winpcap
 [address1]
 platform=TPP3W(G2)
 transport=udp_winpcap
-address=0.24.77.80.40.136
+address=0.24.77.80.44.30
 [address2]
 platform=TPP2W(G2)
 transport=udp_winpcap

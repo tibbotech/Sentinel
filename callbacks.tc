@@ -6,6 +6,9 @@
 #include "utils.th"
 
 
+#includeb <wln\trunk\wln.tbh>
+
+
 extern sensor *connected_sensors; 
 
 
@@ -264,3 +267,9 @@ callback_gprs_pre_buffrq(byte required_buff_pages)
 }
 
 
+//pl_wln_check_association_retval
+byte
+wln_check_association()
+{
+	return 0; //WLN_ASSOCIATION_RETVAL_YES;
+}

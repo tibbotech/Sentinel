@@ -1,7 +1,6 @@
 /* (c) 2016 Tibbo Technology, inc.
  *
  * Device Map
- *
  * This file contains every bit of platform- and configuration dependent code
  */
 #include "global.th"

@@ -73,6 +73,8 @@ serial_get_role(ioport *sp)
 }
 
 
+/* TODO Make serial port settings: speed, parity, stop bits, etc. programmable via web-interface
+ */
 void
 serial_setup(ioport *p)
 {
@@ -103,22 +105,22 @@ serial_setup(ioport *p)
 		ser.interface = PL_SER_SI_HALFDUPLEX;
 		serial_set_rate(p, R_19200);
 	} else {
-		//rts = p->d.ser.rts;
-		//cts = p->d.ser.cts;
 		ser.flowcontrol = PL_SER_FC_RTSCTS;
 		ser.interface = PL_SER_SI_FULLDUPLEX;
-		//ser.rtsmap = rts;
-		//ser.ctsmap = cts;
-
-	/* Make RTS IO line to serve as output and CTS IO line as input
-	 */
+#if 0
+		/* Disabled due to some troubles with line remapping */
+		ser.rtsmap = p->d.ser.rts;
+		ser.ctsmap = p->d.ser.cts;
+#endif
+		/* Make RTS IO line to serve as output and CTS IO line as input
+		 */
 		io.num = ser.rtsmap;
-		io.enabled = YES; // enable output
+		io.enabled = YES; // enable output driver
 
 		io.num = ser.ctsmap;
-		io.enabled = NO; // disable output
+		io.enabled = NO; // disable output driver
 		
-		serial_set_rate(p, R_115200);
+		serial_set_rate(p, R_115200); 
 	}
 	
 	ser.enabled = YES;
@@ -194,7 +196,7 @@ serial_send(ioport *p, string data)
 		return;
 		
 #if 0
-	sys.debugprint("SER_SEND (#"+str(ser.num)+"): " + dump(data) + "\r\n");
+	DBG("SER_SEND (#"+str(ser.num)+"): " + dump(data) + "\r\n");
 #endif
 
 	ser.num = p->d.ser.spn;
@@ -203,7 +205,9 @@ serial_send(ioport *p, string data)
 	ser.setdata(data);
 	ser.send();
 	
-	//while(ser.txlen > 0) ;
+#if 0	
+	while(ser.txlen > 0) ;
+#endif	
 }
 
 
@@ -265,5 +269,3 @@ gp4_enable(ioport *p, byte n, no_yes ns)
 	io.num = pn;
 	io.enabled = ns;
 }
-
-
