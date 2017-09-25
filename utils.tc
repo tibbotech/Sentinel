@@ -740,3 +740,11 @@ contains_only(string& pattern, string& chars)
 	return true;
 }
 
+
+void
+render_login_form()
+{
+	//<form action="login.html" method="POST">
+	//</form>
+}
+

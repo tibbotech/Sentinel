@@ -5,7 +5,7 @@ src_lib_ver=2_01_00
 name=tibbo-sentinel-v1.0b
 output=tibbo-sentinel-v1.1.141b.$(Platform)-$(Configuration).tpc
 debug=on
-defines= /dLCD_TYPE=SOLOMON_SSD1963 /dFILENUM_MAX_SIGNATURE_LEN=4 /dFILENUM_MAX_FILENAME_LEN=12 /dOBJECT_LCD=LCD_DISABLED /dOBJECT_FD=FD_ENABLED /dGPRS_MODULE_EXTERNAL=1 /dGPRS_DEBUG_PRINT /dOBJECT_KP=KP_DISABLED /dSUPPORTS_GPRS /dOBJECT_WLN=WLN_DISABLED
+defines= /dFILENUM_MAX_SIGNATURE_LEN=4 /dFILENUM_MAX_FILENAME_LEN=12 /dOBJECT_FD=FD_ENABLED /dGPRS_MODULE_EXTERNAL=1 /dGPRS_DEBUG_PRINT /dSUPPORTS_GPRS /dOBJECT_WLN=WLN_DISABLED
 transport=udp_winpcap
 [address1]
 platform=TPP3W(G2)
@@ -1001,6 +1001,13 @@ locked=no
 location=project
 [file141]
 path=html\port_config.html
+type=htmlc
+format=
+condition=
+locked=no
+location=project
+[file142]
+path=html\loginform.html
 type=htmlc
 format=
 condition=

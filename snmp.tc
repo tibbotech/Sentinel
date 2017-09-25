@@ -48,7 +48,8 @@ varbind_list_parse(snmp_pdu *pkt)
 		if(!_decode_oid(pkt->p, &oid))
 			return false;
 
-		/* This is valid only for GET/BULK GET requests! */
+		/* This is valid only for GET/BULK GET requests! 
+		 */
 		if(pkt->pdu_type != SNMP_SET) {
 			if(_is_chunk(pkt->p, SDT_NULL) < 0)
 				return false;
@@ -339,7 +340,7 @@ snmp_send_trap(word trapId, sensor *s)
 	
 	/* Wait until all data goes out
 	 */
-	while(sock.tx2len > 0) ;
+	while(sock.tx2len > 0 /* || sock.txlen > 0 */) ;
 	
 	sock.close();
 }

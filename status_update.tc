@@ -25,3 +25,12 @@ status_update()
 {
 	echo("{" + get_mainpage_info() + "}");
 }
+
+
+void
+status_print()
+{
+	echo("<pre>\n");
+	echo("AGG: "+"\n");
+	echo("</pre>\n");
+}

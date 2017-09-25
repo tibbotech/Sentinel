@@ -192,6 +192,7 @@ modbus_parse_adu_rtu(sensor *sens, string& packet)
 static void
 modbus_parse_adu_tcp(string& packet)
 {
+	/* -!- */
 	/* Parses application data unit of ModBus packet */
 	return;
 }

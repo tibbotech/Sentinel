@@ -221,6 +221,9 @@ on_sys_init()
 	byte tmp;
 	en_dhcp_status_codes res;
 	
+	//romfile.open("dl.js");
+	//string stmp = romfile.getdata(255);
+	
 	DBG("Firmware version: " + __VERSION__);
 	DBG("Initializing...");
 	
@@ -303,7 +306,7 @@ callback_dhcp_ok(no_yes renew, pl_sock_interfaces interface, string& dhcp_obtain
 void
 callback_dhcp_failure(pl_sock_interfaces interface, en_dhcp_status_codes failure_code)
 {
-	/* Fall back to default addresses
+	/* Fall back to the default addresses
 	 */
 	stg_set("IP", 0, "");
 	net_init_manual();
