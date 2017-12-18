@@ -2,7 +2,7 @@
 #include "http_post.th"
 
 
-/* Do not expose these states to outer world. 
+/* Do not expose these states to the outer world. 
  * This is an internal stuff
  */
 enum http_post_state {
@@ -111,7 +111,7 @@ _scanfor(string& buf, string& pt, byte *bl)
  * We don't have access (yet) to the HTTP header, so we can't take field delimiter from 
  * Content-Type=xxx; boundary=yyy field. Instead we assume that the very first line of HTTP
  * stream contains valid field separator. This is kind of hack, i know, but until
- * D.S. doesn't implements access to the header fields we don't have any choice.
+ * D.S. doesn't implement access to the header fields we don't have any choice.
  */
 void 
 http_post_parse_buf()
@@ -126,7 +126,7 @@ http_post_parse_buf()
 	l = len(_http_post_buf);
 	
 	if(len(sock.httprqstring) != 0) {
-#if 0	
+#if 0
 		sys.debugprint(sock.httprqstring + "\r\n");
 #endif		
 		_http_post_buf += sock.gethttprqstring(255 - l);
@@ -138,7 +138,7 @@ http_post_parse_buf()
 			return; // nothing found
 	}
 	
-	/* First line up to the CR/LF pair, starting from '--' is field delimiter
+	/* First line up to the CR/LF pair, starting from '--' is the field delimiter
 	 */
 	if(_http_post_state == HPS_IDLE) {
 		_http_post_delim = left(_http_post_buf, p-1);
@@ -177,7 +177,7 @@ http_post_parse_buf()
 					_http_var_ct = mid(_http_post_buf, len(_hdr_ct), p - len(_hdr_ct));
 			}
 		} else if(_http_post_state == HPS_DELIMITER) {
-			/* If delimiter ends with double dash '--' this indicates end of POST data stream.
+			/* If delimiter ends with double dash '--' this indicates end of the POST data stream.
 			 * CR/LF means that more fields follow
 			 */
 			if(_startswith(_http_post_buf, _http_post_delim)) {
@@ -231,4 +231,17 @@ http_post_parse()
 	
 	// clean up misc stuff
 	http_post_init();
+}
+
+
+void
+http_post_finish(void)
+{
+	switch(sock.httprqtype) {
+		case PL_SOCK_HTTP_RQ_GET:
+			break;
+			
+		case PL_SOCK_HTTP_RQ_POST:
+			break;
+	}
 }

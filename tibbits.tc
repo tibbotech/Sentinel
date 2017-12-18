@@ -4,7 +4,8 @@
 /* Please keep this table in sync with enum!
  * First member (tibbit type id) designated for error checking
  */
-static tibbit_info _ti_info[] = {
+static tibbit_info _ti_info[] = 
+{
 	{ TB_NONE, 	0, 0 },
 	{ TB_00_1, 	1, 0 },
 	{ TB_00_2, 	1, TBSLOT_PIN_D_UNUSED },

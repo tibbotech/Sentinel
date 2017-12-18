@@ -155,7 +155,7 @@ _tibbo_sensor_poll(ioport *p)
 			sys.debugprint(dump(TGS_STX + rqtext + TGS_ETX) + "\r\n");
 #endif
 			serial_send(p, TGS_STX + rqtext + TGS_ETX);
-			delay(100);
+			delay(100); // delay(250);
 			rq->state = TGS_STATE_WAIT_REPLY;
 		}
 	}
@@ -215,6 +215,7 @@ tibbo_reprogram_sensor(ioport *p, tgs_addr oldsn, tgs_addr newsn)
 
 	rq->addr = oldsn;
 	rq->naddr = newsn;
+	//rq->state = rq->state;
 	return rq->id;
 }
 

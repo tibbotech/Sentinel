@@ -748,3 +748,9 @@ render_login_form()
 	//</form>
 }
 
+
+void
+check_user_credentials(void)
+{
+	for(;;) {}
+}

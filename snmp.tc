@@ -115,7 +115,7 @@ snmp_init()
 	sock.protocol = PL_SOCK_PROTOCOL_UDP;
 	sock.inconmode = PL_SOCK_INCONMODE_NONE; // PL_SOCK_INCONMODE_ANY_IP_ANY_PORT;
 	sock.reconmode = PL_SOCK_RECONMODE_3;
-
+	
 	sock.txbuffrq(6); // // 1536 bytes max datagram size for us
 	
 	return true;
@@ -186,7 +186,8 @@ snmp_process_packet()
 	
 	pkt.pdu_type = *pkt.p++;
 	
-	/* Under no circumstances PDU length will not exceed 64K */
+	/* Under no circumstances PDU length will not exceed 64K 
+	 */
 	pkt.pdu_length = (word)_decode_length(pkt.p);
 
 	switch(pkt.pdu_type) {

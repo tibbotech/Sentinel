@@ -10,6 +10,7 @@ filesys_init()
 		DBG("Mounting filesystem");
 	
 		res = fd.mount();
+		
 		switch(res) {
 			case PL_FD_STATUS_OK:
 				return true;
@@ -40,9 +41,11 @@ string
 file_getstring()
 {
 	string<1> l;
+
 	l = fd.getdata(1);
 	if(0 == len(l))
 		return "";
+	
 	return fd.getdata(l[0]);
 }
 

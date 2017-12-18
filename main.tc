@@ -278,7 +278,7 @@ on_sys_init()
 
 	led_bar_set_pattern(0);
 
-	DBG("Memory total: "+str(sys.totalbuffpages/4)+" kB, free: "+str(sys.freebuffpages/4)+" kB");
+	DBG("Memory used: "+str(sys.totalbuffpages/4)+" kB, free: "+str(sys.freebuffpages/4)+" kB");
 	
 	DBG("Running");
 }
