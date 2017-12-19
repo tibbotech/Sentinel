@@ -1,0 +1,11 @@
+#ifndef __UTF8_TO_CP1251_INCLUDED__
+#define __UTF8_TO_CP1251_INCLUDED__
+
+
+extern string convert_utf8_to_windows1251(string);
+
+#define _TR(x) convert_utf8_to_windows1251(x)
+
+
+#endif
+
