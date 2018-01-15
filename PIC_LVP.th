@@ -1,0 +1,33 @@
+#ifndef __PIC_LVP_INCLUDED__
+#define __PIC_LVP_INCLUDED__
+
+
+enum icsp_device_status {
+	ICSP_NONE = 0,
+	ICSP_FOUND,
+	ICSP_INVALID_DEVICE,
+	ICSP_NO_FIRMWARE,
+	ICSP_VERSION_LOWER,
+	ICSP_VERSION_HIGHER
+};
+
+
+#define MAX_DATA_LEN 4096
+#define MAX_CFG_LEN 16
+#define PIC_TRACE
+
+
+#define USR_SCL		PL_IO_NULL
+#define USR_SDA		PL_IO_NULL
+#define USR_MCLR	PL_IO_NULL
+#define USR_INT		PL_IO_NULL
+
+
+/*
+declare function get_device_identification(socket as byte) as icsp_device_status
+declare function pic_upload_firmware(socket as byte, byref fwname as string) as boolean
+declare use_ssi as boolean
+*/
+
+
+#endif
