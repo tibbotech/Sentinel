@@ -86,3 +86,45 @@ utf8to16(string &s, word *result, word cbmax)
 	
 	return 0; //result;
 }
+
+
+string
+decode_cp1251(string& s)
+{
+	byte l, i;
+	char c, prefix, suffix;
+	string res;
+	short unicode_char;
+	
+	res = "";
+	l = len(s);
+	for(i=0; i<l; ++i) {
+		c = s[i];
+		
+		prefix = s[i];
+		suffix = s[i+1];
+		
+		if(!prefix & 0x80) {
+			res += chr(c);
+		} else {
+			unicode_char = ((prefix & 0x1F) << 6) | (suffix & 0x3F);
+			
+			switch(c) {
+				case 0xB0: // this is unicode prefix character
+					break;
+					
+				case 0xB1:
+					break;
+					
+				case 0xA0:
+					break;
+					
+				default:
+					res += chr(c);
+					break;
+			}
+		}
+	}
+	
+	return res;
+}

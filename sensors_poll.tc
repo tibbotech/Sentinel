@@ -364,7 +364,7 @@ sensor_read(sensor *addr)
 			/* The dry contact lines are polled elsewhere
 			 */
 			 break;
-			 
+
 		default:
 			_sensor_read(addr);
 			break;
@@ -404,4 +404,3 @@ sensor_init(sensor *addr)
 	if(len(cmd) > 0) 
 		_run(addr, cmd, tmp);
 }
-

@@ -5,31 +5,45 @@ bool
 filesys_init()
 {
 	pl_fd_status_codes res;
+	byte i;
 	
-	if(!fd.ready) {
-		DBG("Mounting filesystem");
-	
-		res = fd.mount();
+	for(i=0; i<2; ++i) {
+		if(!fd.ready) {
+			DBG("Mounting filesystem");
 		
-		switch(res) {
+			res = fd.mount();
+			
+			switch(res) {
+				case PL_FD_STATUS_OK:
+					return true;
+					
+				case PL_FD_STATUS_FAIL:
+					ERR("Physical flash memory failure");
+					break;
+					
+				case PL_FD_STATUS_CHECKSUM_ERR:
+					ERR("Disk checksum error");
+					break;
+					
+				case PL_FD_STATUS_FORMAT_ERR:
+					ERR("Disk formatting error");
+					break;
+					
+				case PL_FD_STATUS_FLASH_NOT_DETECTED:
+					ERR("Flash IC not detected during system boot");
+					return false;
+			}
+		}
+		
+		DBG("Trying to (re-)format flash");
+		
+		switch(fd.format(fd.availableflashspace - 16, 8)) {
 			case PL_FD_STATUS_OK:
-				return true;
+				break; // Try to mount FS again
 				
 			case PL_FD_STATUS_FAIL:
-				ERR("Physical flash memory failure");
-				break;
-				
-			case PL_FD_STATUS_CHECKSUM_ERR:
-				ERR("Disk checksum error");
-				break;
-				
-			case PL_FD_STATUS_FORMAT_ERR:
-				ERR("Disk formatting error");
-				break;
-				
-			case PL_FD_STATUS_FLASH_NOT_DETECTED:
-				ERR("Flash IC not detected during system boot");
-				break;
+				ERR("fd.format(): Physical flash memory failure");
+				return false;
 		}
 	}
 	

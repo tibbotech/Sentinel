@@ -650,4 +650,3 @@ template_process(byte tpl_id, sensor *s, template_target target)
 	cch = 0;
 	return cch;
 }
-

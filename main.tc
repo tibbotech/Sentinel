@@ -202,15 +202,19 @@ gprs_modem_init()
 	ioport *mp;
 	bool gprs_enable = !!val(stg_get("GEN", 0));
 	
-	DBG("Finding GPRS modem...");
-	
-	mp = map_device(IO_MODEM, 0);
-	if(NULL != mp) {
-		gprs_status = CONS_CONNECTING;
-		gprs_ser_port = ioport_spn(mp);
-		modem_debug_flags = 0xFF; //MODEM_DEBUG_LOG;
-		modem_init(mp, stg_get("MPIN", 0)); /* pin code */
-		modem_gprs_enable(gprs_enable);
+	if(gprs_enable) {
+		DBG("Finding GPRS modem...");
+		
+		mp = map_device(IO_MODEM, 0);
+		if(NULL != mp) {
+			gprs_status = CONS_CONNECTING;
+			gprs_ser_port = ioport_spn(mp);
+			modem_debug_flags = 0xFF; //MODEM_DEBUG_LOG;
+			modem_init(mp, stg_get("MPIN", 0)); /* pin code */
+			modem_gprs_enable(gprs_enable);
+		}
+	} else {
+		DBG("GPRS modem disabled");
 	}
 }
 

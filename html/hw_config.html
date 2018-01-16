@@ -142,7 +142,7 @@ fd.open("hwconfig"); // Ignore result
 		<option <? html_selected(tbopts == "1-wire"); ?>value="1">1-Wire/Single Wire (3 ports)</option>
 		<option <? html_selected(tbopts == "adc"); ?>value="a">10-bit ADC (4 channels)</option>
 	</select>
-	<!-- <input type="button" value="Upload F/W"> -->
+	<input type="button" class="fwupl" value="Upload">
 	</span>
 <?
 						}
@@ -187,20 +187,59 @@ fd.open("hwconfig"); // Ignore result
 		<option value="1">1-Wire/Single Wire (3 ports)</option>
 		<option value="a">10-bit ADC (4 channels)</option>
 	</select>
-	<!-- <input type="button" value="Upload F/W"> -->
+	<input type="button" class="fwupl" value="Upload">
 	</span>
 </div>
 </body>
 <script type="text/javascript">
 
-$(document).ready(function(){
-	var opts, cls, v;
+
+async function getUploadPercentage()
+{
+	var fw = "1w";
+	return await fetch("/ajax_fw.html?stage=1&fw="+fw);
+}
+
+
+$(document).ready(function() {
+	var opts, cls, v; 
+	var fw = "1w";
 	
 	$(".formrow.slot")
 		.not(".uart")
 		.children("select")
 		.children(".ser")
 		.remove(); 
+	
+	$(".fwupl").click(function() {
+		$(this)
+			.attr("disabled", "disabled")
+			.val("Uploading: 0%");
+			
+		$.ajax(
+			{
+				url: "/ajax_fw.html?stage=1&fw=",
+				method: 'GET',
+				crossDomain: true,
+				success: data => {
+					var js;
+					try {
+						js = JSON.parse(data);
+					} catch(err) {
+						js = {};
+					}
+					
+					
+					$(this).removeAttr("disabled");
+					console.log(data);
+				},
+				error: (reason, msg) => {
+					$(this).removeAttr("disabled");
+					console.log(reason + "," + msg);
+				}
+			}
+		);
+	});
 	
 	$(".tibbit").each(function() {
 		$(this).change(function() {

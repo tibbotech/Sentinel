@@ -4,7 +4,7 @@
 bool
 parse_bool(string& s)
 {
-	if("true" == s)
+	if("true" == s || "1" == s)
 		return true;
 	return (bool)!!val(s);
 }
@@ -72,15 +72,53 @@ is_valid_hostname(string& s)
 		c = s[i];
 		if(c >= 'a' && c <= 'z')
 			continue;
-		if(c >= 'A' && c <= 'z')
+			
+		if(c >= 'A' && c <= 'Z')
 			continue;
+			
 		if(c >= '0' && c <= '9')
 			continue;
+			
 		if(c == '-' || c == '_' || c == '.')
 			continue;
+			
 		return false;
 	}
 	
 	return true;
 }
 
+
+static bool 
+is_valid_email_address(string& s)
+{
+	/* Email address must contain only latin letters, underscore,
+	 * dash, dot and digits. The only exception is the @ sign,
+	 * which delimits domain name from the mailbox address
+	 */
+	byte l, i;
+	char c;
+	
+	l = len(s);
+	for(i=0; i<l; ++i) {
+		c = s[i];
+		switch(c) {
+			case '@':
+			case '_':
+			case '.':
+			case '-':
+				break;
+				
+			case 'a'-'z':
+				break;
+				
+			//case 'A'-'Z':
+			//	break;
+				
+			case '0'-'9':
+				break;
+		}
+	}
+	
+	return false; // not valid at all
+}

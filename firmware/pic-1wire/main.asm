@@ -422,7 +422,7 @@ hi_ok	    return
 	    
 
 ; Initiate read sequence for f#%$d Chinese Single-Wire gauges and read all available bits
-; into internal buffer for further sending to master
+; into internal buffer for further sending to the master
 ;
 ; Channel number contained in 'chnl_int' and set by ISR, so this procedure must 
 ; be called immediately after interrupt
@@ -463,10 +463,10 @@ msloop
 	    
 	    call    ONEW_RECV	    ; Allow line to float
     	    udelay .130		    ; Device must hold line low for 75-85 μs...
-
+;
 ; DHT-11 sensor is answering after almost 8 ms instead of 20-40 μs as stated in documentation!
 ;
-cfv_loop    movlw   .50		    ; 85 us + 1 cycle
+cfv_loop    movlw   .50		    ; 85 μs + 1 cycle
 	    movwf   cnt_hi
 	    call    DETECT_LOW
 	    movf    cnt_hi, F
@@ -489,7 +489,7 @@ cfv_bitloop movlw   .35		    ; LOW level period always precedes any bit
 	    movf    cnt_hi, F	    ; stream.
 	    btfsc   STATUS, Z	    ;
 	    goto    read_cfv_end    ;
-
+;
 ; Compare remaining time with 35 cycles
 ; If it is larger than 35 cycles, then we got a 1, else 0
 ;	    
@@ -623,7 +623,7 @@ ENUM_RESET  movlw   LOW recvbuf
 	    return
 
 
-; Enumerate devices on specified port.
+; Enumerate devices on the specified port.
 ; Master must issue RESET/SEARCH_ROM commands until receiving address of all 0xFF
 ;	    
 ; (I think about using values 0xDEADBEEF 0xBAADF00D as invalid address value ;)

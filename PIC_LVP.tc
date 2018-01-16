@@ -519,14 +519,16 @@ load_firmware(string& name, firmware& fw)
 					}
 				}
 				
+				break;
+				
 			case 0x01: // EOF
 				break;
 				
 			case 0x02: // Extended Segment Address 
-				false; // Breakpoint placeholder
+				break; 
 				
 			case 0x03: // Start Segment Address
-				false; // Breakpoint placeholder
+				break; 
 				
 			case 0x04: // Extended Linead Address
 				// The 32-bit Extended Linear Address Record is used to specify bits 16-31 of 
@@ -537,9 +539,10 @@ load_firmware(string& name, firmware& fw)
 				st = mid(s, 10, 4);
 				lba = val("0x" + st);
 				lba = lba << 16;
+				break;
 				
 			case 0x05: // Start Linear Address
-				false; // Breakpoint placeholder
+				break; // Breakpoint placeholder
 				
 			default:
 				return false;

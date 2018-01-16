@@ -1,5 +1,5 @@
 '*************************************************************************************************************************
-'           AggreGate Agent Library, custom edition
+'   AggreGate Agent Library, custom edition
 '	Agent Libarary is the interface for TIDE project to work with Tibbo AggreGate Server,
 '	for more details on Agent and AggreGate please visit the website
 '	http://aggregate.tibbo.com/docs/
@@ -27,6 +27,7 @@ const AGG_TX_BUF_SIZE=2 'AGG_TX_BUFF_PAGES
 const AGG_RX_BUF_SIZE=2 'AGG_RX_BUFF_PAGES
 const AGG_FIRMWARE_GET_FAIL_COUNT=250
 
+const AGG_MSG_TBL_GENERAL_FAILURE = "General failure. Check the log for details"
 const AGG_MSG_TBL_STATUS_FAILURE = "Data disk error."
 const AGG_MSG_TBL_STATUS_UNKNOWN_TABLE = "Unknown table."
 const AGG_MSG_TBL_STATUS_UNKNOWN_FIELD = "Unknown field."
@@ -2724,3 +2725,5 @@ sub agg_convert_disk_data(byref data_string as string)
 	next i
 	data_string=s
 end sub
+
+
