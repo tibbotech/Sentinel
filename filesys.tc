@@ -33,6 +33,8 @@ filesys_init()
 					ERR("Flash IC not detected during system boot");
 					return false;
 			}
+		} else {
+			return true;
 		}
 		
 		DBG("Trying to (re-)format flash");

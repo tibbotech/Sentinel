@@ -248,7 +248,7 @@ callback_tbl_fail_to_open(string& filename, pl_fd_status_codes status, byte file
 void
 callback_tbl_field_error(string& file_name, string& field_name, en_tbl_status_codes tbl_result)
 {
-	DBG("callback_tbl_field_error");
+	DBG("callback_tbl_field_error: " + file_name + ":" + field_name);
 }
 
 
@@ -261,7 +261,7 @@ callback_tbl_modified(string& file_name, en_tbl_modified_operation modified_oper
 }
 
 
-void
+void 
 callback_gprs_pre_buffrq(byte required_buff_pages)
 {
 }

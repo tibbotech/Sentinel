@@ -219,12 +219,13 @@ gprs_modem_init()
 }
 
 
+
 void 
 on_sys_init()
 {
 	byte tmp;
 	en_dhcp_status_codes res;
-	
+	 
 	//romfile.open("dl.js");
 	//string stmp = romfile.getdata(255);
 	

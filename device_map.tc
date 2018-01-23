@@ -402,6 +402,7 @@ device_map_load_config(string& fname)
 	dword dwp;
 	string s;
 	byte tries;
+	pl_fd_status_codes res;
 	
 #if 0
 	fd.delete(fname);
@@ -409,7 +410,8 @@ device_map_load_config(string& fname)
 
 	for(tries=0; tries<2; ++tries) {
 		fd.filenum = FILENO_TEMP;
-		if(PL_FD_STATUS_OK == fd.open(fname))
+		res = fd.open(fname);
+		if(PL_FD_STATUS_OK == res)
 			break;
 		
 		if(0 == tries) {
