@@ -280,7 +280,7 @@ void
 ow_sendstr(ioport *port, string& data)
 {
 	byte i;
-	
+		
 	for(i=0; i<len(data); ++i) {
 		if(!ow_wait(port))
 			break;

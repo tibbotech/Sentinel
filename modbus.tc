@@ -138,7 +138,7 @@ modbus_request(ioport *port, byte devaddr, byte request, word start, word count)
 	_state = MODBUS_IDLE;
 	_timeout = sys.timercountms + MODBUS_TIMEOUT;
 	
-#if 0
+#if 1
 	DBG(hexdump((byte *)&data[0], len(data)));
 #endif	
 
@@ -227,6 +227,9 @@ on_modbus_data_arrival(modbus_source src)
 			
 		case MODBUS_RECEIVING:
 			_packet += tmp;
+#if 1
+			DBG(hexdump((byte *)&tmp[0], len(tmp)));
+#endif
 			break;
 	}
 
@@ -254,4 +257,41 @@ modbus_process_result(sensor *sens)
 	}
 
 	return false;
+}
+
+
+bool
+modbus_timeout()
+{
+	return sys.timercountms > _timeout;
+}
+
+
+bool
+modbus_finished()
+{
+	return _state == MODBUS_FINISHED;
+}
+
+
+string
+modbus_result()
+{
+	return _packet;
+}
+
+
+string 
+modbus_sync_request(ioport *port, byte devaddr, byte request, word start, word count)
+{
+	modbus_request(port, devaddr, request, start, count);
+
+	while(_state != MODBUS_FINISHED) {
+		if(sys.timercountms > _timeout)
+			return "";
+			
+		doevents;
+	}
+
+	return _packet;
 }

@@ -20,7 +20,7 @@ enum modbus_state {
 };
 
 
-#define MODBUS_TIMEOUT			5000
+#define MODBUS_TIMEOUT			500
 
 
 enum modbus_func_code {
@@ -76,6 +76,9 @@ extern bool modbus_complete(modbus_source);
 extern void on_modbus_data_arrival(modbus_source);
 extern void modbus_init();
 extern bool modbus_process_result(sensor *);
-
+extern bool modbus_finished();
+extern bool modbus_timeout();
+extern string modbus_result();
+extern string modbus_sync_request(ioport *, byte, byte, word, word);
 
 #endif

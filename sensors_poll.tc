@@ -113,6 +113,59 @@ _read(sensor *sens, byte cb, bool do_stop)
 
 
 static void
+read_hexagon_sensor(sensor *sens)
+{
+	word port, cnt;
+	string res;
+	
+	switch(sens->ptype) {
+		case SPT_TEMPERATURE:
+			port = 300;
+			cnt = 2;
+			break;
+
+		case SPT_TEMP_AND_HUMIDITY:
+			port = 300;
+			cnt = 4;
+			break;
+		
+		case SPT_LIGHT:
+			port = 400;
+			cnt = 2;
+			break;
+		
+		case SPT_SHOCK:
+			port = 800;
+			cnt = 6;
+			break;
+		
+		case SPT_FLOOD:
+			port = 500;
+			cnt = 1;
+			break;
+		
+		default:
+			return;
+	}
+	
+	res = "";
+	
+	modbus_request(sens->port, sens->mac[0], READ_INPUT_REGISTERS, port, cnt);
+	
+	while(!modbus_finished()) {
+		if(modbus_timeout())
+			return;
+		//doevents;
+	}
+	
+	res = modbus_result();
+	if(res != "") {
+		/* Extract value */
+	}
+}
+
+
+static void
 _write(sensor *sens, byte *cmd, byte cmdlen, bool do_stop)
 {
 	byte i2ca;
@@ -174,12 +227,12 @@ _write(sensor *sens, byte *cmd, byte cmdlen, bool do_stop)
 		case IO_RS232:
 		case IO_RS422:
 		case IO_RS485:
+#if 0		
 			if(SR_MODBUS == serial_get_role(sens->port)) {
-				if(cmdlen == sizeof(word)) {
-					regno = (word *)&cmd[0];
-					modbus_request(sens->port, sens->modbus_addr, READ_INPUT_REGISTERS, *regno, 1);
-				}
+				if(0xFF == sens->drvid)
+					read_hexagon_sensor(sens);
 			}
+#endif			
 			break;
 	} // switch
 
@@ -259,32 +312,7 @@ _run(sensor *addr, string& cmd, string& tmp)
 }
 
 
-static void
-_sensor_read_tibbo(sensor *s)
-{
-	tgs_addr a = chr(s->mac[0]) + chr(s->mac[1]) + chr(s->mac[2]) + chr(s->mac[3]);
-	word rqid;
-	dword tmo;
-	
-	tibbo_sensors_poll();
-
-	while(0 == (rqid = tibbo_query_sensor(s->port, a, 0, s))) {
-		/* wait until queue has some available space */
-		doevents;
-		tibbo_sensors_poll();
-	}
-
-	tibbo_sensors_poll();
-
-	while(!tibbo_task_finished(rqid)) {
-		doevents;
-		tibbo_sensors_poll();
-	}
-	
-	tibbo_task_done(rqid);
-}
-
-
+#if 0
 static void
 _sensor_read_modbus(sensor *addr)
 {
@@ -314,6 +342,7 @@ _sensor_read_modbus(sensor *addr)
 		}
 	}
 }
+#endif
 
 
 static void
@@ -350,10 +379,13 @@ sensor_read(sensor *addr)
 		case IO_RS422:
 		case IO_RS485:
 			sr = serial_get_role(addr->port);
-			if(SR_TIBBO == sr)
-				_sensor_read_tibbo(addr);
-			else if(SR_MODBUS == sr)
-				_sensor_read_modbus(addr);
+			if(SR_TIBBO == sr) {
+				//_sensor_read_tibbo(addr);
+			} else if(SR_MODBUS == sr) {
+				if(0xFF == addr->drvid)
+					read_hexagon_sensor(addr);
+					//_sensor_read_modbus(addr);
+				}
 			else if(SR_MODEM != sr)
 				_sensor_read(addr);
 			break;

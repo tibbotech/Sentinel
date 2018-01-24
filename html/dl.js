@@ -25,7 +25,9 @@ function updatePage(data)
 {
 	var hwaddr = data["hwaddr"];
 	var st = data["st"] || 0;
-	
+	var hex = data["hex"] || "";
+	var add;
+
 	serial_number = hwaddr;
 	if(data["status"] == "error") {
 		$("#df").hide();
@@ -38,12 +40,18 @@ function updatePage(data)
 			if(devId != hwaddr) {
 				$("#di").hide();
 				$("#de").hide();
-				$("#df").text(data["bus"] + " address: " + data["hwaddr"]).show();
+				if(hex != "") {
+					add = ", Tibbo Hexagon: " + hex;
+				} else {
+					add = "";
+				}
+				$("#df").text(data["bus"] + " address: " + data["hwaddr"] + add).show();
 				$("#st").val(st);
 				blink(3);
 				devId = hwaddr;
-				if($("#bi").val() == "rs485")
+				if($("#bi").val() == "rs485") {
 					$("#csnd").show();
+				}
 			}
 		} else { 
 			if(devId != "") {

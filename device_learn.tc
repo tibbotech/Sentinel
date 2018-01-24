@@ -7,6 +7,7 @@
 #include "sensors_assoc.th"
 #include "tgs.th"
 #include "validators.th"
+#include "modbus.th"
 
 
 enum {
@@ -38,8 +39,63 @@ err_msg(int e)
 static word rqid = 0;
 
 
+static byte 
+detect_modbus(ioport *p)
+{
+	static byte addrs[5] = { 0x40, 0x41, 0x42, 0x43, 0x44 };
+	byte i;
+	string res;
+		
+	for(i=0; i<5; ++i) {
+		modbus_request(p, addrs[i], READ_INPUT_REGISTERS, 200, 1);
+		
+		while(!modbus_finished()) {
+			if(modbus_timeout())
+				break;
+			doevents;
+		}
+		
+		if(modbus_timeout())
+			continue;
+			
+		if(modbus_finished()) {
+			res = modbus_result();
+			// we got answer
+			//if(res[1] == addrs[i] && res[2] == READ_INPUT_REGISTERS && res[3] == 1)
+				return addrs[i];
+		}
+	}
+	
+	return 0;
+}
+
+
+string
+tibbo_sensor_type(byte tb)
+{
+	switch(tb) {
+		case 0x40:
+			return "Temperature";
+			
+		case 0x41:
+			return "Humidity";
+			
+		case 0x42:
+			return "Light";
+			
+		case 0x43:
+			return "Shock";
+			
+		case 0x44:
+			return "Flood";
+	}
+	
+	return "Unknown";
+}
+
+
 int
-device_detect(byte bi, byte bn, byte *addr)
+device_detect(byte bi, byte bn, byte *addr, string& typeid)
 {
 	ioport *port;
 	string<127> i2c;
@@ -47,6 +103,7 @@ device_detect(byte bi, byte bn, byte *addr)
 	ow_devid owd;
 	tgs_state st;
 	tgs_addr ta;
+	byte i;
 	
 	port = map_device(bi, bn);
 	if(NULL == port)
@@ -84,6 +141,7 @@ device_detect(byte bi, byte bn, byte *addr)
 			break;
 		
 		case IO_RS485:
+#if 0		
 			nd = tibbo_query_port(port);
 			if(0 == nd)
 				return ERR_NO_DEVS;
@@ -103,6 +161,17 @@ device_detect(byte bi, byte bn, byte *addr)
 			addr[1] = ta[1];
 			addr[2] = ta[2];
 			addr[3] = ta[3];
+#else
+			i = detect_modbus(port);
+			if(0 != i) {
+				typeid = tibbo_sensor_type(i);
+				
+				addr[0] = 0;
+				addr[1] = 0;
+				addr[2] = 0;
+				addr[3] = 0;
+			}
+#endif			
 			break;
 			
 		default:
@@ -144,10 +213,11 @@ _do_detect(word bi, word bn)
 	byte addr[8];
 	sensor *dba;
 	tgs_addr sn;
-
+	string typestr;
+	
 	sys.debugprint("Detecting on "+_busname(bi)+"#"+str(bn)+"...");
 
-	err = device_detect(bi, bn, addr);
+	err = device_detect(bi, bn, addr, typestr);
 	if(err < 0) {
 		sys.debugprint(" FAILED!\n");
 		res = j_error(err_msg(err));
@@ -155,30 +225,36 @@ _do_detect(word bi, word bn)
 		res = j_encode("status", "ok");
 		res += "," + j_encode("ch", str(bn));
 	
-		dba = sensor_assoc_find(bi, bn, addr);
-		if(NULL != dba) {
-			res += "," + j_encode("st", dba->drvid);
-			sys.debugprint(" (DrvID="+tohex(dba->drvid)+")");
-		}
-		
-		res += "," + j_encode("bus", _busname(bi));
-		if(err != ERR_OK) {
-			res += "," + j_encode("hwaddr", "");
+		if(IO_RS485 == bi) {
+			res += "," + j_encode("bus", _busname(bi));
+			res += "," + j_encode("hwaddr", "0x00000000");
+			res += "," + j_encode("hex", typestr);
 		} else {
-			switch(bi) {
-				case IO_I2C:
-					res += "," + j_encode("hwaddr", tohex(addr[0]));
-					break;
-				case IO_OW:
-					res += "," + j_encode("hwaddr", "Class "+tohex(addr[0]) + ", S/N # " + hexdump(&addr[1], 6));
-					break;
-				case IO_RS485:
-					sn = tibbo_detected_addr();
-					res += "," + j_encode("hwaddr", _sn(sn));
-					break;
-				default:
-					res += "," + j_encode("hwaddr", "");
-					break;
+			dba = sensor_assoc_find(bi, bn, addr);
+			if(NULL != dba) {
+				res += "," + j_encode("st", dba->drvid);
+				sys.debugprint(" (DrvID="+tohex(dba->drvid)+")");
+			}
+			
+			res += "," + j_encode("bus", _busname(bi));
+			if(err != ERR_OK) {
+				res += "," + j_encode("hwaddr", "");
+			} else {
+				switch(bi) {
+					case IO_I2C:
+						res += "," + j_encode("hwaddr", tohex(addr[0]));
+						break;
+					case IO_OW:
+						res += "," + j_encode("hwaddr", "Class "+tohex(addr[0]) + ", S/N # " + hexdump(&addr[1], 6));
+						break;
+					case IO_RS485:
+						sn = tibbo_detected_addr();
+						res += "," + j_encode("hwaddr", _sn(sn));
+						break;
+					default:
+						res += "," + j_encode("hwaddr", "");
+						break;
+				}
 			}
 		}
 	}
@@ -201,7 +277,7 @@ _do_save(word bi, word bn, word st)
 		
 	sys.debugprint("Saving...\n");
 	
-	err = device_detect(bi, bn, addr);
+	err = device_detect(bi, bn, addr, r);
 	if(err < 0)
 		return j_error(err_msg(err)); 
 		
