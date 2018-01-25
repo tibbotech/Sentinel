@@ -42,8 +42,14 @@ function updatePage(data)
 				$("#de").hide();
 				if(hex != "") {
 					add = ", Tibbo Hexagon: " + hex;
+					$("#nn").show();
+					$("#st").hide();
+					$("#sb").hide();
 				} else {
 					add = "";
+					$("#nn").hide();
+					$("#st").show();
+					$("#sb").show();
 				}
 				$("#df").text(data["bus"] + " address: " + data["hwaddr"] + add).show();
 				$("#st").val(st);
@@ -146,6 +152,9 @@ function busChanged()
 	$("#de").hide();
 	$("#l").hide();
 	$("#st").val(0);
+	$("#nn").hide();
+	$("#st").show();
+	$("#sb").show();
 	blink(2);
 	devId = null;
 	refreshNow();
@@ -292,6 +301,7 @@ function changeSN()
 
 
 $(document).ready(function() {
+	$("#nn").hide();
 	$("#csnd").hide();
 	$("#di").show();
 	$("#df").hide();

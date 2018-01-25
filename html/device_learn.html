@@ -54,7 +54,7 @@
 				<div class="lrpad hid" id="csnd"><input type="button" id="csn" name="csn" value="Change S/N..."></div>
 				<div class="lrpad"><img id="l" src="loading.gif"></div>
 		</div>
-		<div class="formrow">
+		<div class="formrow" id="st">
 			<div id="fl3" class="numeric"><div>3</div></div> 
 			<div class="fixsz">Choose sensor type from list of supported sensors</div>
 			<select name="st" id="st">
@@ -62,10 +62,17 @@
 			<? sensor_db_http_enumsensors(0); ?>
 			</select>
 		</div>
-		<div class="formrow">
+		<div class="formrow" id="sb">
 			<div id="fl4" class="numeric"><div>4</div></div>
 			<div class="fixsz">Save sensor association</div>
 			<input type="button" value="Save" id="save" style="margin-left:0">
+			<div class="lrpad"><img id="s" class="hid" src="loading.gif"><!--<img id="ok" class="hid" src="ok.gif">-->
+			</div>
+		</div>
+		<div class="formrow" id="nn">
+			<div id="fl4" class="numeric"><div>3</div></div>
+			<div class="fixsz">Save sensor association</div>
+			<strong>Tibbo Hexagon sensor</strong> is a plug-and-play capable hardware, so there is no need to make an association
 			<div class="lrpad"><img id="s" class="hid" src="loading.gif"><!--<img id="ok" class="hid" src="ok.gif">-->
 			</div>
 		</div>
