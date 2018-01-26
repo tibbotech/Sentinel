@@ -215,7 +215,7 @@ _do_detect(word bi, word bn)
 	tgs_addr sn;
 	string typestr;
 	
-	sys.debugprint("Detecting on "+_busname(bi)+"#"+str(bn)+"...");
+	DBG("Detecting on "+_busname(bi)+"#"+str(bn)+"...");
 
 	err = device_detect(bi, bn, addr, typestr);
 	if(err < 0) {
@@ -259,7 +259,7 @@ _do_detect(word bi, word bn)
 		}
 	}
 	
-	sys.debugprint(" OK\n");
+	//sys.debugprint(" OK\n");
 	return res;
 }
 
