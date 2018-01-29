@@ -37,7 +37,7 @@
                     <bitfield start="0" size="16"></bitfield>
                 </param>-->
                 <param type="temperature">
-                    <bitfield start="0" size="11" />
+                    <bitfield start="4" size="8" />
                 </param>
             </reply>
         </read>
