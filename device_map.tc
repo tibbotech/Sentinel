@@ -11,10 +11,11 @@
 #include "1wire.th"
 
 
-static ioport *_ioports[HAL_IOPORT_COUNT]; 
+static ioport *_ioports[HAL_IOPORT_COUNT+1]; 
 static ioport *_modem = NULL;
 static byte _iop_count = 0;
-static byte _enum_index;
+static byte _enum_index = 0;
+static byte _enum_serial_index = 0;
 
 
 /* Channel counters for each kind of the bus
@@ -476,6 +477,7 @@ void
 enum_init()
 {
 	_enum_index = 0;
+	_enum_serial_index = 0;
 }
 
 
@@ -484,8 +486,8 @@ enum_serial_next(serial_role role)
 {
 	ioport *p;
 	
-	for(p=NULL; _enum_index < _iop_count; ) {
-		p = _ioports[_enum_index++];
+	for(p=NULL; _enum_serial_index < _iop_count; ) {
+		p = _ioports[_enum_serial_index++];
 		if(is_serial_port(p) && (serial_get_role(p) == role))
 			break;
 	}
@@ -511,5 +513,8 @@ enum_type_next(iotype type)
 ioport *
 enum_all_next()
 {
-	return (_enum_index < _iop_count)? _ioports[_enum_index++]: NULL;
+	if(_enum_index >= _iop_count)
+		return NULL;
+		
+	return _ioports[_enum_index++];
 }

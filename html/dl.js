@@ -110,6 +110,7 @@ function busScan()
 {
 	var busId = currentBus(); //parseInt($("#bi").val());
 	var busN = parseInt($("#bn").val());
+	var st = parseInt($("#st").val());
 
 	if(is_local)
 		return;
@@ -122,7 +123,7 @@ function busScan()
 	
 	$("#l").show();
 
-	args = { "a": "dl", "bi": busId, "bn": busN };
+	args = { "a": "dl", "bi": busId, "bn": busN, "st": st };
 	
 	$.get(ajax_url, args, function(data) {
 		var d = $.parseJSON(data);
@@ -179,7 +180,7 @@ function saveAssoc()
 	var args;
 	var busId = currentBus(); //parseInt($("#bi").val());
 	var busN = parseInt($("#bn").val());
-	var st = parseInt($("#st").val());
+	var st = parseInt($("select#st option:selected").val());
 	var di;
 
 	if(isNaN(busId))
@@ -201,6 +202,8 @@ function saveAssoc()
 	$("#s").show();
 	
 	args = { "a": "s", "bi": busId, "bn": busN, "dev": di, "st": st };
+
+	console.log(args);
 
 	$.get(ajax_url, args, function(data) {
 		var d = $.parseJSON(data);

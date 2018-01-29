@@ -26,13 +26,18 @@
         <chipset>MCP9808</chipset>
         <buslist>
             <bus>i2c</bus>
-            <bus>1-wire</bus>
         </buslist>
+        <init>
+            <command>08 01</command> <!-- Set resolution 1 -->
+        </init>
         <read>
-            <command>CC 55 FF EA AA</command>
+            <command>05</command>
             <reply length="2">
-                <param type="temperature">
+                <!--<param type="temperature">
                     <bitfield start="0" size="16"></bitfield>
+                </param>-->
+                <param type="temperature">
+                    <bitfield start="0" size="11" />
                 </param>
             </reply>
         </read>

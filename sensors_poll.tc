@@ -25,6 +25,9 @@ struct pchunk {
 };
 
 
+#define _TRACE_IO
+
+
 static string
 _read(sensor *sens, byte cb, bool do_stop)
 {
@@ -379,13 +382,11 @@ sensor_read(sensor *addr)
 		case IO_RS422:
 		case IO_RS485:
 			sr = serial_get_role(addr->port);
-			if(SR_TIBBO == sr) {
-				//_sensor_read_tibbo(addr);
-			} else if(SR_MODBUS == sr) {
+			if(SR_MODBUS == sr) {
 				if(0xFF == addr->drvid)
 					read_hexagon_sensor(addr);
 					//_sensor_read_modbus(addr);
-				}
+			}
 			else if(SR_MODEM != sr)
 				_sensor_read(addr);
 			break;

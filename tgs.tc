@@ -165,10 +165,12 @@ _tibbo_sensor_poll(ioport *p)
 void
 tibbo_sensors_poll()
 {
+#if 0
 	ioport *p;
 	
 	for(enum_init(); p = enum_serial_next(SR_TIBBO);)
 		_tibbo_sensor_poll(p);
+#endif		
 }
 
 // 0x02 0.0.0.0 XX GI 0x0D

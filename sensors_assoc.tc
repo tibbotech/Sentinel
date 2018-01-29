@@ -71,9 +71,11 @@ read_assoc()
 
 		fr = (sensor_file_rec *)&tmp[0];
 		res = find_drvrec(fr->drvid, &fi);
-		if(!res)
+		if(!res) {
+			ERR("Cannot find driver record for DRVID="+str(fr->drvid));
 			continue;
-			
+		}
+		
 		sa = alloc_addr();  
 		if(NULL == sa) {
 			ERR("*** OUT OF MEMORY! ***");
@@ -202,11 +204,19 @@ sensor_assoc_add(iotype bus, byte chnl, byte drv, byte *addr)
 static bool
 _cmp_addr(iotype bus, byte *addr1, byte *addr2)
 {
-	byte i;
+	byte i, a, b;
+	
+	if(bus == IO_I2C) {
+		a = addr1[0];
+		b = addr2[0];
+		return a == b;
+	}
 	
 	switch(bus) {
 		case IO_I2C:
-			return *addr1 == *addr2;
+			a = addr1[0];
+			b = addr2[0];
+			return a == b;
 			
 		case IO_OW:
 			for(i=0; i<8; ++i)
@@ -241,9 +251,15 @@ sensor_assoc_find(byte bus, byte chnl, byte *addr)
 	
 	for(i=0; i<MAX_SENSOR_COUNT; ++i) {
 		if(0 != (*flags & mask)) {
-			if(addrs[i].bus == bus && addrs[i].chnl == chnl)
-				if(_cmp_addr(bus, addr, addrs[i].mac))
-					return &addrs[i];
+			if(addrs[i].bus == bus && addrs[i].chnl == chnl) {
+				if(bus == IO_I2C) {
+					if(addrs[i].mac[0] == addr[0])
+						return &addrs[i];
+				} else {
+					if(_cmp_addr(bus, addr, addrs[i].mac))
+						return &addrs[i];
+				}
+			}
 		}
 		
 		mask >>= 1;
