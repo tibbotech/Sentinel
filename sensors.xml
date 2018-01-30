@@ -37,7 +37,12 @@
                     <bitfield start="0" size="16"></bitfield>
                 </param>-->
                 <param type="temperature">
-                    <bitfield start="4" size="8" />
+                    <code>
+                        mov r0, word data[0]
+                        swap r0
+                        and r0, 0x0FFF
+                        shr r0, 4
+                    </code>
                 </param>
             </reply>
         </read>

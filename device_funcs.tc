@@ -31,7 +31,7 @@ var_format(var& v)
 	if(v.type == TYPE_FLOAT) { 
 		return ftostr(v.f, FTOSTR_MODE_AUTO, 5);
 	} else {
-		return lstr(v.l);
+		return lstr(v.l); // + " (" +lhex(v.l)+")";
 	}
 } 
 

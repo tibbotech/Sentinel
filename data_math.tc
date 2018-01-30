@@ -120,6 +120,8 @@ _exec_program_long(ALU *alu, byte *prog, word cb)
 	var *dst, *src;
 	bool neg;
 	
+	opc = NULL;
+	
 	for(opc=(opcode *)prog; cb != 0; ) {
 		
 		sz = 0; 				
