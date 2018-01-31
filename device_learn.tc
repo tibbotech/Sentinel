@@ -122,8 +122,8 @@ device_detect(byte bi, byte bn, byte *addr, string& typeid)
 			break;
 			
 		case IO_OW:
+#if 0			
 			nd = 0;
-			
 			ow_enum_start(port, bn);
 			while(ow_enum_next(port, bn, &owd)) {
 				if(++nd == 1) {
@@ -131,7 +131,25 @@ device_detect(byte bi, byte bn, byte *addr, string& typeid)
 						addr[i] = ((byte *)&owd)[i];
 				}
 			}
+#else
+			ow_start(port, bn, OW_SEARCH_ROM_INIT, NULL);
+			ow_stop(port);
+
+			for(nd=0;;) {
+				ow_start(port, bn, OW_SEARCH_ROM, NULL);
+				ow_recv_addr(port, &owd);
+				ow_stop(port);
 				
+				if(!ow_addr_valid(&owd))
+					break;
+
+				if(++nd == 1) {
+					for(byte i=0; i<8; ++i)
+						addr[i] = ((byte *)&owd)[i];
+				}
+			}
+#endif
+
 			if(0 == nd)
 				return ERR_NO_DEVS;
 			
@@ -308,14 +326,14 @@ _do_reset()
 	sensor_assoc_reset();
 	return j_encode("status", "ok");
 }
-
+	
 
 static string
 _do_reprogram(word bi, word bn, string<16> osn, string<16> nsn)
 {
 	ioport *p;
 	word rqid;
-	tgs_state st;
+	tgs_state st; 
 	
 	if(bi != IO_RS485)
 		return j_error("Unsupported bus: "+str(bi));

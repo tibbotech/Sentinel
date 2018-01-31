@@ -72,11 +72,10 @@ static bool
 ow_wait(ioport *port)
 {
 #if (PLATFORM_ID==TPP2WG2) || (PLATFORM_ID==TPP3WG2)
-	dword tmo = sys.timercountms + 25;
+	dword tmo = sys.timercountms + 1000;
 #else	
 	word tmo = sys.timercount + 2; // 1 secs assuming 0.5 sec timer cycle
 #endif
-
 	while(io.lineget(port->d.ssi.stat) == HIGH) 
 #if (PLATFORM_ID==TPP2WG2) || (PLATFORM_ID==TPP3WG2)
 		if(sys.timercountms >= tmo)
@@ -175,15 +174,16 @@ ow_start(ioport *port, byte chnl, byte cmd, ow_devid *devid)
 	if(NULL == port)
 		return false;
 	
-	if(IO_I2C != port->type && IO_OW != port->type)
+	if(/* IO_I2C != port->type || */IO_OW != port->type)
 		return false;
-
+	
 	/* bit 0 indicated operation type: 0=write, 1=read
 	 * bits 7 and 6 contains channel number: 00 01 10 11 
 	 * bit 5 determines FCV mode: 0=ordinary 1-wire, 1=FCV
 	 */
+	n = port->d.ssi.devid & 0x1E;
 	ch = (chnl & 0x03) << 6;
-	n = ch | (port->d.ssi.devid & 0x1E);
+	n |= ch;
 
 	if(OW_READFCV == cmd)
 		n |= 0x20 | OW_READ_FLAG;
@@ -238,6 +238,7 @@ ow_start(ioport *port, byte chnl, byte cmd, ow_devid *devid)
 		port->d.ssi.flags |= 1;
 	}
 	
+	ow_wait(port);
 	return true;
 }
 
@@ -301,7 +302,7 @@ ow_recvb(ioport *port, bool f)
 		port->d.ssi.flags |= OW_READ_FLAG;
 		
 		i2c_start(port);
-		
+	
 		chnl = port->d.ssi.flags & 0xC0;
 		n = chnl | (port->d.ssi.devid & 0x1E) | OW_READ_FLAG;
 		
@@ -351,6 +352,19 @@ ow_recvstr(ioport *port, byte cbmax)
 		
 	return res;
 }
+
+#if 0
+ow_start(chnl, OW_SEARCH_INIT, "")
+ow_stop(chnl)
+
+sys.debugprint("Scanning 1-Wire channel #" + str(chnl) + "\r\n")
+
+ow_start(chnl, OW_SEARCH_ROM, "")
+ta = ow_recv_addr(chnl)
+ow_stop(chnl)
+
+av = ow_addr_valid(ta)
+#endif
 
 
 /*! \brief Initializes device enumerator

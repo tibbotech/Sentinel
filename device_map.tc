@@ -224,6 +224,10 @@ parse_tibbit_record(string& trec)
 			port = ioport_alloc(slot, type, -1);
 			if(NULL != port) {
 				check_pic_firmware(slot, "", "pic_"+sopts+".bin");
+				if(IO_OW == type) {
+					ioport_setopt(port, IO_SSI_HW_ACCEL, 1);
+					port->d.ssi.devid = 0x06; // TODO Predefined
+				}
 			}
 			break;
 
