@@ -42,14 +42,45 @@ err_msg(int e)
 }
 
 
+string
+tibbo_sensor_type(byte tb)
+{
+	switch(tb) {
+		case 1:
+			return "Temperature";
+			
+		case 2:
+			return "Humidity";
+			
+		case 3:
+			return "Light";
+			
+		case 4:
+			return "Shock";
+			
+		case 5:
+			return "Flood";
+	}
+	
+	return "Unknown";
+}
+
+
 /* We received reply from the Tibbo sensor
  * parse the packet
  */
 void
 on_tibbo_sensor_discovery(string pkt)
 {
-	DBG("Found sensor response packet");
+	_found_sensor_address = pkt[4];
+	_found_sensor_type = pkt[8];
+	
+	_found_sensor_serial[0] = pkt[9];
+	_found_sensor_serial[1] = pkt[10];
+	_found_sensor_serial[2] = pkt[11];
+	_found_sensor_serial[3] = pkt[12];
 
+	DBG("Found sensor response packet. Address="+hex(_found_sensor_address)+", type="+tibbo_sensor_type(_found_sensor_type));
 }
 
 
@@ -92,36 +123,6 @@ detect_modbus(ioport *p)
 	 * detect timeouts
 	 */
 	last_packet_sent = sys.timercountms;
-}
-
-
-string
-tibbo_sensor_type(byte tb)
-{
-	switch(tb) {
-		case 1:
-			return "Temperature";
-			
-		case 2:
-			return "Humidity";
-			
-		case 3:
-			return "Light";
-			
-		case 4:
-			return "Shock";
-			
-		case 5:
-			return "Flood";
-	}
-	
-	return "Unknown";
-}
-
-
-static void
-timer_expire(void)
-{
 }
 
 
@@ -255,9 +256,8 @@ _do_detect(word bi, word bn)
 				addr[1] = _found_sensor_serial[1];
 				addr[2] = _found_sensor_serial[2];
 				addr[3] = _found_sensor_serial[3];
-
 				res += "," + j_encode("bus", _busname(bi));
-				res += "," + j_encode("hwaddr", "0x00000000");
+				res += "," + j_encode("hwaddr", "0x"+tohex(addr[0])+tohex(addr[1])+tohex(addr[2])+tohex(addr[3]));
 				res += "," + j_encode("hex", tibbo_sensor_type(_found_sensor_type));
 			} else {
 				res += "," + j_encode("hwaddr", "");
