@@ -574,10 +574,23 @@ _memcpy(void *dst, void *src, unsigned short cb)
 }
 
 
+typedef union {
+	unsigned char b[2];
+	unsigned short w;
+} us_t;
+
+
 unsigned short 
 htons(unsigned short v) 
 {
-	return ((v >> 8) & 0xFF) | (v << 8);
+	us_t vt, rt;
+	
+	vt.w = v;
+	
+	rt.b[0] = vt.b[1];
+	rt.b[1] = vt.b[0];
+	
+	return rt.w;
 }
 
 

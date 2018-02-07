@@ -25,7 +25,7 @@ struct pchunk {
 };
 
 
-#define _TRACE_IO
+//#define _TRACE_IO
 
 
 static string
@@ -163,7 +163,41 @@ read_hexagon_sensor(sensor *sens)
 	
 	res = modbus_result();
 	if(res != "") {
-		/* Extract value */
+		switch(sens->ptype) {
+			case SPT_TEMPERATURE:
+				sens->prev[0] = sens->res[0];
+				sens->res[0].type = TYPE_LONG;
+				sens->res[0].l = (res[3] << 8) | res[4];
+				break;
+
+			case SPT_TEMP_AND_HUMIDITY:
+				sens->prev[0] = sens->res[0];
+				sens->res[0].type = TYPE_LONG;
+				sens->res[0].l = (res[3] << 8) | res[4];
+				
+				sens->prev[1] = sens->res[1];
+				sens->res[1].type = TYPE_LONG;
+				sens->res[1].l = (res[3] << 8) | res[4];
+				break;
+			
+			case SPT_LIGHT:
+				sens->prev[0] = sens->res[0];
+				sens->res[0].type = TYPE_LONG;
+				sens->res[0].l = (res[3] << 8) | res[4];
+				break;
+			
+			case SPT_SHOCK:
+				break;
+			
+			case SPT_FLOOD:
+				sens->prev[0] = sens->res[0];
+				sens->res[0].type = TYPE_LONG;
+				sens->res[0].l = (res[3] << 8) | res[4];
+				break;
+			
+			default:
+				return;
+		}
 	}
 }
 

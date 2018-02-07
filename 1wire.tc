@@ -353,19 +353,6 @@ ow_recvstr(ioport *port, byte cbmax)
 	return res;
 }
 
-#if 0
-ow_start(chnl, OW_SEARCH_INIT, "")
-ow_stop(chnl)
-
-sys.debugprint("Scanning 1-Wire channel #" + str(chnl) + "\r\n")
-
-ow_start(chnl, OW_SEARCH_ROM, "")
-ta = ow_recv_addr(chnl)
-ow_stop(chnl)
-
-av = ow_addr_valid(ta)
-#endif
-
 
 /*! \brief Initializes device enumerator
  */

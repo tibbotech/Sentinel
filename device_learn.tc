@@ -19,6 +19,12 @@ enum {
 };
 
 
+static dword last_packet_sent = 0;
+static byte _found_sensor_type = 0;
+static byte _found_sensor_address = 0;
+static byte _found_sensor_serial[4];
+
+
 string
 err_msg(int e) 
 {
@@ -36,10 +42,18 @@ err_msg(int e)
 }
 
 
-static word rqid = 0;
+/* We received reply from the Tibbo sensor
+ * parse the packet
+ */
+void
+on_tibbo_sensor_discovery(string pkt)
+{
+	DBG("Found sensor response packet");
+
+}
 
 
-static byte 
+static void 
 detect_modbus(ioport *p)
 {
 	static byte addrs[5] = { 0x40, 0x41, 0x42, 0x43, 0x44 };
@@ -47,8 +61,15 @@ detect_modbus(ioport *p)
 	string res;
 		
 	for(i=0; i<5; ++i) {
-		modbus_request(p, addrs[i], READ_INPUT_REGISTERS, 200, 1);
+		modbus_request(p, addrs[i], READ_INPUT_REGISTERS, 200, 7);  /* Dont wait, the parse_modbus_packet() will call callback routine on packet arrival */
 		
+		/* Guarantee that whole packet transmitted */
+		while(ser.txlen > 0)
+			doevents;
+			
+		
+			
+#if 0
 		while(!modbus_finished()) {
 			if(modbus_timeout())
 				break;
@@ -64,9 +85,13 @@ detect_modbus(ioport *p)
 			//if(res[1] == addrs[i] && res[2] == READ_INPUT_REGISTERS && res[3] == 1)
 				return addrs[i];
 		}
+#endif
 	}
-	
-	return 0;
+
+	/* Remember time of the last packet sending event, to
+	 * detect timeouts
+	 */
+	last_packet_sent = sys.timercountms;
 }
 
 
@@ -74,23 +99,29 @@ string
 tibbo_sensor_type(byte tb)
 {
 	switch(tb) {
-		case 0x40:
+		case 1:
 			return "Temperature";
 			
-		case 0x41:
+		case 2:
 			return "Humidity";
 			
-		case 0x42:
+		case 3:
 			return "Light";
 			
-		case 0x43:
+		case 4:
 			return "Shock";
 			
-		case 0x44:
+		case 5:
 			return "Flood";
 	}
 	
 	return "Unknown";
+}
+
+
+static void
+timer_expire(void)
+{
 }
 
 
@@ -159,37 +190,7 @@ device_detect(byte bi, byte bn, byte *addr, string& typeid)
 			break;
 		
 		case IO_RS485:
-#if 0		
-			nd = tibbo_query_port(port);
-			if(0 == nd)
-				return ERR_NO_DEVS;
-			
-			tibbo_sensors_poll();
-			while((st = tibbo_task_status(nd)) == TGS_STATE_WAIT_REPLY)
-				doevents;
-				
-			tibbo_task_done(nd); 
-			
-			if(TGS_STATE_TIMEOUT == st)
-				return ERR_NO_DEVS;
-
-			ta = tibbo_detected_addr();
-			
-			addr[0] = ta[0];
-			addr[1] = ta[1];
-			addr[2] = ta[2];
-			addr[3] = ta[3];
-#else
-			i = detect_modbus(port);
-			if(0 != i) {
-				typeid = tibbo_sensor_type(i);
-				
-				addr[0] = 0;
-				addr[1] = 0;
-				addr[2] = 0;
-				addr[3] = 0;
-			}
-#endif			
+			detect_modbus(port);
 			break;
 			
 		default:
@@ -230,10 +231,10 @@ _do_detect(word bi, word bn)
 	string res;
 	byte addr[8];
 	sensor *dba;
-	tgs_addr sn;
+	//tgs_addr sn;
 	string typestr;
 	
-	DBG("Detecting on "+_busname(bi)+"#"+str(bn)+"...");
+	DBG("Detecting on "+_busname(bi)+" #"+str(bn)+"...");
 
 	err = device_detect(bi, bn, addr, typestr);
 	if(err < 0) {
@@ -244,9 +245,23 @@ _do_detect(word bi, word bn)
 		res += "," + j_encode("ch", str(bn));
 	
 		if(IO_RS485 == bi) {
-			res += "," + j_encode("bus", _busname(bi));
-			res += "," + j_encode("hwaddr", "0x00000000");
-			res += "," + j_encode("hex", typestr);
+			if(sys.timercountms > last_packet_sent + 2000) {
+				_found_sensor_address = 0;
+				_found_sensor_type = 0;
+			}
+
+			if(0 != _found_sensor_type) {
+				addr[0] = _found_sensor_serial[0];
+				addr[1] = _found_sensor_serial[1];
+				addr[2] = _found_sensor_serial[2];
+				addr[3] = _found_sensor_serial[3];
+
+				res += "," + j_encode("bus", _busname(bi));
+				res += "," + j_encode("hwaddr", "0x00000000");
+				res += "," + j_encode("hex", tibbo_sensor_type(_found_sensor_type));
+			} else {
+				res += "," + j_encode("hwaddr", "");
+			}
 		} else {
 			dba = sensor_assoc_find(bi, bn, addr);
 			if(NULL != dba) {
@@ -265,10 +280,6 @@ _do_detect(word bi, word bn)
 					case IO_OW:
 						res += "," + j_encode("hwaddr", "Class "+tohex(addr[0]) + ", S/N # " + hexdump(&addr[1], 6));
 						break;
-					case IO_RS485:
-						sn = tibbo_detected_addr();
-						res += "," + j_encode("hwaddr", _sn(sn));
-						break;
 					default:
 						res += "," + j_encode("hwaddr", "");
 						break;
@@ -277,7 +288,6 @@ _do_detect(word bi, word bn)
 		}
 	}
 	
-	//sys.debugprint(" OK\n");
 	return res;
 }
 
