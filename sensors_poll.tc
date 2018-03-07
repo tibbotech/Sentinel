@@ -118,7 +118,7 @@ _read(sensor *sens, byte cb, bool do_stop)
 static void
 read_hexagon_sensor(sensor *sens)
 {
-	word port, cnt;
+	word port, cnt, *r;
 	string res;
 	
 	switch(sens->ptype) {
@@ -158,7 +158,7 @@ read_hexagon_sensor(sensor *sens)
 	while(!modbus_finished()) {
 		if(modbus_timeout())
 			return;
-		//doevents;
+		doevents;
 	}
 	
 	res = modbus_result();
@@ -171,13 +171,15 @@ read_hexagon_sensor(sensor *sens)
 				break;
 
 			case SPT_TEMP_AND_HUMIDITY:
+				r = (word *)&res[3]; //(res[3] << 8) | res[4];
 				sens->prev[0] = sens->res[0];
 				sens->res[0].type = TYPE_LONG;
-				sens->res[0].l = (res[3] << 8) | res[4];
+				sens->res[0].l = *r;
 				
 				sens->prev[1] = sens->res[1];
 				sens->res[1].type = TYPE_LONG;
 				sens->res[1].l = (res[3] << 8) | res[4];
+				
 				break;
 			
 			case SPT_LIGHT:

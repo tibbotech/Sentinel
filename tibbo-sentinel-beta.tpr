@@ -1041,3 +1041,10 @@ format=
 condition=
 locked=no
 location=project
+[file147]
+path=xmodem.tc
+type=c
+format=65001
+condition=
+locked=no
+location=project

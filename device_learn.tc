@@ -47,18 +47,21 @@ tibbo_sensor_type(byte tb)
 {
 	switch(tb) {
 		case 1:
-			return "Temperature";
+			return "Humidity and Temperature";
 			
 		case 2:
-			return "Humidity";
-			
+			return "Temperature";
+
 		case 3:
 			return "Light";
 			
 		case 4:
+			return "Pressure";
+
+		case 5:
 			return "Shock";
 			
-		case 5:
+		case 6:
 			return "Flood";
 	}
 	

@@ -11,41 +11,8 @@
  * Data Bits                8-bit
  * Stop Bits                1-bit
  * Parity                   none
- * 
- * Temperature
- * Register 400 - HOLDING_REGISTER - 2 byte unsigned    - ModBus address
- * Register 401 - INPUT_REGISTER   - 2 byte unsigned    - Device type (32-Temperature, 33-Light, 34-Humidity, 35-Acceleration, 36-Leak Sensor )
- * Register 500 - INPUT_REGISTER   - 2 byte signed      - temperature 
- * Register 501 - INPUT_REGISTER   - 4 byte float       - temperature
- * 
- * Light
- * Register 400 - HOLDING_REGISTER - 2 byte unsigned    - ModBus address
- * Register 401 - INPUT_REGISTER   - 2 byte unsigned    - Device type (32-Temperature, 33-Light, 34-Humidity, 35-Acceleration, 36-Leak Sensor )
- * Register 801 - INPUT_REGISTER   - 2 byte unsigned    - Light
- * 
- * Humidity
- * Register 400 - HOLDING_REGISTER - 2 byte unsigned    - ModBus address
- * Register 401 - INPUT_REGISTER   - 2 byte unsigned    - Device type (32-Temperature, 33-Light, 34-Humidity, 35-Acceleration, 36-Leak Sensor )
- * Register 500 - INPUT_REGISTER   - 2 byte signed      - temperature
- * Register 501 - INPUT_REGISTER   - 4 byte float       - temperature
- * Register 701 - INPUT_REGISTER   - 2 byte unsigned    - humidity
- * Register 702 - INPUT_REGISTER   - 4 byte float       - humidity
- * 
- * Acceleration
- * Register 400 - HOLDING_REGISTER - 2 byte unsigned 
- * Register 401 - INPUT_REGISTER   - 2 byte unsigned    - Device type (32-Temperature, 33-Light, 34-Humidity, 35-Acceleration, 36-Leak Sensor )
- * Register 601 - INPUT_REGISTER   - 2 byte signed      - X-Axis 
- * Register 602 - INPUT_REGISTER   - 2 byte signed      - Y-Axis
- * Register 603 - INPUT_REGISTER   - 2 byte signed      - Z-Axis
- * 
- * Leak Sensor
- * Register 400 - HOLDING_REGISTER - 2 byte unsigned 
- * Register 401 - INPUT_REGISTER   - 2 byte unsigned    - Device type (32-Temperature, 33-Light, 34-Humidity, 35-Acceleration, 36-Leak Sensor )
- * Register 901 - INPUT_REGISTER   - 2 byte unsigned    - Leak sensor state
- *  
  */ 
- 
- 
+
 /* Packet receiver state
  */
 static modbus_state _state;
@@ -190,8 +157,6 @@ modbus_parse_adu_rtu(sensor *sens, string& packet)
 }
 
 
-/**
- */
 static void
 modbus_parse_adu_tcp(string& packet)
 {
@@ -209,7 +174,7 @@ void
 on_modbus_data_arrival(modbus_source src)
 {
 	string tmp;
-	byte s1, s2;
+	byte s1, s2, lp;
 		
 	if(MODBUS_TCP == src)
 		tmp = sock.getdata(255);
@@ -221,6 +186,7 @@ on_modbus_data_arrival(modbus_source src)
 	switch(_state) {
 		case MODBUS_FINISHED:
 			ERR("Previous ModBus packet was not processed");
+			break;
 			
 		case MODBUS_IDLE:
 			_packet = "";
@@ -236,26 +202,30 @@ on_modbus_data_arrival(modbus_source src)
 	}
 
 chk_packet:
-	if(len(_packet) >= 2) {
+	lp = len(_packet);
+	
+	if(lp >= 2) {
 		_pdu_len = _packet[2] + 5; // Byte count, including slave address, crc, byte length and function code
-		
-		tmp = left(_packet, _pdu_len);
-		
-		s1 = tmp[_pdu_len-4];
-		s2 = tmp[_pdu_len-3];
-		
-		if(s1 == 0xAA && s2 == 0x55) {
-			/* This is sensor detection packet, it must be processed separately
-			 * and don't reach main sensor polling code
-			 */
-			_packet = mid(_packet, _pdu_len, 255);
-			on_tibbo_sensor_discovery(tmp);
-			
-			goto chk_packet;
-		}
-		
-		if(len(_packet) >= _pdu_len)
+		if(lp >= _pdu_len) {
 			_state = MODBUS_FINISHED;
+			DBG("state = FINISHED");
+			
+			tmp = left(_packet, _pdu_len);
+			
+			s1 = tmp[_pdu_len-4];
+			s2 = tmp[_pdu_len-3];
+			
+			if(s1 == 0xAA && s2 == 0x55) {
+				/* This is sensor detection packet, it must be processed separately
+				 * and don't reach main sensor polling code
+				 */
+				_packet = mid(_packet, _pdu_len, 255);
+				
+				on_tibbo_sensor_discovery(tmp);
+
+				goto chk_packet;
+			}
+		}
 	}
 }
 

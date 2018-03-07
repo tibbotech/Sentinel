@@ -32,9 +32,19 @@ swapb(word t)
 	return ((t >> 8) & 0xFF) | ((t & 0xFF) << 8);
 }
 
+#define MAX_DATA_LEN 4096
+#define MAX_CONFIG_LEN 8
+
+
+typedef struct {
+	word datalen;
+	word data[MAX_DATA_LEN];
+	word config[MAX_CONFIG_LEN];
+} firmware;
+
 
 bool 
-load_firmware(string name, firmware *fw)
+load_firmware_xmodem(string name, firmware *fw)
 {
 	word i, offs, temp, addr;
 	dword p, e, lba;
@@ -221,7 +231,7 @@ do_xmodem_upload(string fwfile)
 	word *temp;
 	
 	
-	if(!load_firmware(fwfile, &fw))
+	if(!load_firmware_xmodem(fwfile, &fw))
 		return false;
 	
 	data = (byte *)fw.data + 0x300 * sizeof(word);
