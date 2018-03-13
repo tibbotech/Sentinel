@@ -118,7 +118,8 @@ _read(sensor *sens, byte cb, bool do_stop)
 static void
 read_hexagon_sensor(sensor *sens)
 {
-	word port, cnt, r;
+	byte hi, lo;
+	word port, cnt, r1, r2;
 	string res;
 	
 	switch(sens->ptype) {
@@ -173,15 +174,21 @@ read_hexagon_sensor(sensor *sens)
 				break;
 
 			case SPT_TEMP_AND_HUMIDITY:
-				r = (res[3] << 8) | res[4]; 
+				hi = res[3];
+				lo = res[4];
+				r1 = (hi << 8) | lo; 
 				sens->prev[0] = sens->res[0];
 				sens->res[0].type = TYPE_FLOAT;
-				sens->res[0].f = ((float)r / 16382.0) * 165 - 40;
+				sens->res[0].f = ((float)r1 / 16382.0) * 165 - 40;
 				
-				r = (res[11] << 8) | res[12];
+				hi = res[11];
+				lo = res[12];
+				r2 = (hi << 8) | lo;
 				sens->prev[1] = sens->res[1];
 				sens->res[1].type = TYPE_FLOAT;
-				sens->res[1].f = ((float)r / 16382.0) * 100;
+				sens->res[1].f = ((float)r2 / 16382.0) * 100;
+				
+				//DBG("r1="+hex(r1)+", r2="+hex(r2));
 				
 				sens->np = 2;
 				break;
