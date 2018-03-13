@@ -30,7 +30,7 @@ var VAL_UNITS = {
     0:"none",
     1:"&#8451;",
     2:"%RH",
-    3:"&#8451;, %RH",
+    3:"%1 &#8451;, %2 %RH",
     4:"",
     5:"",
     6:"",
@@ -82,8 +82,8 @@ function td(v, al)
 function buildTable(d) 
 {
 	var tb = $("#st tbody");
-	var i, s, t, z;
-	var html;
+	var i, j, s, t, z;
+	var html, res;
 
 	html = "";
 
@@ -98,7 +98,7 @@ function buildTable(d)
 			html += " class=\"red\"";
 		html += ">"; 
 
-		html += td(s["n"]);
+		html += td (s["n"]);
 
 		t = parseInt(s["bus"]);
 		html += td(BUSES[t]);
@@ -110,7 +110,16 @@ function buildTable(d)
 		t = parseInt(s["param"]);
 		html += td(VAL_TYPES[t]);
 
-		html += td(s["value"] + " " + VAL_UNITS[t], "right") ;
+		if(s["value"] instanceof Array) {
+			z = s["value"];
+			res = VAL_UNITS[t];
+			for(j=0; j<z.length; ++j)
+				res = res.replace("%"+(j+1), z[j]);
+		} else {
+			res = s["value"] + " " + VAL_UNITS[t];
+		}
+
+		html += td(res, "right") ;
 
 		html += td(s["info"]);
 		
@@ -132,6 +141,7 @@ function queryData()
 			var d = $.parseJSON(data);
 			buildTable(d);
 		} catch(e) {
+			console.log(data);
 			console.log("Exception: "+e);
 		}
 	})

@@ -208,7 +208,7 @@ chk_packet:
 		_pdu_len = _packet[2] + 5; // Byte count, including slave address, crc, byte length and function code
 		if(lp >= _pdu_len) {
 			_state = MODBUS_FINISHED;
-			DBG("state = FINISHED");
+			//DBG("state = FINISHED");
 			
 			tmp = left(_packet, _pdu_len);
 			

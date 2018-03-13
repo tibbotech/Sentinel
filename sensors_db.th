@@ -90,7 +90,7 @@ enum zone_color {
 #define ZF_ENABLED				0x20
 
 
-#define NUM_SENSOR_PARAMS		1
+#define NUM_SENSOR_PARAMS		3
 
 
 /*! \brief Sensor descriptor
@@ -109,6 +109,7 @@ struct sensor {
 	zone y;						//!< Yellow zone parameters
 	zone r;						//!< Red zone parameters
 	var c[4];					//!< Constants
+	byte np;					//!< Number of parameters, reported by this sensor
 	var prev[NUM_SENSOR_PARAMS];//!< Previous parameter(s) value
 	var res[NUM_SENSOR_PARAMS];	//!< Current parameter(s) value
 	union {

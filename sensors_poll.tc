@@ -118,7 +118,7 @@ _read(sensor *sens, byte cb, bool do_stop)
 static void
 read_hexagon_sensor(sensor *sens)
 {
-	word port, cnt, *r;
+	word port, cnt, r;
 	string res;
 	
 	switch(sens->ptype) {
@@ -129,7 +129,7 @@ read_hexagon_sensor(sensor *sens)
 
 		case SPT_TEMP_AND_HUMIDITY:
 			port = 300;
-			cnt = 4;
+			cnt = 8;
 			break;
 		
 		case SPT_LIGHT:
@@ -160,6 +160,8 @@ read_hexagon_sensor(sensor *sens)
 			return;
 		doevents;
 	}
+
+	sens->np = 1;
 	
 	res = modbus_result();
 	if(res != "") {
@@ -167,19 +169,21 @@ read_hexagon_sensor(sensor *sens)
 			case SPT_TEMPERATURE:
 				sens->prev[0] = sens->res[0];
 				sens->res[0].type = TYPE_LONG;
-				sens->res[0].l = (res[3] << 8) | res[4];
+				sens->res[0].l = (res[4] << 8) | res[3];
 				break;
 
 			case SPT_TEMP_AND_HUMIDITY:
-				r = (word *)&res[3]; //(res[3] << 8) | res[4];
+				r = (res[3] << 8) | res[4]; 
 				sens->prev[0] = sens->res[0];
-				sens->res[0].type = TYPE_LONG;
-				sens->res[0].l = *r;
+				sens->res[0].type = TYPE_FLOAT;
+				sens->res[0].f = ((float)r / 16382.0) * 165 - 40;
 				
+				r = (res[11] << 8) | res[12];
 				sens->prev[1] = sens->res[1];
-				sens->res[1].type = TYPE_LONG;
-				sens->res[1].l = (res[3] << 8) | res[4];
+				sens->res[1].type = TYPE_FLOAT;
+				sens->res[1].f = ((float)r / 16382.0) * 100;
 				
+				sens->np = 2;
 				break;
 			
 			case SPT_LIGHT:

@@ -16,8 +16,8 @@ void
 sensors_monitor()
 {
 	sensor *s;
-	string res; 
-	word n;
+	string res, tmp; 
+	word n, i;
 	
 	sock_send("[");
 	
@@ -28,7 +28,14 @@ sensors_monitor()
 		res += j_encode("channel", str(s->chnl)) + ",\n";
 		res += j_encode("param", str(s->ptype)) + ",\n";
 		res += j_encode("addr", address_format(s->bus, &s->mac)) + ",\n";
-		res += j_encode("value", var_format(s->res[0])) + ",\n"; 
+		
+		if(SPT_TEMP_AND_HUMIDITY == s->ptype) {
+			tmp = "[" + var_format(s->res[0]) + "," + var_format(s->res[1]) + "]";
+			res += "\"value\":"+tmp+",";
+		} else {
+			res += j_encode("value", var_format(s->res[0])) + ",\n"; 
+		}
+		
 		res += j_encode("info", sensor_info_get(s->id)) + ",\n";
 		res += j_encode("zone", str(s->status)) + "\n";
 		res += "}";
