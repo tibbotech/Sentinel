@@ -32,6 +32,9 @@ sensors_monitor()
 		if(SPT_TEMP_AND_HUMIDITY == s->ptype) {
 			tmp = "[" + var_format(s->res[0]) + "," + var_format(s->res[1]) + "]";
 			res += "\"value\":"+tmp+",";
+		} else if (SPT_SHOCK == s->ptype) {
+			tmp = "[" + var_format(s->res[0]) + "," + var_format(s->res[1]) + "," + var_format(s->res[2]) + "]";
+			res += "\"value\":"+tmp+",";
 		} else {
 			res += j_encode("value", var_format(s->res[0])) + ",\n"; 
 		}

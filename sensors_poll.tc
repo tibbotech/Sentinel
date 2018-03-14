@@ -119,7 +119,7 @@ static void
 read_hexagon_sensor(sensor *sens)
 {
 	byte hi, lo;
-	word port, cnt, r1, r2;
+	word port, cnt, r1, r2, r3;
 	string res;
 	
 	switch(sens->ptype) {
@@ -140,7 +140,7 @@ read_hexagon_sensor(sensor *sens)
 		
 		case SPT_SHOCK:
 			port = 800;
-			cnt = 6;
+			cnt = 7;
 			break;
 		
 		case SPT_FLOOD:
@@ -202,6 +202,27 @@ read_hexagon_sensor(sensor *sens)
 				break;
 			
 			case SPT_SHOCK:
+				hi = res[5];
+				lo = res[6];
+				r1 = (hi << 8) | lo; 
+				sens->prev[0] = sens->res[0];
+				sens->res[0].type = TYPE_FLOAT;
+				sens->res[0].f = (float)r1 * 2930.0 / 1000.0;
+
+
+				hi = res[9];
+				lo = res[10];
+				r2 = (hi << 8) | lo; 
+				sens->prev[1] = sens->res[1];
+				sens->res[1].type = TYPE_FLOAT;
+				sens->res[1].f = (float)r2 * 2930.0 / 1000.0;
+				
+				hi = res[13];
+				lo = res[14];
+				r3 = (hi << 8) | lo; 
+				sens->prev[2] = sens->res[2];
+				sens->res[2].type = TYPE_FLOAT;
+				sens->res[2].f = (float)r3 * 2930.0 / 1000.0;
 				break;
 			
 			case SPT_FLOOD:
