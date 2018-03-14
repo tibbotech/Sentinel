@@ -168,9 +168,12 @@ read_hexagon_sensor(sensor *sens)
 	if(res != "") {
 		switch(sens->ptype) {
 			case SPT_TEMPERATURE:
+				hi = res[3];
+				lo = res[4];
+				r1 = (hi << 8) | lo; 
 				sens->prev[0] = sens->res[0];
 				sens->res[0].type = TYPE_LONG;
-				sens->res[0].l = (res[4] << 8) | res[3];
+				sens->res[0].l = r1;
 				break;
 
 			case SPT_TEMP_AND_HUMIDITY:
@@ -187,25 +190,27 @@ read_hexagon_sensor(sensor *sens)
 				sens->prev[1] = sens->res[1];
 				sens->res[1].type = TYPE_FLOAT;
 				sens->res[1].f = ((float)r2 / 16382.0) * 100;
-				
-				//DBG("r1="+hex(r1)+", r2="+hex(r2));
-				
-				sens->np = 2;
 				break;
 			
 			case SPT_LIGHT:
+				hi = res[3];
+				lo = res[4];
+				r1 = (hi << 8) | lo; 
 				sens->prev[0] = sens->res[0];
 				sens->res[0].type = TYPE_LONG;
-				sens->res[0].l = (res[3] << 8) | res[4];
+				sens->res[0].l = r1;
 				break;
 			
 			case SPT_SHOCK:
 				break;
 			
 			case SPT_FLOOD:
+				hi = res[3];
+				lo = res[4];
+				r1 = (hi << 8) | lo; 
 				sens->prev[0] = sens->res[0];
 				sens->res[0].type = TYPE_LONG;
-				sens->res[0].l = (res[3] << 8) | res[4];
+				sens->res[0].l = r1;
 				break;
 			
 			default:

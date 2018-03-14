@@ -141,16 +141,15 @@ function queryData()
 			var d = $.parseJSON(data);
 			buildTable(d);
 		} catch(e) {
-			console.log(data);
-			console.log("Exception: "+e);
+			console.log(e);
 		}
 	})
 	.fail(function(){
+		// Dummy
 	})
 	.always(function(){
+		// Dummy
 	});
-
-	console.log("Updated!");
 }
 
 
