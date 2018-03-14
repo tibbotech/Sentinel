@@ -207,7 +207,7 @@ read_hexagon_sensor(sensor *sens)
 				r1 = (hi << 8) | lo; 
 				sens->prev[0] = sens->res[0];
 				sens->res[0].type = TYPE_FLOAT;
-				sens->res[0].f = (float)r1 * 2930.0 / 1000.0;
+				sens->res[0].f = (float)r1 * 2930.0 / 10000.0;
 
 
 				hi = res[9];
@@ -215,14 +215,14 @@ read_hexagon_sensor(sensor *sens)
 				r2 = (hi << 8) | lo; 
 				sens->prev[1] = sens->res[1];
 				sens->res[1].type = TYPE_FLOAT;
-				sens->res[1].f = (float)r2 * 2930.0 / 1000.0;
+				sens->res[1].f = (float)r2 * 2930.0 / 10000.0;
 				
 				hi = res[13];
 				lo = res[14];
 				r3 = (hi << 8) | lo; 
 				sens->prev[2] = sens->res[2];
 				sens->res[2].type = TYPE_FLOAT;
-				sens->res[2].f = (float)r3 * 2930.0 / 1000.0;
+				sens->res[2].f = (float)r3 * 2930.0 / 10000.0;
 				break;
 			
 			case SPT_FLOOD:
