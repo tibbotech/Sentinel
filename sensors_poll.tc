@@ -193,12 +193,12 @@ read_hexagon_sensor(sensor *sens)
 				break;
 			
 			case SPT_LIGHT:
-				hi = res[3];
-				lo = res[4];
+				hi = res[4];
+				lo = res[3];
 				r1 = (hi << 8) | lo; 
 				sens->prev[0] = sens->res[0];
 				sens->res[0].type = TYPE_LONG;
-				sens->res[0].l = r1;
+				sens->res[0].l = (long)((float)r1 * 0.833333333);
 				break;
 			
 			case SPT_SHOCK:
