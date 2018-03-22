@@ -76,7 +76,7 @@ void
 on_tibbo_sensor_discovery(string pkt)
 {
 	_found_sensor_address = pkt[4];
-	_found_sensor_type = pkt[8];
+	_found_sensor_type = pkt[6]; //
 	
 	_found_sensor_serial[0] = pkt[9];
 	_found_sensor_serial[1] = pkt[10];
@@ -90,11 +90,11 @@ on_tibbo_sensor_discovery(string pkt)
 static void 
 detect_modbus(ioport *p)
 {
-	static byte addrs[5] = { 0x40, 0x41, 0x42, 0x43, 0x44 };
+	static byte addrs[] = { 0x40, 0x41, 0x42, 0x43, 0x44 };
 	byte i;
 	string res;
 		
-	for(i=0; i<5; ++i) {
+	for(i=0; i<COUNTOF(addrs); ++i) {
 		modbus_request(p, addrs[i], READ_INPUT_REGISTERS, 200, 7);  /* Dont wait, the parse_modbus_packet() will call callback routine on packet arrival */
 		
 		/* Guarantee that whole packet transmitted */
