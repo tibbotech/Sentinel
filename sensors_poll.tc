@@ -121,7 +121,11 @@ read_hexagon_sensor(sensor *sens)
 	byte hi, lo;
 	word port, cnt, r1, r2, r3;
 	string res;
-	
+	union {
+		unsigned short w;
+		short i;
+	} rg;
+
 	switch(sens->ptype) {
 		case SPT_TEMPERATURE:
 			port = 300;
@@ -202,26 +206,26 @@ read_hexagon_sensor(sensor *sens)
 				break;
 			
 			case SPT_SHOCK:
-				lo = res[7];
-				hi = res[8];
-				r1 = (hi << 8) | lo; 
+				lo = res[4];
+				hi = res[3];
+				rg.w = (hi << 8) | lo; 
 				sens->prev[0] = sens->res[0];
 				sens->res[0].type = TYPE_FLOAT;
-				sens->res[0].f = (float)r1 * 2930.0 / 1000.0;
+				sens->res[0].f = (float)rg.i * 2930.0 / 1000.0;
 
-				lo = res[11];
-				hi = res[12];
-				r2 = (hi << 8) | lo; 
+				lo = res[8];
+				hi = res[7];
+				rg.w = (hi << 8) | lo; 
 				sens->prev[1] = sens->res[1];
 				sens->res[1].type = TYPE_FLOAT;
-				sens->res[1].f = (float)r2 * 2930.0 / 1000.0;
+				sens->res[1].f = (float)rg.i * 2930.0 / 1000.0;
 				
-				lo = res[15];
-				hi = res[16];
-				r3 = (hi << 8) | lo; 
+				lo = res[12];
+				hi = res[11];
+				rg.w = (hi << 8) | lo; 
 				sens->prev[2] = sens->res[2];
 				sens->res[2].type = TYPE_FLOAT;
-				sens->res[2].f = (float)r3 * 2930.0 / 1000.0;
+				sens->res[2].f = (float)rg.i * 2930.0 / 1000.0;
 				break;
 			
 			case SPT_FLOOD:
