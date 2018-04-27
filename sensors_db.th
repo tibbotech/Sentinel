@@ -14,8 +14,8 @@
  */
 enum sensor_param_type {
 	SPT_NONE = 0,
-	SPT_TEMPERATURE = 1,		//!< Temperature (value)
-	SPT_HUMIDITY = 2,			//!< Humidity (value)
+	SPT_HUMIDITY = 1,			//!< Humidity (value)
+	SPT_TEMPERATURE = 2,		//!< Temperature (value)
 	SPT_TEMP_AND_HUMIDITY = 3,	//!< Combined temperature and humidity (value)
 	SPT_FLOOD = 4,				//!< Water flood (bool)
 	SPT_FIRE = 5,				//!< Fire (bool)

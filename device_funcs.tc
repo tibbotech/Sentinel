@@ -210,9 +210,26 @@ add_modbus_sensor(bus_scan *bs, byte saddr, byte drvid, sensor_param_type ptype)
 }
 
 
+/* It's ok to declare this type here because it is local and won't be
+ * used anywhere except this file. Also, we don't want to pollute 
+ * the global namespace.
+ */
+struct tsdata {
+	byte addr;
+	byte type;
+};
+
+
+/* From device_learn.tc */
+extern byte _found_sensor_type;
+extern byte _found_sensor_address;
+extern byte _found_sensor_serial[4];
+
+
 static byte
-scan_modbus(ioport *p, byte *found)
+scan_modbus(ioport *p, tsdata *found)
 {
+	static byte idmap[] = { 0, 3, 2, 13, 12, 14, 4 };
 	static byte addrs[] = { 
 		0x3C, 0x3D, 0x3E, 0x3F, 			// 60, 61, 62, 63
 		0x40, 0x41, 0x42, 0x43, 0x44,		// 64, 65, 66, 67, 68
@@ -235,8 +252,15 @@ scan_modbus(ioport *p, byte *found)
 			continue;
 			
 		if(modbus_finished()) {
-			res = modbus_result();
-			*found++ = addrs[i];
+			found->addr = _found_sensor_address;
+			
+			/* By the historical reasons the sensor type IDs do not
+			 * maps directly onto the internal sensor type IDs, so we
+			 * need to translate it
+			 */
+			found->type = idmap[_found_sensor_type];
+			
+			++found;
 			++cnt;
 		}
 	}
@@ -248,9 +272,10 @@ scan_modbus(ioport *p, byte *found)
 static void
 probe_serial_port(bus_scan *bs)
 {
-	static byte hextypes[5] = { SPT_TEMPERATURE, SPT_TEMP_AND_HUMIDITY, SPT_LIGHT, SPT_SHOCK, SPT_FLOOD };
-	byte i, cnt, found[5];
-	byte id;
+	//static byte hextypes[5] = { SPT_TEMPERATURE, SPT_TEMP_AND_HUMIDITY, SPT_LIGHT, SPT_SHOCK, SPT_FLOOD };
+	//byte id;
+	byte i, cnt;
+	tsdata found[16];
 	serial_role role;
 	
 	/* Consoles and modems doesn't allow connection of any sensor
@@ -263,8 +288,8 @@ probe_serial_port(bus_scan *bs)
 	
 	cnt = scan_modbus(bs->port, found);
 	for(i=0; i<cnt; ++i) {
-		id = found[i] - 0x40;
-		add_modbus_sensor(bs, found[i], 0xFF, hextypes[id]);
+		//id = found[i] - 0x40; // FIXME
+		add_modbus_sensor(bs, found[i].addr, 0xFF, found[i].type);
 	}
 }
 

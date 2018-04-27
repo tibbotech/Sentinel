@@ -530,6 +530,7 @@ modem_get_sms(ioport *p, byte id, bool del)
 	while(0 == _flags & MODEM_FLAG_CALL_READY && state != MODEM_LAST_STATE)
 		doevents;
 
+	// we get to rid out the 'doevents' clause
 	state = MODEM_STATE_READ_SMS;
 	substate = 0;
 	at_command(p, "+CMGR="+str(id));

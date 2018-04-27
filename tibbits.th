@@ -111,6 +111,10 @@ struct tibbit_info {
 };
 
 
+struct tibbit_extra_info {
+};
+
+
 #define TBSLOT_PIN_A_ALLOC		0x08
 #define TBSLOT_PIN_B_ALLOC		0x04
 #define TBSLOT_PIN_C_ALLOC		0x02

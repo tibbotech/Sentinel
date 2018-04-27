@@ -20,9 +20,10 @@ enum {
 
 
 static dword last_packet_sent = 0;
-static byte _found_sensor_type = 0;
-static byte _found_sensor_address = 0;
-static byte _found_sensor_serial[4];
+
+byte _found_sensor_type = 0;
+byte _found_sensor_address = 0;
+byte _found_sensor_serial[4];
 
 
 string

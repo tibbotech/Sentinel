@@ -1,7 +1,7 @@
 var VAL_TYPES = {
     0:"none",
-    1:"temperature",
-    2:"humidity",
+    1:"humidity",
+    2:"temperature",
     3:"temperature_and_humidity",
     4:"flood",
     5:"fire",
@@ -28,8 +28,8 @@ var VAL_TYPES = {
 
 var VAL_UNITS = {
     0:"none",
-    1:"&#8451;",
-    2:"%RH",
+    1:"%RH",
+    2:"&#8451;",
     3:"%1&nbsp;&#8451;,&nbsp;%2&nbsp;%RH",
     4:"",
     5:"",
