@@ -272,8 +272,6 @@ scan_modbus(ioport *p, tsdata *found)
 static void
 probe_serial_port(bus_scan *bs)
 {
-	//static byte hextypes[5] = { SPT_TEMPERATURE, SPT_TEMP_AND_HUMIDITY, SPT_LIGHT, SPT_SHOCK, SPT_FLOOD };
-	//byte id;
 	byte i, cnt;
 	tsdata found[16];
 	serial_role role;

@@ -1,3 +1,8 @@
+/* 
+ *
+ *
+ */
+
 var VAL_TYPES = {
     0:"none",
     1:"humidity",
