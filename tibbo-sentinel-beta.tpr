@@ -4,8 +4,8 @@ platform=TPP2W(G2)
 src_lib_ver=2_01_00
 name=tibbo-sentinel-v1.0b
 output=tibbo-sentinel-v1.1.141b.$(Platform)-$(Configuration).tpc
-debug=on
-defines= /dFILENUM_MAX_SIGNATURE_LEN=4 /dFILENUM_MAX_FILENAME_LEN=12 /dGPRS_DEBUG_PRINT /dGPRS_MODULE_EXTERNAL=1 /dSUPPORTS_GPRS
+debug=off
+defines= /dFILENUM_MAX_SIGNATURE_LEN=4 /dFILENUM_MAX_FILENAME_LEN=12 /dGPRS_MODULE_EXTERNAL=1 /dGPRS_DEBUG_PRINT /dSUPPORTS_GPRS
 transport=udp_winpcap
 [address1]
 platform=TPP3W(G2)
@@ -14,7 +14,7 @@ address=0.24.77.80.40.136
 [address2]
 platform=TPP2W(G2)
 transport=udp_winpcap
-address=0.2.2.3.4.202
+address=0.36.119.82.189.123
 [address3]
 platform=TPP2W
 transport=udp_winpcap
