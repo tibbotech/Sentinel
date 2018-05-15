@@ -39,7 +39,7 @@ filesys_init()
 		
 		DBG("Trying to (re-)format flash");
 		
-		switch(fd.format(fd.availableflashspace - 16, 8)) {
+		switch(fd.formatj(fd.availableflashspace - 48, 8, 32)) {
 			case PL_FD_STATUS_OK:
 				break; // Try to mount FS again
 				

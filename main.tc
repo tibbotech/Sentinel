@@ -240,9 +240,9 @@ on_sys_init()
 #if 0	
 	heap_init();
 #endif
+	filesys_init();
 	settings_init();  
 	tbl_start();
-	filesys_init();
 	device_map_init();
 	sensor_assoc_init();
 	sensor_db_open();
@@ -276,6 +276,7 @@ on_sys_init()
  * known drivers
  */
 	scan_connected_sensors();
+	create_agg_sensors_table();
 
 	update_interval = 4; // 2 sec, need to implement setting this via web-interface
 	update_enabled = true;
@@ -353,7 +354,7 @@ poll_dc_lines(bool first_run)
 		t = ioport_type(s->port);
 		if((IO_GPIO4 == t) || (IO_DC == t)) {
 			pn = s->pin;
-			if(pn > 2)
+			if(pn > 3)
 				continue;
 				
 			p = s->port;
@@ -407,10 +408,12 @@ sensors_timer()
 		/* State of the dry contact lines is examined each 0.5 seconds
 		 */
 		poll_dc_lines(first_run);
+#if 0		
 		if(first_run)
 			create_agg_sensors_table();
-		
+	
 		first_run = false;
+#endif		
 	}
 } 
 

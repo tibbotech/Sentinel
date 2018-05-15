@@ -151,7 +151,8 @@ _ioport_alloc_gpio(tbslot slot, iotype type)
 	res->d.pin[0] = _slots[slot].pin[0];
 	res->d.pin[1] = _slots[slot].pin[1];			
 	res->d.pin[2] = _slots[slot].pin[2];
-	res->d.pin[3] = _slots[slot].pin[3];			
+	res->d.pin[3] = _slots[slot].pin[3];
+
 	res->ci.start = 0;
 	res->ci.count = 1;
 	

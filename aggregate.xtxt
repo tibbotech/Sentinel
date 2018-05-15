@@ -22,7 +22,7 @@
 >>MPIN	S	<R=<MPIN><<<MPIN><S><V=<L=0 4>>><M=1><X=1>><PIN><1><1><PIN code for installed SIM card><remote|SMS><^>>
 >>SMSA	S	<R=<SMSA><<<SMSA><S><V=<L=0 32>>><M=1><X=1>><SMS receivers><1><1><Phone numbers for receiving SMS notifications><remote|SMS><^>>
 >>AGEN	S	<R=<AGEN><<<AGEN><B>><M=1><X=1>><AggreGate integration><1><1><Enable/Disable AggreGate integration><remote|AggreGate><^>>
->>AGIP	S	<R=<AGIP><<<AGIP><S>><M=1><X=1>><AGIP><1><1><^><remote|Default><^>>
+>>AGIP	S	<R=<AGIP><<<AGIP><S>><M=1><X=1>><AggreGate server IP><1><1><^><remote|AggreGate><^>>
 >>AGP	S	<R=<AGP><<<AGP><L><V=<L=0 65535>>><M=1><X=1>><AggreGate server port><1><1><AggreGate server port number><remote|AggreGate><^>>
 >>AGUN	S	<R=<AGUN><<<AGUN><S><V=<L=0 32>>><M=1><X=1>><User name><1><1><AggreGate server user name><remote|AggreGate><^>>
 >>AGPW	S	<R=<AGPW><<<AGPW><S><V=<L=0 32>>><M=1><X=1>><Password><1><1><Password><remote|AggreGate><^>>

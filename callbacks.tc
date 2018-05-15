@@ -2,7 +2,7 @@
 #include "sensors_db.th"
 #include "sensor_info.th"
 #include "device_funcs.th"
-#include "sensor_info.th"
+include "sensor_info.th"
 #include "utils.th"
 
 
@@ -13,25 +13,59 @@ extern sensor *connected_sensors;
 
 
 void
+update_field_data(sensor *s, byte n)
+{
+	string t;
+	
+	tbl_field_set("id", s->id);
+	tbl_field_set("type", s->ptype);
+	tbl_field_set("port", s->bus);
+	tbl_field_set("channel", s->chnl);
+	tbl_field_set("driver", s->drvid);
+	tbl_field_set("serial", address_format(ioport_type(s->port), &s->mac));
+	tbl_field_set("value", var_format(s->res[n]));
+	tbl_field_set("status", s->status);
+	
+	t = sensor_info_get(s->id);
+	switch(s->ptype) {
+		case SPT_TEMP_AND_HUMIDITY:
+			if(n == 0)
+				t = "Temperature " + t;
+			else if(n == 1)
+				t = "Humidity " + t;
+			break;
+	}
+	
+	tbl_field_set("info", t);
+}
+
+
+void
 create_agg_sensors_table()
 {
 	sensor *s;
 	string<16> ss;
+	string t;
+	en_tbl_status_codes res;
+	byte n;
+	
+	DBG("Creating SENSORTABLE");
 	
 	tbl_select("sensortable", "sensortable");
 	tbl_clear();
 	
-	for(s=connected_sensors; NULL != s; s=s->next) {
-		tbl_field_set("id", str(s->id));
-		tbl_field_set("type", str(s->ptype));
-		tbl_field_set("port", str(s->bus));
-		tbl_field_set("channel", str(s->chnl));
-		tbl_field_set("driver", str(s->drvid));
-		tbl_field_set("serial", address_format(ioport_type(s->port), &s->mac));
-		tbl_field_set("value", var_format(s->res[0]));
-		tbl_field_set("status", s->status);
-		tbl_field_set("info", sensor_info_get(s->id));
-		tbl_record_add(str(s->id));
+	for(n=0, s=connected_sensors; NULL != s; s=s->next) {
+		update_field_data(s, 0);
+		res = tbl_record_add(n++);
+		if(res != EN_TBL_STATUS_OK)
+			ERR("Failed to add table field #"+str(n)+": res="+str(res));
+
+		if(s->ptype == SPT_TEMP_AND_HUMIDITY) {
+			update_field_data(s, 1);
+			res = tbl_record_add(n++);
+			if(res != EN_TBL_STATUS_OK)
+				ERR("Failed to add table field #"+str(n)+": res="+str(res));
+		}
 	}
 	
 	tbl_close("sensortable");
@@ -44,24 +78,39 @@ update_agg_sensors_table()
 {
 	sensor *s;
 	byte n;
+	en_tbl_status_codes res;
 	
 	tbl_select("sensortable", "sensortable");
 	
-	for(n=0, s=connected_sensors; NULL != s; s=s->next, ++n) {
-		tbl_field_set("value", var_format(s->res[0]));
-		tbl_field_set("status", s->status);
-		tbl_record_edit(n);
+	for(n=0, s=connected_sensors; NULL != s; s=s->next) {
+		update_field_data(s, 0);
+		res = tbl_record_edit(n++);
+		if(res != EN_TBL_STATUS_OK)
+			ERR("Failed to edit table field #"+str(n)+": res="+str(res));
+
+		if(s->ptype == SPT_TEMP_AND_HUMIDITY) {
+			update_field_data(s, 1);
+			res = tbl_record_edit(n++);
+			if(res != EN_TBL_STATUS_OK)
+				ERR("Failed to edit table field #"+str(n)+": res="+str(res));
+		}
 	}
 	
+	update_field_data(connected_sensors, 0);
+	res = tbl_record_edit(n);
+	
 	tbl_close("sensortable");
+	
 	agg_fire_instant_event("root", "updated", "sensortable", 0);
+	
+	DBG("Aggregate table updated: " + str(n) + " record(s)");
 }
 
 
 void
 callback_stg_error(string& stg_name, unsigned char index, en_stg_status_codes status)
 {
-	DBG("callback_stg_error: " + stg_name);
+	DBG(stg_name);
 }
 
 
@@ -240,7 +289,7 @@ callback_tbl_error(en_tbl_status_codes status)
 no_yes
 callback_tbl_fail_to_open(string& filename, pl_fd_status_codes status, byte filenum)
 {
-	DBG("callback_tbl_fail_to_open");
+	DBG(filename);
 	return YES;
 }
 
@@ -248,7 +297,7 @@ callback_tbl_fail_to_open(string& filename, pl_fd_status_codes status, byte file
 void
 callback_tbl_field_error(string& file_name, string& field_name, en_tbl_status_codes tbl_result)
 {
-	DBG("callback_tbl_field_error: " + file_name + ":" + field_name);
+	DBG(file_name + ":" + field_name);
 }
 
 
