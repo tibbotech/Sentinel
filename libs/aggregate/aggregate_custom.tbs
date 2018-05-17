@@ -649,7 +649,9 @@ public sub agg_proc_timer()
 	#if AGG_REMOTE_FIRMWARE_UPLOAD
 		if agg_firmware_recieved=YES then
 			if fd.open(AGG_FIRMWARE_FILENAME)=PL_FD_STATUS_OK then
+#if PLATFORM_ID != LTTP3			
 				fd.copyfirmwarefromfile
+#endif				
 			end if
 		end if
 	#endif
@@ -2471,7 +2473,9 @@ sub agg_rtc_sg(byref wdaycount as word, byref wmincount as word, byref bsec as b
 		rtc.getdata(wdaycount,wmincount,bsec)
 		wmilsec=0
 	case EN_AGG_SET:
+#if PLATFORM_ID != LTTP3	
 		rtc.setdata(wdaycount,wmincount,bsec)
+#endif		
 	end select
 #endif
 

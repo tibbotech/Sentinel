@@ -66,9 +66,15 @@ http_init(string& ip, string& mask, string& gateway)
 		sock.protocol = PL_SOCK_PROTOCOL_TCP;
 		sock.inconmode = PL_SOCK_INCONMODE_ANY_IP_ANY_PORT;
 		sock.httpportlist = "80"; // listen on port 80
+#if PLATFORM_ID == LTTP3
+		sock.txbuffrq(8);
+		sock.rxbuffrq(8);
+		sock.varbuffrq(8);
+#else
 		sock.txbuffrq(4);
 		sock.varbuffrq(2);
 		sock.redir(PL_REDIR_SOCK0 + sock.num);
+#endif		
 	}
 }
 
@@ -284,8 +290,10 @@ on_sys_init()
 
 	led_bar_set_pattern(0);
 
+#if PLATFORM_ID != LTTP3
 	DBG("Memory used: "+str(sys.totalbuffpages/4)+" kB, free: "+str(sys.freebuffpages/4)+" kB");
-	
+#endif
+
 	DBG("Running");
 }
 
@@ -437,6 +445,7 @@ on_sock_data_sent()
 {
 	if(sock.num == SOCK_NUM_DNS)
 		DBG("DNS packet sent");
+		
 	if(sock.num == SOCK_NUM_GPRS)
 		DBG("GPRS packet sent");
 }

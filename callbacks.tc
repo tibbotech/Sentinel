@@ -2,7 +2,7 @@
 #include "sensors_db.th"
 #include "sensor_info.th"
 #include "device_funcs.th"
-include "sensor_info.th"
+#include "sensor_info.th"
 #include "utils.th"
 
 
@@ -44,12 +44,10 @@ void
 create_agg_sensors_table()
 {
 	sensor *s;
-	string<16> ss;
-	string t;
 	en_tbl_status_codes res;
 	byte n;
 	
-	DBG("Creating SENSORTABLE");
+	DBG("Creating sensor table for AggreGate");
 	
 	tbl_select("sensortable", "sensortable");
 	tbl_clear();
@@ -69,6 +67,7 @@ create_agg_sensors_table()
 	}
 	
 	tbl_close("sensortable");
+	
 	agg_fire_instant_event("root", "updated", "sensortable", 0);
 }
 

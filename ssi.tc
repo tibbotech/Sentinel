@@ -23,8 +23,9 @@ ssi_restore(byte chnl)
 	ssi.baudrate = 255;
 	ssi.direction = PL_SSI_DIRECTION_RIGHT;
 	ssi.mode = PL_SSI_MODE_0;
+#if PLATFORM_ID != LTTP3	
 	ssi.zmode = PL_SSI_ZMODE_ALWAYS_ENABLED;
-
+#endif
 	ssi.channel = temp;
 }
 
@@ -62,7 +63,9 @@ ssi_setup_channel(ioport *p)
 		ssi.dimap = p->d.ssi.sda;
 		ssi.domap = p->d.ssi.sda;
 		ssi.direction = PL_SSI_DIRECTION_LEFT;
+#if PLATFORM_ID != LTTP3		
 		ssi.zmode = PL_SSI_ZMODE_ENABLED_ON_ZERO;
+#endif		
 		ssi.mode = PL_SSI_MODE_0;
 		ssi.enabled = YES;
 	} else {

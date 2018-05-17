@@ -117,7 +117,9 @@ setup_ssi()
 	ssi.clkmap = icsp_scl;
 	ssi.dimap = icsp_sda;
 	ssi.domap = icsp_sda;
+#if PLATFORM_ID != LTTP3	
 	ssi.zmode = PL_SSI_ZMODE_ENABLED_ON_ZERO;
+#endif	
 	ssi.mode = PL_SSI_MODE_1;
 	ssi.baudrate = 128; // Change this according to your needs
 	ssi.enabled = YES;

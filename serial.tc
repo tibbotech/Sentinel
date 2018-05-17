@@ -10,6 +10,7 @@ static ioport *_serial[HAL_UART_COUNT];
 void
 serial_init()
 {
+#if PLATFORM_ID != LTTP3
 	int d = ser.div9600;
 	unsigned char i;
 	
@@ -23,7 +24,16 @@ serial_init()
 	_rates[R_38400] = d / 4; 	// 38400
 	_rates[R_57600] = d / 6; 	// 57600
 	_rates[R_115200] = d / 12; 	// 115200
-
+#else
+	_rates[R_1200] = PL_SER_BAUD_1200; 	// 1200
+	_rates[R_2400] = PL_SER_BAUD_2400; 	// 2400
+	_rates[R_4800] = PL_SER_BAUD_4800; 	// 4800
+	_rates[R_9600] = PL_SER_BAUD_9600;	// 9600
+	_rates[R_19200] = PL_SER_BAUD_19200;// 19200
+	_rates[R_38400] = PL_SER_BAUD_38400;// 38400
+	_rates[R_57600] = PL_SER_BAUD_57600; // 57600
+	_rates[R_115200] = PL_SER_BAUD_115200; // 115200
+#endif
 	for(i=0; i<HAL_UART_COUNT; ++i)
 		_serial[i] = NULL;
 }
@@ -107,11 +117,7 @@ serial_setup(ioport *p)
 	} else {
 		ser.flowcontrol = PL_SER_FC_RTSCTS;
 		ser.interface = PL_SER_SI_FULLDUPLEX;
-#if 0
-		/* Disabled due to some troubles with line remapping */
-		ser.rtsmap = p->d.ser.rts;
-		ser.ctsmap = p->d.ser.cts;
-#endif
+#if PLATFORM_ID != LTTP3
 		/* Make RTS IO line to serve as output and CTS IO line as input
 		 */
 		io.num = ser.rtsmap;
@@ -119,7 +125,7 @@ serial_setup(ioport *p)
 
 		io.num = ser.ctsmap;
 		io.enabled = NO; // disable output driver
-		
+#endif		
 		serial_set_rate(p, R_115200); 
 	}
 	

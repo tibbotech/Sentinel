@@ -79,7 +79,7 @@ _scanfor(string& buf, string& pt, byte *bl)
 	bpos = 0;
 	
 	for(p=0; p < flen; ++p) {
-		if((flen - p) < bpos) // We can't find bestest pattern match than we already have
+		if((flen - p) < bpos) // We can't find best pattern match than we already have
 			break;
 			
 		for(cl=0, i=0; i < plen; ++i) {
@@ -113,7 +113,7 @@ _scanfor(string& buf, string& pt, byte *bl)
  * stream contains valid field separator. This is kind of hack, i know, but until
  * D.S. doesn't implement access to the header fields we don't have any choice.
  */
-void 
+void /* inline? */
 http_post_parse_buf()
 {
 	int p, i;
