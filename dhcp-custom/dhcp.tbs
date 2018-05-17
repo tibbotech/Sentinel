@@ -437,6 +437,7 @@ dhcp_is_active:
 		end if
 	#endif
 
+#if PLATFORM_ID <> LTPP3
 	#if WLN_AVAILABLE
 		mac=ddval(wln.mac)
 		if mid(s,5,4)=right(mac,4) then
@@ -444,6 +445,7 @@ dhcp_is_active:
 			goto decode_packet
 		end if
 	#endif
+#endif
 
 	goto dhcp_proc_data_error 
 
@@ -673,7 +675,7 @@ function dhcp_sock_open(interface as pl_sock_interfaces, phase as en_dhcp_phases
 					sock.num=dhcp_sock
 					sock.inconenabledmaster=NO
 					discard_sockets(PL_SOCK_INTERFACE_WLN)
-#if PLATFORM_ID != LTTP3					
+LTPP3#if PLATFORM_ID <> LTPP3					
 					wln.ip="0.0.0.0"
 #endif					
 					sock.inconenabledmaster=YES
@@ -785,7 +787,7 @@ sub send_dhcp(byref obtained_ip as string(16),byref device_name as string(32), i
 			ip=ddval(net.ip)
 		end if
 	#endif
-	#if WLN_AVAILABLE
+	#if WLN_AVAILABLE and PLATFORM_ID <> LTPP3
 		if interface=PL_SOCK_INTERFACE_WLN then
 			mac=ddval(wln.mac)
 			ip=ddval(wln.ip)

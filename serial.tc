@@ -10,9 +10,9 @@ static ioport *_serial[HAL_UART_COUNT];
 void
 serial_init()
 {
-#if PLATFORM_ID != LTTP3
-	int d = ser.div9600;
 	unsigned char i;
+#if PLATFORM_ID != LTPP3
+	int d = ser.div9600;
 	
 	/* Precalculate divisors for specified baud rates
 	 */
@@ -68,7 +68,11 @@ serial_set_rate(ioport *p, serial_rate rate)
 	if(is_serial_port(p)) {
 		ser.num = p->d.ser.spn;
 		ser.enabled = NO;
+#if PLATFORM_ID == LTPP3
+		ser.baud = _rates[rate];
+#else
 		ser.baudrate = _rates[rate];
+#endif		
 		ser.enabled = YES;
 	}
 }
@@ -117,7 +121,7 @@ serial_setup(ioport *p)
 	} else {
 		ser.flowcontrol = PL_SER_FC_RTSCTS;
 		ser.interface = PL_SER_SI_FULLDUPLEX;
-#if PLATFORM_ID != LTTP3
+#if PLATFORM_ID != LTPP3
 		/* Make RTS IO line to serve as output and CTS IO line as input
 		 */
 		io.num = ser.rtsmap;

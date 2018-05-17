@@ -144,7 +144,7 @@ enum ioport_option {
 #define HAL_SLOT_COUNT			12
 #elif (PLATFORM_ID==SIMULATOR)
 #define HAL_SLOT_COUNT			12
-#elif (PLATFORM_ID==LTTP3)
+#elif (PLATFORM_ID==LTPP3)
 #define HAL_SLOT_COUNT			12
 #else
 #error Sorry, this platform type currently not supported

@@ -14,7 +14,7 @@
 
 
 static tibbit_slot _slots[] = { // This array describes all available GPIO lines
-#if (PLATFORM_ID == TPP3W) || (PLATFORM_ID == TPP3WG2)
+#if (PLATFORM_ID == TPP3W) || (PLATFORM_ID == TPP3WG2) || (PLATFORM_ID == LTPP3)
 /* First six slots S1...S15 counts GPIO lines A,B,C,D from left to right
  */
 	{ TB_NONE, { PL_IO_NUM_9_TX0, 	PL_IO_NUM_8_RX0, 	PL_IO_NUM_0, 	PL_IO_NUM_16_INT0 }, 0 }, // slot 0 -> S1 
