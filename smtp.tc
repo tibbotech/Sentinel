@@ -97,7 +97,7 @@ _mail_connect(string& ip, word port)
 	
 	sock.num = SOCK_NUM_SMTP;
 	sock.protocol = PL_SOCK_PROTOCOL_TCP;
-	sock.targetinterface = PL_SOCK_INTERFACE_NET;
+	sock.targetinterface = PL_SOCK_INTERFACE_NET; 
 	sock.targetip = ddstr(ip);
 	sock.targetport = port;
 	

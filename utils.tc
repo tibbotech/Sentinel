@@ -6,6 +6,10 @@ static string<16> _hex = "0123456789ABCDEF";
 static string<64> _b64e = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
 
+/*
+ */
+ 
+
 string<2>
 tohex(unsigned char c)
 {
@@ -222,7 +226,7 @@ bit_used(unsigned char *buf, unsigned char cb, unsigned int bit)
 	
 	if(bi < cb && buf != NULL)
 		return 0 != (buf[bi] & msk);
-		
+
 	return false;
 }
 
@@ -241,6 +245,7 @@ j_encoderaw(string& pname, string& pval)
 {
 	return "\"" + pname + "\":" + pval;
 }
+
 
 string 
 json_add(string& res, string pname, string pval)
@@ -765,5 +770,6 @@ render_login_form()
 void
 check_user_credentials(void)
 {
-	for(;;) {}
+	for(;;) {
+	}
 }

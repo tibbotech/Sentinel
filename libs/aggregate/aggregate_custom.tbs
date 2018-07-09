@@ -2469,7 +2469,7 @@ sub agg_rtc_sg(byref wdaycount as word, byref wmincount as word, byref bsec as b
 
 #if AGG_CUSTOM_RTC=0
 	select case op
-	case EN_AGG_GET:
+	case EN_AGG_GET:	
 		rtc.getdata(wdaycount,wmincount,bsec)
 		wmilsec=0
 	case EN_AGG_SET:
@@ -2729,5 +2729,3 @@ sub agg_convert_disk_data(byref data_string as string)
 	next i
 	data_string=s
 end sub
-
-

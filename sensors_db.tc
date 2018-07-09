@@ -44,6 +44,15 @@ romfile_getword()
 } 
 
 
+static dword
+romfile_getdword()
+{
+	string<4> t = romfile.getdata(4);
+	dword *res = (dword *)&t[0];
+	return *res;
+}
+
+
 static string
 romfile_getstring()
 {

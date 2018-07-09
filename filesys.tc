@@ -1,6 +1,19 @@
 #include "global.th"
 
 
+void
+prepare_filesys()
+{
+	pl_fd_status_codes res;
+	
+	DBG("Trying to (re-)format flash");
+	
+	if(!fd.ready) {
+		/* Let's try to mount fd */
+	}
+}
+
+
 bool
 filesys_init()
 {
@@ -103,9 +116,8 @@ file_putdata(char *data, word cb)
 	
 	while(cb != 0) {
 		cksz = (cb > 255)? 255: cb;
-		//temp = strgen(' ', cksz);
 		for(i=0; i<cksz; ++i)
-			temp += chr(*data++); //[i] = *data++;
+			temp += chr(*data++); 
 		fd.setdata(temp);
 		cb -= cksz;
 	}

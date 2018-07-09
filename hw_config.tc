@@ -3,6 +3,16 @@
 #include "utils.th"
 
 
+void
+html_select_options_list(byte n)
+{
+	byte i;
+	for(i=0; i<n; ++i) {
+		sock_send("<option>");
+	}
+}
+
+
 void 
 html_selected(bool f)
 {

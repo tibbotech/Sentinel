@@ -23,6 +23,7 @@
 #include "validators.th"
 #include "sensor_info.th"
 #include "console.th"
+#include "gui.th"
 
 
 static word update_timer;
@@ -98,7 +99,8 @@ agg_agent_init()
 			active_if = PL_SOCK_INTERFACE_NET;
 		else
 			agif = "eth";
-			
+		
+		
 		agg_server_ip = stg_get("AGIP", 0);
 		if(0 == len(agg_server_ip))
 			agg_server_ip = "192.168.0.1";
@@ -225,16 +227,18 @@ gprs_modem_init()
 }
 
 
+void test(int a, char b='a')
+{
+	int k = 0;
+}
+
 
 void 
 on_sys_init()
 {
 	byte tmp;
 	en_dhcp_status_codes res;
-	 
-	//romfile.open("dl.js");
-	//string stmp = romfile.getdata(255);
-	
+
 	DBG("Firmware version: " + __VERSION__);
 	DBG("Initializing...");
 	
@@ -264,7 +268,7 @@ on_sys_init()
 		case 1: // Manual setup
 			net_init_manual();
 			break;
-		case 2: // Dhcp setup
+		case 2: // Dhcp setup 
 			res = dhcp_start(PL_SOCK_INTERFACE_NET, stg_get("IP", 0), stg_get("HN", 0));
 			break;
 		default:
@@ -274,6 +278,10 @@ on_sys_init()
 
 	gprs_modem_init();
 	
+#if PLATFORM_ID == TPP2WG2
+	gui_init();
+#endif
+
 	sys.buffalloc();
 
 	template_open(true);
@@ -498,7 +506,7 @@ on_sock_data_arrival()
 			DBG("ECHO REPLY: " + dump(s));
 			break;
 			
-		/* General packet radio serivce
+		/* General Packet Radio Serivce
 		 */
 		case SOCK_NUM_GPRS:
 			string s = sock.peekdata(255);
@@ -537,8 +545,10 @@ on_sock_event(enum pl_sock_state newstate, enum pl_sock_state_simple newstatesim
 			
 		case SOCK_NUM_SMS:
 			if(newstatesimple == PL_SSTS_EST) {
+#if 0
 				sock.setdata("ECHO TEST!\r\n");
 				sock.send();
+#endif				
 			}
 			break;
 			
@@ -614,7 +624,3 @@ on_dns_resolved(dns_error err, dns_record_type rr, string& data)
 	}
 }
 
-
-void test(int a, char b='a')
-{
-}

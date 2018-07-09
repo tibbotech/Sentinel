@@ -98,6 +98,8 @@ _flash_text(string& fn)
 			doevents;
 	}
 	
+	/* --- this is necessary for the 
+	 */
 	sock.setdata("</p>\r\n");
 	sock.send();
 

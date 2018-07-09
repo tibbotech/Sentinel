@@ -108,7 +108,7 @@ serial_setup(ioport *p)
 
 	ser.rxclear();
 	ser.txclear();
-	ser.notifysent(1);
+	ser.notifysent(1); 
 	
 	ser.mode = PL_SER_MODE_UART;
 	ser.bits = PL_SER_BB_8;
@@ -132,7 +132,7 @@ serial_setup(ioport *p)
 #endif		
 		serial_set_rate(p, R_115200); 
 	}
-	
+		
 	ser.enabled = YES;
 }
 

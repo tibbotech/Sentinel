@@ -60,7 +60,10 @@ typedef unsigned short			sensor_id;
 #endif
 
 
+
 #define CHAR_BITS 					8
+#define WORD_BITS					(CHAR_BITS*2)
+#define DWORD_BITS					(WORD_BITS*2)
 
 
 #includeb "global.tbh"
@@ -76,8 +79,10 @@ typedef unsigned short			sensor_id;
 #define SOCK_NUM_GPRS				5
 #define SOCK_NUM_DHCP				6
 #define SOCK_NUM_AGG				7
-#define SOCK_NUM_HTTP				8
+#define SOCK_NUM_DS					8
 
+#define SOCK_NUM_HTTP				9
+#define NUM_HTTP_SOCKS				(16-SOCK_NUM_HTTP)
 
 #define FILENO_BASE					8
 
@@ -109,7 +114,7 @@ extern string<4> sim_pin;
 extern bool update_enabled;
 extern word update_interval;
 extern word sensor_count;
-extern word unknown_sensor_count;
+extern word unknown_sensor_count; 
 extern connection_state gprs_status;
 extern bool onewire_enabled;
 

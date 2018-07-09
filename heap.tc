@@ -149,7 +149,7 @@ heap_alloc(unsigned short cb)
 		/* Simply exclude block from free block chain */
 		prev->next = cand->next;
 	} else {
-		/* Split block into two parts */
+		/* Split block into the two parts */
 		blk = (heapblk *)((unsigned char *)cand + cb);
 		blk->cb = (cand_cb - cb);
 #ifdef USE_SIGNATURES
@@ -277,6 +277,8 @@ heap_free(void *data)
 }
 
 
+/*! \brief
+ */
 bool 
 heap_check()
 {

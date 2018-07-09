@@ -78,7 +78,7 @@ _sensor_info_get(sensor_id sid) //iotype bus, byte chnl, void *serial)
 
 
 string
-sensor_info_get(sensor_id sid) //iotype bus, byte chnl, void *serial)
+sensor_info_get(sensor_id sid) 
 {
 	byte fn;
 	string res;
@@ -92,7 +92,7 @@ sensor_info_get(sensor_id sid) //iotype bus, byte chnl, void *serial)
 
 
 void
-sensor_info_set(sensor_id sid, string& info) //iotype bus, byte chnl, void *serial, string& info)
+sensor_info_set(sensor_id sid, string& info) 
 {
 	string<32> n;
 	string<65> tmp;
@@ -105,7 +105,7 @@ sensor_info_set(sensor_id sid, string& info) //iotype bus, byte chnl, void *seri
 	l = len(info);
 	
 	if(l > 64)
-		tmp = left(info, 64) ;
+		tmp = left(info, 64);
 	else if(l < 64)
 		tmp = info + strgen(64-l, "\0");
 	
@@ -127,5 +127,3 @@ sensor_info_set(sensor_id sid, string& info) //iotype bus, byte chnl, void *seri
 	
 	fd.setdata(tmp);
 }
-
-

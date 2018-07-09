@@ -32,6 +32,7 @@ swapb(word t)
 	return ((t >> 8) & 0xFF) | ((t & 0xFF) << 8);
 }
 
+
 #define MAX_DATA_LEN 4096
 #define MAX_CONFIG_LEN 8
 
@@ -184,8 +185,10 @@ transmit_block(byte *data, word blk, word blockcnt)
 		pkt += chr(cksum);
 
 		DBG("Sending packet #" + str(blk+1) + " of " + str(blockcnt));
+#if 0		
 		DBG(hexdump((byte *)&pkt[0], 32 /*len(pkt)*/) + "...");
-		
+#endif
+
 retransmit:			
 		serial_send(sp, pkt); 
 		
@@ -230,12 +233,11 @@ do_xmodem_upload(string fwfile)
 	string pkt;
 	word *temp;
 	
-	
 	if(!load_firmware_xmodem(fwfile, &fw))
 		return false;
 	
-	data = (byte *)fw.data + 0x300 * sizeof(word);
-	bc = fw.datalen * sizeof(word);
+	data = (byte *)fw.data + 0x340 * sizeof(word);
+	bc = (fw.datalen - 0x340) * sizeof(word);
 	temp = (word *)data;
 	
 	blockcnt = bc / XMODEM_PACKET_SIZE;
@@ -252,13 +254,13 @@ do_xmodem_upload(string fwfile)
 	for(;;) {
 		pkt = ser.getdata(255);
 		if(pkt[0] == XMODEM_NACK || pkt[0] == 'C')
-			break;
+			break; 
 	}
 
 	DBG("Got NACK from target");
 	DBG("Transferring "+str(blockcnt)+" blocks");
 	
-	for(blk=0; blk<blockcnt; ++blk) {
+	for(blk=0; blk<=blockcnt; ++blk) {
 		if(!transmit_block(data, blk, blockcnt))
 			break;
 		data += XMODEM_PACKET_SIZE;
@@ -272,3 +274,4 @@ do_xmodem_upload(string fwfile)
 
 	return OK;
 }
+

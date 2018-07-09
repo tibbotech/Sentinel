@@ -147,6 +147,9 @@ $(document).ready(function() {
 
         me.attr("disabled", "disabled");
 		me.closest("form").find("#l").show();
+
+		ev.preventDefault();
+
         $.post("save.html", collectFormArgs($(this)), function(reply) {
             var res = {};
             try {

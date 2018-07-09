@@ -6,7 +6,6 @@
 #include "sensors_assoc.th"
 
 
-
 string
 encode_zone(zone *z)
 {

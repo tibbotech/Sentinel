@@ -4,19 +4,13 @@
 #include "utils.th"
 
 
-/* (c) 2016 Tibbo Technology Inc.
- */
- 
-
 /*! \brief Restores SSI channel to default state
  * \param chnl SSI channel number 0...3
  */
 void
 ssi_restore(byte chnl)
 {
-	byte temp;
-	
-	temp = ssi.channel;
+	byte temp = ssi.channel;
 	
 	ssi.channel = chnl;
 	ssi.enabled = NO;
@@ -26,6 +20,7 @@ ssi_restore(byte chnl)
 #if PLATFORM_ID != LTPP3	
 	ssi.zmode = PL_SSI_ZMODE_ALWAYS_ENABLED;
 #endif
+
 	ssi.channel = temp;
 }
 
@@ -35,6 +30,7 @@ ssi_restore(byte chnl)
 bool
 ssi_is_hw(ioport *p)
 {
+	//
 	return p->d.ssi.channel != -1;
 }
 
@@ -51,6 +47,7 @@ ssi_setup_channel(ioport *p)
 	io.num = p->d.ssi.scl;
 	io.state = HIGH;
 	io.enabled = YES;
+	
 	io.num = p->d.ssi.sda;
 	io.state = HIGH;
 	io.enabled = NO;
@@ -69,12 +66,14 @@ ssi_setup_channel(ioport *p)
 		ssi.mode = PL_SSI_MODE_0;
 		ssi.enabled = YES;
 	} else {
-//		io.num = p->d.ssi.scl;
-//		io.state = HIGH;
-//		io.enabled = YES;
-//		io.num = p->d.ssi.sda;
-//		io.state = HIGH;
-//		io.enabled = NO;
+#if 0 // abcd
+		io.num = p->d.ssi.scl;
+		io.state = HIGH;
+		io.enabled = YES;
+		io.num = p->d.ssi.sda;
+		io.state = HIGH;
+		io.enabled = NO;
+#endif
 	}
 }
 
@@ -122,6 +121,8 @@ i2c_stop(ioport *p)
 }
 
 
+/*! \brief Restarts I2C transaction. This function will send the 'repeated start' sequence
+ */
 void i2c_restart(ioport *p)
 {
 	pl_io_num sda = p->d.ssi.sda;
@@ -165,7 +166,7 @@ i2c_write(ioport *p, byte data)
 		scl = p->d.ssi.scl;
 
 		io.num = scl; 						// Select SCL line
-		io.enabled = YES;					// Take ownership over SCL
+		io.enabled = YES;					// Take ownership over SCL 
 		io.state = LOW;						// Initialize the transmission
 
 		io.num = sda; 						// Select SSI_SDA line
@@ -254,6 +255,7 @@ _detect(ioport *p, byte addr)
 	return res;
 }
 
+
 bool
 i2c_detect(ioport *p, byte addr)
 {
@@ -282,9 +284,9 @@ i2c_port_scan(ioport *p, byte chnl)
 }
 
 
-#if 0
 /* Code disabled due to inability of TiOS to do the I2C clock stretching 
  */
+#if 0
 void
 i2c_write_with_cs(ioport *p, byte data) 
 {
@@ -365,7 +367,7 @@ i2c_read(ioport *p, bool acknak_request)
 		io.num = scl; // Select SSI_CLK line
 		io.state = LOW; // Initialize the transmition
 
-		for(compval=0x80; compval!=0x00; compval>>=1) {
+		for(compval = 0x80; compval != 0; compval>>=1) {
 			/* Read one bit from I2C device
 			 */
 			io.state = HIGH; 

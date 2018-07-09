@@ -41,7 +41,7 @@ connected_sensors = probe_sensors(&sensor_count, &unknown_sensor_count);
         <div class="main_heading_descr">This is main page of the device configuration menu</div>
     </div>
     <div class="body">
-		<div class="msg" style="float: none; margin-bottom: 1em; display: none;">1 important setting awaits your review. Please visit settings page and make desired changes.</div>
+		<!-- <div class="msg" style="float: none; margin-bottom: 1em; display: none;">1 important setting awaits your review. Please visit settings page and make desired changes.</div> -->
 		<div class="banner_flex_outer">
 		<? 
 			if(unknown_sensor_count > 0) {
@@ -104,7 +104,8 @@ connected_sensors = probe_sensors(&sensor_count, &unknown_sensor_count);
 				<div class="banner_info">View and monitor values reported by sensors</div>
 			</div>
 
-			<div class="banner-attn" style="background-image: url(hw_config.svg)">
+			<!-- <div class="banner-attn" style="background-image: url(hw_config.svg)"> -->
+			<div class="banner" style="background-image: url(hw_config.svg)">
 				<a class="banner_link" href="hw_config.html">Hardware Configuration</a>
 				<div class="banner_info">Modify hardware configuration according to your needs</div>
 			</div>

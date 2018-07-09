@@ -69,6 +69,9 @@ read_assoc()
 			break;
 		}
 
+		/* The file consists of the fixed-sized records, so to determine number of records
+		 * we can just divide overall file size by the sizeof the single record
+		 */
 		fr = (sensor_file_rec *)&tmp[0];
 		res = find_drvrec(fr->drvid, &fi);
 		if(!res) {
@@ -117,7 +120,6 @@ sensor_assoc_init()
 	
 	for(byte i=0; i<MAX_SENSOR_COUNT/8; ++i)
 		addrs_used[i] = 0;
-		
 #if 0
 	for(byte i=0; i<MAX_SENSOR_COUNT; ++i) {
 		addrs[i].drvid = DRVID_NONE;
@@ -129,7 +131,7 @@ sensor_assoc_init()
 	_memset(&addrs, 0, sizeof(addrs));
 #endif	
 
-	_last_id = 15;
+	_last_id = 15; // hardcoded constant
 	return read_assoc(); 
 }
 
@@ -147,7 +149,7 @@ sensor_assoc_add(iotype bus, byte chnl, byte drv, byte *addr)
 	sensor *a;
 	zone z;
 	
-	a = alloc_addr();
+	a = alloc_addr(); 
 	if(NULL == a)
 		return NULL;
 	

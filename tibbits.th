@@ -50,7 +50,7 @@ enum tibbit
 	TB_19,						//!< DB9M connector
 	TB_20, 						//!< Nine terminal blocks
 	TB_21,						//!< Four terminal blocks
-/* Normal tibbits again */	
+/* Normal tibbits again */
 	TB_22,						//!< **** Non-isolated PoE (NOT YET AVAILABLE)
 	TB_23,						//!< Isolated PoE power supply, 5V output
 	TB_24,						//!< **** Thermocouple temperature meter
@@ -73,7 +73,7 @@ enum tibbit
 	TB_39_2,					//!< Large red LED (high brightness)
 	TB_39_3, 					//!< Large yellow LED (low brightness)
 	TB_39_4,					//!< Large blue LED (high brightness)
-/* Normal tibbits again */	
+/* Normal tibbits again */
 	TB_40_1,					//!< Digital potentiometer, 5KOhm
 	TB_40_2,					//!< Digital potentiometer, 10KOhm
 	TB_40_3,					//!< Digital potentiometer, 50KOhm

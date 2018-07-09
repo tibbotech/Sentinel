@@ -15,7 +15,6 @@
 enum acmd {
 	CMD_NOP 				= 0x00,
 	CMD_COPYSIGN			= 0x01,		// rA *= sign rB
-	// 0x01
 	// 0x02
 	CMD_MOV 				= 0x03,		// rA = rB or const
 	CMD_ADD 				= 0x04,		// rA = rA + rB or const
@@ -34,7 +33,7 @@ enum acmd {
 
 
 static byte
-_argcnt[] = {
+_argcnt[] = { /* Number of arguments of each command */
 	0, 2, 0, 2, 2, 2, 2, 2, 2, 1, 1, 2, 1, 1, 2, 0
 };
 
@@ -237,7 +236,7 @@ _exec_program_long(ALU *alu, byte *prog, word cb)
 					neg = alu->r[rB].l < 0;
 				else
 					neg = alu->r[rB].f < 0;
-					
+
 				if(dst->type == TYPE_LONG)
 					dst->l = neg? -lv: lv;
 				else
@@ -245,7 +244,6 @@ _exec_program_long(ALU *alu, byte *prog, word cb)
 				break;
 				
 			case CMD_MOV:
-
 				if(dst->type == TYPE_LONG)
 					dst->l = lv;
 				else
@@ -363,5 +361,3 @@ exec_program(sensor *s, string& data, byte *prog, byte cb)
 		
 	return alu.r[0];
 }
- 
-
