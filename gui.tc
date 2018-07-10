@@ -127,7 +127,7 @@ gui_draw_sensor(sensor *s, int x, int y, int n)
 			break;
 	}
 	
-	lcd.linewidth = 2;
+	lcd.linewidth = 3;
 	lcd.filledrectangle(x, y, x + X_SIZE - GAP_SIZE, y + Y_SIZE - GAP_SIZE);
 	
 	if(icon != -1) {
@@ -224,8 +224,8 @@ gui_draw_sensor(sensor *s, int x, int y, int n)
 	romfile.open(GUI_SMALL_FONT);
 	lcd.setfont(romfile.pointer32);
 	lcd.forecolor = g_colors[5];
-	lcd.textalignment = PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER;
-	lcd.printaligned(v, x+4, y+4, 70, 70);
+	lcd.textalignment = PL_LCD_TEXT_ALIGNMENT_BOTTOM_CENTER;
+	lcd.printaligned(v, x+4, y+4, 70, 60);
 	
 	lcd.textverticalspacing = 1;
 }
