@@ -1,0 +1,14 @@
+#ifndef __GUI_HEADER_INCLUDED__
+#define __GUI_HEADER_INCLUDED__
+
+
+extern void gui_init(void);
+extern void gui_render(void);
+extern void gui_timer(void);
+
+
+#define GUI_SMALL_FONT	"5X7-RU.BIN"
+#define GUI_LARGE_FONT	"11X19-RU.BIN"
+
+
+#endif

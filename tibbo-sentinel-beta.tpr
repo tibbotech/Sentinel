@@ -5,7 +5,7 @@ src_lib_ver=2_01_00
 name=tibbo-sentinel-v1.0b
 output=tibbo-sentinel-v1.1.141b.$(Platform)-$(Configuration).tpc
 debug=on
-defines= /dFILENUM_MAX_SIGNATURE_LEN=4 /dFILENUM_MAX_FILENAME_LEN=12 /dGPRS_DEBUG_PRINT /dGPRS_MODULE_EXTERNAL=1 /dSUPPORTS_GPRS
+defines= /dFILENUM_MAX_SIGNATURE_LEN=4 /dFILENUM_MAX_FILENAME_LEN=12 /dGPRS_MODULE_EXTERNAL=1 /dGPRS_DEBUG_PRINT /dSUPPORTS_GPRS
 transport=udp_winpcap
 [address1]
 platform=TPP3W(G2)
@@ -1078,5 +1078,23 @@ path=gui.th
 type=cheader
 format=65001
 condition=
+locked=no
+location=project
+[file152]
+path=fonts\5X7-RU.BIN
+type=binary
+format=
+locked=no
+location=project
+[file153]
+path=fonts\11X19-RU.BIN
+type=binary
+format=
+locked=no
+location=project
+[file154]
+path=icons\temperature.bmp
+type=binary
+format=
 locked=no
 location=project

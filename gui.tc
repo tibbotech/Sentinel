@@ -1,0 +1,273 @@
+#include "global.th"
+#include "gui.th"
+#include "sensors_db.th"
+
+
+#define X_SIZE 80
+#define Y_SIZE 80
+//#define X_SIZE 158
+//#define Y_SIZE 77
+#define GAP_SIZE 4
+
+
+static byte r_div, r_shift;
+static byte g_div, g_shift;
+static byte b_div, b_shift;
+
+
+dword g_font[4];
+dword g_colors[8];
+
+
+dword 
+rgb(byte r, byte g, byte b)
+{dword rf, gf, bf;
+	
+	rf = ((r >> r_div) << r_shift);
+	gf = ((g >> g_div) << g_shift);
+	bf = ((b >> b_div) << b_shift);
+	
+	return rf | gf | bf;
+}
+
+
+void
+lcd_init()
+{
+	// initialize the TFT LCD on the TPS2L
+	io.num = 55; // RST
+	io.enabled = YES;
+	
+	io.num = 43; // DC
+	io.enabled = YES;
+	
+	io.num = 42; // WR
+	io.enabled = YES;
+	
+	io.num = 41; // RD
+	io.enabled = YES;
+	
+	io.num = 40; // CS
+	io.enabled = YES;
+
+	lcd.iomapping = "55,43,42,41,40,0"; // RST,DC,WR,RD,CS,data_bus
+	lcd.rotated = YES; // yes, the LCD is installed upside down
+
+	lcd.width = 320;
+	lcd.height = 240;
+
+	lcd.enabled = YES;
+
+	// turn the backlight ON
+	io.num = 54;
+	io.enabled = YES;
+	io.state = LOW;
+	
+	r_shift = lcd.redbits & 0xFF;
+	r_div = 8 - (lcd.redbits >> 8);
+	
+	g_shift = lcd.greenbits & 0xFF;
+	g_div = 8 - (lcd.greenbits >> 8);
+
+	b_shift = lcd.bluebits & 0xFF;
+	b_div = 8 - (lcd.bluebits >> 8);
+	
+	// Essential colors: black & white
+	g_colors[0] = rgb(0, 0, 0);
+	g_colors[1] = rgb(255, 255, 255);
+
+	// Primary colors: red green & blue
+	g_colors[2] = rgb(255, 0, 0);
+	g_colors[3] = rgb(0, 255, 0);
+	g_colors[4] = rgb(0, 0, 255);
+	
+	// Yellow
+	g_colors[5] = rgb(255, 255, 0);
+
+// Clear screen
+	lcd.forecolor = g_colors[0];
+	lcd.filledrectangle(0, 0, 319, 239);
+
+	lcd.forecolor = g_colors[1];
+	lcd.backcolor = g_colors[0];
+}
+
+
+void
+gui_init(void)
+{
+	lcd_init();
+}
+
+
+static void
+gui_draw_sensor(sensor *s, int x, int y, int n)
+{
+	string v, type;
+	int icon = -1;
+	
+	// 320/4
+//	lcd.forecolor = g_colors[1];
+	lcd.forecolor = rgb(119, 127, 131);
+	lcd.backcolor = rgb(33, 49, 57); //g_colors[0];
+	
+	switch(n) {
+		case 0:
+			icon = 0;
+			break;
+			
+		case 1:
+			lcd.forecolor = rgb(251, 195, 41);
+			icon = 35;
+			break;
+
+		case 2:
+			lcd.forecolor = rgb(255, 2, 65);
+			icon = 70;
+			break;
+	}
+	
+	lcd.linewidth = 2;
+	lcd.filledrectangle(x, y, x + X_SIZE - GAP_SIZE, y + Y_SIZE - GAP_SIZE);
+	
+	if(icon != -1) {
+		romfile.open("temperature.bmp");
+		lcd.bmp(romfile.offset, x+9, y+9, 0, icon, 35, 35);
+	}
+	
+	switch(s->ptype) {
+		case SPT_HUMIDITY:				//!< Humidity (value)
+			type = "Humidity";
+			v = ftostr(s->res[0].f, FTOSTR_MODE_AUTO, 4) + " %RH";
+			break;
+			
+		case SPT_TEMPERATURE:			//!< Temperature (value)
+			type = "Temperature";
+			v = ftostr(s->res[0].f, FTOSTR_MODE_AUTO, 4) + " C";
+			break;
+			
+		case SPT_TEMP_AND_HUMIDITY:		//!< Combined temperature and humidity (value)
+			type = "Temp & Humidity";
+			v = ftostr(s->res[0].f, FTOSTR_MODE_AUTO, 4) + " C`" + ftostr(s->res[1].f, FTOSTR_MODE_AUTO, 4) + " %RH";
+			break;
+			
+		case SPT_FLOOD:					//!< Water flood (bool)
+			type = "Flood";
+			v = s->res[0].l? "ALERT": "";
+			break;
+			
+		case SPT_FIRE:					//!< Fire (bool)
+			type = "Fire";
+			v = "-";
+			break;
+			
+		case SPT_SMOKE:					//!< Smoke (bool)
+			type = "Smoke";
+			v = "-";
+			break;
+			
+		case SPT_MOVEMENT:				//!< Movement (PIR or ultrasonic) (bool)
+			type = "PIR";
+			v = "-";
+			break;
+			
+		case SPT_ACDC_CURRENT:			//!< AC or DC current presence (bool)
+			type = "AC/DC";
+			v = "-";
+			break;
+			
+		case SPT_SHOCK:					//!< Shock (bool)
+			type = "Shock";
+			v = "-";
+			break;
+			
+		case SPT_REED_SWITCH:			//!< Door or window open sensor, magnetic (bool)
+			type = "Reed SW";
+			v = "-";
+			break;
+			
+		case SPT_SWITCH:				//!< Ordinary switch/button (bool)
+			type = "Switch";
+			v = s->res[0].l? "ON": "OFF";
+			break;
+			
+		case SPT_PRESSURE:				//!< Pressure: air or other medium (value)
+			type = "Pressure";
+			v = "-";
+			break;
+			
+		case SPT_LIGHT:					//!< Light sensor, direct or indirect (value)
+			type = "Light";
+			v = lstr(s->res[0].l) + " Lux";
+			//ftostr(s->res[0].f, FTOSTR_MODE_AUTO, 5) + "Lux";
+			break;
+			
+		case SPT_ACCELERATION_3AXIS:
+			// TODO
+			break;
+			
+		case SPT_ACCELERATION_6AXIS:
+			// TODO
+			break;
+	}
+	
+	lcd.textverticalspacing = 3;
+	
+#if 0
+	romfile.open(GUI_SMALL_FONT);
+	lcd.forecolor = g_colors[1];
+	lcd.setfont(romfile.pointer32);
+	lcd.textalignment = PL_LCD_TEXT_ALIGNMENT_TOP_LEFT;
+	lcd.printaligned(type, x+4, y+4, 70, 70);
+#endif
+
+	romfile.open(GUI_SMALL_FONT);
+	lcd.setfont(romfile.pointer32);
+	lcd.forecolor = g_colors[5];
+	lcd.textalignment = PL_LCD_TEXT_ALIGNMENT_MIDDLE_CENTER;
+	lcd.printaligned(v, x+4, y+4, 70, 70);
+	
+	lcd.textverticalspacing = 1;
+}
+
+
+extern struct sensor *connected_sensors;
+
+
+void
+gui_render(void)
+{
+	sensor *s;
+	int x, y;
+	int n;
+	
+	x = y = n = 0;
+	
+	//lcd.lock(); /* LCD.LOCK and LCD.UNLOCK is broken on G2 platform and causes screen flicker */
+	
+	// TODO: remove hardcoded constants
+	for(s=connected_sensors; NULL != s; s = s->next) {
+		gui_draw_sensor(s, x, y, n++);
+		x += X_SIZE;
+		if(x >= 320) {
+			x = 0;
+			y += Y_SIZE;
+			if(y >= 240)
+				break;
+		}
+	}
+	
+	//lcd.unlock();
+}
+
+
+void
+gui_timer(void)
+{
+	static byte internal_ctr = 0;
+	
+	if(++internal_ctr == 2) {
+		gui_render();
+		internal_ctr = 0;
+	}
+}

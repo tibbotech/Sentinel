@@ -445,6 +445,9 @@ on_sys_timer()
 	dhcp_proc_timer();
 	agg_proc_timer();
 	modem_timer();
+#if PLATFORM_ID == TPP2WG2
+	gui_timer();
+#endif
 }
 
 

@@ -1,0 +1,8 @@
+#ifndef __DS_MANAGER_PROTOCOL_INCLUDED__
+#define __DS_MANAGER_PROTOCOL_INCLUDED__
+
+
+#include "global.th"
+
+
+#endif

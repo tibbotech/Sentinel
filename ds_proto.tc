@@ -1,0 +1,36 @@
+#include "ds_proto.th"
+
+
+/* DS-manager protocol support for the Sentinel
+ */
+ 
+ 
+ void
+ ds_init()
+ {
+	/* Allocate socket and set up the state machine
+	 */
+ }
+ 
+ 
+ void
+ ds_shutdown()
+ {
+ 	
+ }
+ 
+ 
+ /* Called from on_sock_data_arrival
+  */	
+ void
+ on_ds_data_arrival()
+ {
+ 	//
+ }
+ 
+ 
+ void
+ on_ds_timer()
+ {
+ 	//
+ }

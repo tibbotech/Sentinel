@@ -1,0 +1,152 @@
+#include "global.th"
+#include "hal.th"
+#include "ssi.th"
+#include "utils.th"
+
+
+void
+ssi_restore(byte chnl)
+{
+	byte temp;
+	
+	temp = ssi.channel;
+	
+	ssi.channel = chnl;
+	ssi.enabled = NO;
+	ssi.baudrate = 255;
+	ssi.direction = PL_SSI_DIRECTION_RIGHT;
+	ssi.mode = PL_SSI_MODE_0;
+	
+	ssi.channel = temp;
+}
+
+
+/*! \brief Determines whether I/O port in HW acceleration mode or not
+ */
+bool
+ssi_is_hw(ioport *p)
+{
+	return p->d.ssi.channel != -1;
+}
+
+
+/*! \brief This routine used internally to set up SSI channel for I/O port
+ * \param p I/O port descriptor
+ *
+ * \c p->type must be one of SSI-enabled I/O port types and \c p->d.ssi.channel must 
+ * be set to range 0...3 to set up HW SSI acceleration
+ */
+void
+ssi_setup_channel(ioport *p)
+{
+	io.num = p->d.ssi.scl;
+	io.state = HIGH;
+	io.enabled = YES;
+	io.num = p->d.ssi.sda;
+	io.state = HIGH;
+	io.enabled = NO;
+
+	if(p->d.ssi.channel != -1) {
+		ssi.channel = p->d.ssi.channel;
+		ssi.enabled = NO;
+		ssi.baudrate = 200; // FIXME Hardcoded constant
+		ssi.clkmap = p->d.ssi.scl;
+		ssi.dimap = p->d.ssi.sda;
+		ssi.domap = p->d.ssi.sda;
+		ssi.direction = PL_SSI_DIRECTION_LEFT;
+		ssi.mode = PL_SSI_MODE_0;
+		ssi.enabled = YES;
+	} else {
+//		io.num = p->d.ssi.scl;
+//		io.state = HIGH;
+//		io.enabled = YES;
+//		io.num = p->d.ssi.sda;
+//		io.state = HIGH;
+//		io.enabled = NO;
+	}
+}
+
+
+
+sub on_sys_init() 
+	sys.debugprint("Start I2C test...\n")
+	
+	ssi.channel = 0
+	
+	ssi.enabled = NO
+	
+	ssi.direction = PL_SSI_DIRECTION_LEFT
+
+	'LTTP3 does not support pins from different sockets for one channel
+	'LTTP3 must be configured via Web-configurator and rebooted
+	ssi.clkmap = PL_IO_NUM_38 	's15A
+	ssi.dimap = PL_IO_NUM_39	's15B
+	ssi.domap = PL_IO_NUM_39	's15B
+
+	'ssi.baudrate, ssi.mode and ssi.zmode does not matter for I2C in Linux
+	
+	ssi.enabled = YES
+		
+	dim data as string
+	data = ssi.str("\x30\x08\x01", PL_SSI_ACK_OFF)	 	'Tibbit #29 manufacture write code/resolution/0.25C resolution
+	data = ssi.str("\x30\x05", PL_SSI_ACK_OFF)			'Tibbit #29 manufacture write code/TA
+	
+	dim raw_temperature as word
+	raw_temperature = ssi.value(&hFFFF, 16)				'If the last argument is equal 16, reads the 2 bytes, else reads 1 byte
+	
+	'Swap order of the msb and lsb bytes if ssi.direction = PL_SSI_DIRECTION_RIGHT
+	'raw_temperature = (raw_temperature and &h00FF) * 256 + (raw_temperature and &hFF00) / 256
+	
+	dim temperature as real
+	temperature = (raw_temperature and &h0FFF) / 16.0
+	
+	if raw_temperature and &h1000 then
+		temperature = temperature - 256.0
+	end if
+	
+	ssi.enabled = NO
+	
+	if temperature <> 0 then
+		sys.debugprint("Temperature: " + ftostr(temperature, FTOSTR_MODE_PLAIN, 11) + " degrees Celsius\n")
+		sys.debugprint("I2C test successful\n") 
+	else
+		sys.debugprint("I2C test failed\n")
+	end if
+
+	sys.debugprint("Start SPI testing...\n")
+	
+	ssi.direction = PL_SSI_DIRECTION_RIGHT
+	ssi.clkmap = PL_IO_NUM_37 		's11B
+	ssi.dimap = PL_IO_NUM_6  		's11C
+	ssi.domap = PL_IO_NUM_22_INT6  	's11D
+	
+	ssi.baudrate = 255				'2 kHz ... 500 MHz
+	ssi.mode = PL_SSI_MODE_1
+	
+	'ssi.zmode does not matter for SPI in Linux
+	
+	ssi.enabled = YES
+		
+	'data = ssi.str("\x11\xFF\xFF", PL_SSI_ACK_OFF)
+	
+	dim reg as integer
+	reg = ssi.value(&hFF11, 16) + ssi.value(&hFF12, 16) / 256
+	
+	temperature = 0.0
+	reg = reg / 64 'To get rid of 6 empty bits
+	temperature = reg
+	temperature = temperature / 4
+	
+	ssi.enabled = NO
+	
+	if temperature <> 0 then
+		sys.debugprint("Temperature: " + ftostr(temperature, FTOSTR_MODE_PLAIN, 11) + " degrees Celsius\n")
+		sys.debugprint("SPI test successful\n")
+	else
+		sys.debugprint("SPI test failed\n")
+	end if
+	
+end sub
+ 
+'--------------------------------------------------------------------
+
