@@ -100,59 +100,60 @@ gui_init(void)
 }
 
 
+#define LEFT_ALIGNED
+
+
 static void
 gui_draw_sensor(sensor *s, int x, int y, int n)
 {
 	string v, type;
 	int icon = -1;
+	int zone = 0;
 	
-	// 320/4
-//	lcd.forecolor = g_colors[1];
 	lcd.forecolor = rgb(119, 127, 131);
 	lcd.backcolor = rgb(33, 49, 57); //g_colors[0];
 	
-	switch(n) {
-		case 0:
-			icon = 0;
+	switch(s->status) {
+		case Z_NONE:
+		case Z_GREEN:
 			break;
 			
-		case 1:
+		case Z_YELLOW:
 			lcd.forecolor = rgb(251, 195, 41);
-			icon = 35;
+			zone = 1;
 			break;
 
-		case 2:
+		case Z_RED:
 			lcd.forecolor = rgb(255, 2, 65);
-			icon = 70;
+			zone = 2;
 			break;
 	}
 	
 	lcd.linewidth = 3;
 	lcd.filledrectangle(x, y, x + X_SIZE - GAP_SIZE, y + Y_SIZE - GAP_SIZE);
 	
-	if(icon != -1) {
-		romfile.open("temperature.bmp");
-		lcd.bmp(romfile.offset, x+9, y+9, 0, icon, 35, 35);
-	}
-	
 	switch(s->ptype) {
 		case SPT_HUMIDITY:				//!< Humidity (value)
 			type = "Humidity";
+			icon = 2;
 			v = ftostr(s->res[0].f, FTOSTR_MODE_AUTO, 4) + " %RH";
 			break;
 			
 		case SPT_TEMPERATURE:			//!< Temperature (value)
 			type = "Temperature";
+			icon = 0;
 			v = ftostr(s->res[0].f, FTOSTR_MODE_AUTO, 4) + " C";
 			break;
 			
 		case SPT_TEMP_AND_HUMIDITY:		//!< Combined temperature and humidity (value)
 			type = "Temp & Humidity";
+			icon = 2;
 			v = ftostr(s->res[0].f, FTOSTR_MODE_AUTO, 4) + " C`" + ftostr(s->res[1].f, FTOSTR_MODE_AUTO, 4) + " %RH";
 			break;
 			
 		case SPT_FLOOD:					//!< Water flood (bool)
 			type = "Flood";
+			icon = 3;
 			v = s->res[0].l? "ALERT": "";
 			break;
 			
@@ -188,6 +189,7 @@ gui_draw_sensor(sensor *s, int x, int y, int n)
 			
 		case SPT_SWITCH:				//!< Ordinary switch/button (bool)
 			type = "Switch";
+			icon = 4;
 			v = s->res[0].l? "ON": "OFF";
 			break;
 			
@@ -198,6 +200,7 @@ gui_draw_sensor(sensor *s, int x, int y, int n)
 			
 		case SPT_LIGHT:					//!< Light sensor, direct or indirect (value)
 			type = "Light";
+			icon = 1;
 			v = lstr(s->res[0].l) + " Lux";
 			//ftostr(s->res[0].f, FTOSTR_MODE_AUTO, 5) + "Lux";
 			break;
@@ -211,6 +214,15 @@ gui_draw_sensor(sensor *s, int x, int y, int n)
 			break;
 	}
 	
+	if(icon != -1) {
+		romfile.open("sentinel-icons-pack.bmp");
+#ifdef LEFT_ALIGNED
+		lcd.bmp(romfile.offset, x+X_SIZE-35-11, y+9, zone * 35, icon * 35, 35, 35);
+#else
+		lcd.bmp(romfile.offset, x+9, y+9, 0, icon, 35, 35);
+#endif		
+	}
+
 	lcd.textverticalspacing = 3;
 	
 #if 0
@@ -224,8 +236,13 @@ gui_draw_sensor(sensor *s, int x, int y, int n)
 	romfile.open(GUI_SMALL_FONT);
 	lcd.setfont(romfile.pointer32);
 	lcd.forecolor = g_colors[5];
+#ifdef LEFT_ALIGNED
+	lcd.textalignment = PL_LCD_TEXT_ALIGNMENT_BOTTOM_LEFT;
+	lcd.printaligned(v, x+11, y+4, 60, 60);
+#else
 	lcd.textalignment = PL_LCD_TEXT_ALIGNMENT_BOTTOM_CENTER;
 	lcd.printaligned(v, x+4, y+4, 70, 60);
+#endif	
 	
 	lcd.textverticalspacing = 1;
 }

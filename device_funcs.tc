@@ -198,7 +198,10 @@ add_modbus_sensor(bus_scan *bs, byte saddr, byte drvid, sensor_param_type ptype)
 	bs->addr[2] = 0;
 	bs->addr[3] = 0;
 	
-	addr = sensor_assoc_add(ioport_type(bs->port), 0, drvid, bs->addr); 
+	addr = sensor_assoc_find(ioport_type(bs->port), 0, bs->addr);
+	if(NULL == addr)
+		addr = sensor_assoc_add(ioport_type(bs->port), 0, drvid, bs->addr); 
+		
 	if(NULL != addr) {
 		addr->port = bs->port;
 		addr->next = bs->chain;

@@ -73,10 +73,13 @@ read_assoc()
 		 * we can just divide overall file size by the sizeof the single record
 		 */
 		fr = (sensor_file_rec *)&tmp[0];
-		res = find_drvrec(fr->drvid, &fi);
-		if(!res) {
-			ERR("Cannot find driver record for DRVID="+str(fr->drvid));
-			continue;
+		
+		if(fr->drvid != 0xFF) {
+			res = find_drvrec(fr->drvid, &fi);
+			if(!res) {
+				ERR("Cannot find driver record for DRVID="+str(fr->drvid));
+				continue;
+			}
 		}
 		
 		sa = alloc_addr();  
