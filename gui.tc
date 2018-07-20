@@ -111,7 +111,7 @@ gui_draw_sensor(sensor *s, int x, int y, int n)
 	int zone = 0;
 	
 	lcd.forecolor = rgb(119, 127, 131);
-	lcd.backcolor = rgb(33, 49, 57); //g_colors[0];
+	lcd.backcolor = rgb(33, 49, 57); 
 	
 	switch(s->status) {
 		case Z_NONE:
@@ -132,74 +132,76 @@ gui_draw_sensor(sensor *s, int x, int y, int n)
 	lcd.linewidth = 3;
 	lcd.filledrectangle(x, y, x + X_SIZE - GAP_SIZE, y + Y_SIZE - GAP_SIZE);
 	
+	type = "";
+	
 	switch(s->ptype) {
 		case SPT_HUMIDITY:				//!< Humidity (value)
-			type = "Humidity";
+			//type = "Humidity";
 			icon = 2;
 			v = ftostr(s->res[0].f, FTOSTR_MODE_AUTO, 4) + " %RH";
 			break;
 			
 		case SPT_TEMPERATURE:			//!< Temperature (value)
-			type = "Temperature";
+			//type = "Temperature";
 			icon = 0;
 			v = ftostr(s->res[0].f, FTOSTR_MODE_AUTO, 4) + " C";
 			break;
 			
 		case SPT_TEMP_AND_HUMIDITY:		//!< Combined temperature and humidity (value)
-			type = "Temp & Humidity";
+			//type = "Temp & Humidity";
 			icon = 2;
 			v = ftostr(s->res[0].f, FTOSTR_MODE_AUTO, 4) + " C`" + ftostr(s->res[1].f, FTOSTR_MODE_AUTO, 4) + " %RH";
 			break;
 			
 		case SPT_FLOOD:					//!< Water flood (bool)
-			type = "Flood";
+			//type = "Flood";
 			icon = 3;
-			v = s->res[0].l? "ALERT": "";
+			v = s->res[0].l? "ALERT": "No flood";
 			break;
 			
 		case SPT_FIRE:					//!< Fire (bool)
-			type = "Fire";
+			//type = "Fire";
 			v = "-";
 			break;
 			
 		case SPT_SMOKE:					//!< Smoke (bool)
-			type = "Smoke";
+			//type = "Smoke";
 			v = "-";
 			break;
 			
 		case SPT_MOVEMENT:				//!< Movement (PIR or ultrasonic) (bool)
-			type = "PIR";
+			//type = "PIR";
 			v = "-";
 			break;
 			
 		case SPT_ACDC_CURRENT:			//!< AC or DC current presence (bool)
-			type = "AC/DC";
+			//type = "AC/DC";
 			v = "-";
 			break;
 			
 		case SPT_SHOCK:					//!< Shock (bool)
-			type = "Shock";
+			//type = "Shock";
 			v = "-";
 			break;
 			
 		case SPT_REED_SWITCH:			//!< Door or window open sensor, magnetic (bool)
-			type = "Reed SW";
+			//type = "Reed SW";
 			v = "-";
 			break;
 			
 		case SPT_SWITCH:				//!< Ordinary switch/button (bool)
-			type = "Switch";
+			//type = "Switch";
 			icon = 4;
 			v = s->res[0].l? "ON": "OFF";
 			break;
 			
 		case SPT_PRESSURE:				//!< Pressure: air or other medium (value)
-			type = "Pressure";
+			//type = "Pressure";
 			v = "-";
 			break;
 			
 		case SPT_LIGHT:					//!< Light sensor, direct or indirect (value)
-			type = "Light";
+			//type = "Light";
 			icon = 1;
 			v = lstr(s->res[0].l) + " Lux";
 			//ftostr(s->res[0].f, FTOSTR_MODE_AUTO, 5) + "Lux";
@@ -207,10 +209,16 @@ gui_draw_sensor(sensor *s, int x, int y, int n)
 			
 		case SPT_ACCELERATION_3AXIS:
 			// TODO
+			icon = 5;
+			v = ftostr(s->res[0].f, FTOSTR_MODE_AUTO, 4) + "`" +
+				ftostr(s->res[1].f, FTOSTR_MODE_AUTO, 4) + "`" +
+				ftostr(s->res[2].f, FTOSTR_MODE_AUTO, 4)
+				;
 			break;
 			
 		case SPT_ACCELERATION_6AXIS:
 			// TODO
+			icon = 5;
 			break;
 	}
 	

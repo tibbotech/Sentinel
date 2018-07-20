@@ -160,7 +160,7 @@ read_hexagon_sensor(sensor *sens)
 	
 	modbus_request(sens->port, sens->mac[0], READ_INPUT_REGISTERS, port, cnt);
 	
-	for(int i=0; i<10000; ++i) ;
+	delay_ms(200);
 	
 	while(!modbus_finished()) {
 		if(modbus_timeout())

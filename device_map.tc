@@ -82,6 +82,13 @@ get_port_count(iotype type)
 
 
 void
+pic_firmware_check(void)
+{
+	/* This fucntion is solely for the testing purposes. There (i suppose) is bu with the TiDE C compiler which mangles the IDs of the functions in random way */
+}
+
+
+void
 check_pic_firmware(tbslot slot, string& idstr, string& fwname)
 {
 	/* To be implemented a bit later */
@@ -101,7 +108,8 @@ tibbit_number(string tb)
 	if(tb == "00-3")
 		return TB_00_3;
 		
-	/* Serial ports */
+	/* Serial ports 
+	 */
 	if(tb == "01")
 		return TB_01;
 	if(tb == "02")
@@ -109,7 +117,8 @@ tibbit_number(string tb)
 	if(tb == "05")
 		return TB_05;
 
-	/* Relays */
+	/* Relays 
+	 */
 	if(tb == "03-1")
 		return TB_03_1;
 	if(tb == "03-2")
@@ -121,7 +130,8 @@ tibbit_number(string tb)
 	if(tb == "15")
 		return TB_15;
 
-	/* Optoisolated inputs */
+	/* Optoisolated inputs 
+	 */
 	if(tb == "04-1")
 		return TB_04_1;
 	if(tb == "04-2")
