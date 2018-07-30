@@ -160,7 +160,7 @@ read_hexagon_sensor(sensor *sens)
 	
 	modbus_request(sens->port, sens->mac[0], READ_INPUT_REGISTERS, port, cnt);
 	
-	delay_ms(200);
+	delay_ms(250);
 	
 	while(!modbus_finished()) {
 		if(modbus_timeout())
@@ -169,8 +169,6 @@ read_hexagon_sensor(sensor *sens)
 	}
 
 	sens->np = 1;
-	
-	for(int i=0; i<10000; ++i) ;
 	
 	res = modbus_result();
 	if(res != "") {

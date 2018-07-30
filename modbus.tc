@@ -197,6 +197,8 @@ on_modbus_data_arrival(modbus_source src)
 			_packet += tmp;
 #if 1
 			DBG(hexdump((byte *)&tmp[0], len(tmp)));
+#else
+			delay_ms(50);
 #endif
 			break;
 	}
